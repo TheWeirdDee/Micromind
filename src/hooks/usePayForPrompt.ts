@@ -1,80 +1,106 @@
 'use client';
 
 import { useState } from 'react';
-import { useWalletClient } from 'wagmi';
-import { parseUnits, keccak256, encodePacked } from 'viem';
-import { MICROMIND_ABI, ERC20_ABI } from '@/lib/contract';
+import { parseUnits, erc20Abi } from 'viem';
+import { celo } from 'viem/chains';
+import { MICROMIND_ABI } from '@/lib/contract';
 import { publicClient } from '@/lib/viem';
 import { useWallet } from '@/context/WalletContext';
+import { saveToHistory } from '@/lib/storage';
 
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`;
-const CUSD_ADDRESS = process.env.NEXT_PUBLIC_CUSD_ADDRESS as `0x${string}`;
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+const CUSD_ADDRESS = process.env.NEXT_PUBLIC_CUSD_ADDRESS;
+const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_API_URL;
+
+const TOOL_PRICES: Record<number, string> = {
+  0: '0.01',
+  1: '0.05',
+  2: '0.01',
+  3: '0.02'
+};
 
 export function usePayForPrompt() {
-  const { address } = useWallet();
-  const { data: walletClient } = useWalletClient();
+  const { address, walletClient } = useWallet();
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0);
+  const [step, setStep] = useState<string | null>(null);
 
-  const pay = async (toolId: number, prompt: string, price: string) => {
-    if (!address || !walletClient) return null;
+  const payAndGenerate = async (toolId: number, toolName: string, prompt: string) => {
+    if (!address || !walletClient) return;
 
     try {
       setLoading(true);
-      setStep(1); // Preparing prompt
+      setStep('SUBMITTING');
 
-      // 1. Get prompt hash from agent API (simulated or real)
-      // For this demo, we'll generate it locally but in production, 
-      // the agent should store it first.
-      const nonce = Date.now();
-      const promptHash = keccak256(
-        encodePacked(
-          ['string', 'address', 'uint256'],
-          [prompt, address, BigInt(nonce)]
-        )
-      );
-
-      // In real scenario, we POST to agent API here
-      // await fetch(`${process.env.NEXT_PUBLIC_AGENT_API_URL}/api/prompt/submit`, { ... })
-
-      setStep(2); // Confirm in MiniPay (Approve)
-      const amount = parseUnits(price, 18);
-
-      const { request: approveRequest } = await publicClient.simulateContract({
-        account: address,
-        address: CUSD_ADDRESS,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [CONTRACT_ADDRESS, amount],
+      // Step 1: Submit prompt to get hash
+      const submitRes = await fetch(`${AGENT_URL}/api/prompt/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt,
+          toolId,
+          userAddress: address 
+        })
       });
+      const { promptHash } = await submitRes.json();
 
-      const approveHash = await walletClient.writeContract(approveRequest);
-      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+      setStep('APPROVING');
+      // Step 2: Approve cUSD spend (using 0.05 to cover any tool)
+      const approveTx = await walletClient.writeContract({
+        account: address as `0x${string}`,
+        address: CUSD_ADDRESS as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [CONTRACT_ADDRESS as `0x${string}`, parseUnits('0.05', 18)],
+        chain: celo,
+      });
+      await publicClient.waitForTransactionReceipt({ hash: approveTx });
 
-      setStep(3); // Broadcasting to Celo (Pay)
-      const { request: payRequest } = await publicClient.simulateContract({
-        account: address,
-        address: CONTRACT_ADDRESS,
+      setStep('PAYING');
+      // Step 3: Pay on-chain
+      const payTx = await walletClient.writeContract({
+        account: address as `0x${string}`,
+        address: CONTRACT_ADDRESS as `0x${string}`,
         abi: MICROMIND_ABI,
         functionName: 'payForPrompt',
-        args: [toolId, promptHash],
+        args: [toolId, promptHash as `0x${string}`],
+        chain: celo,
       });
+      await publicClient.waitForTransactionReceipt({ hash: payTx });
 
-      const payHash = await walletClient.writeContract(payRequest);
-      await publicClient.waitForTransactionReceipt({ hash: payHash });
-
-      setStep(4); // AI is generating
-      // Simulating AI generation delay
-      await new Promise(r => setTimeout(r, 2000));
-
-      return { txHash: payHash, promptHash };
+      setStep('POLLING');
+      // Step 4: Poll for AI response (max 60 seconds)
+      let attempts = 0;
+      while (attempts < 30) {
+        await new Promise(r => setTimeout(r, 2000));
+        const res = await fetch(`${AGENT_URL}/api/response/${payTx}`);
+        const data = await res.json();
+        
+        if (data.status === 'ready') {
+          // Save to localStorage history
+          saveToHistory({ 
+            id: payTx,
+            txHash: payTx, 
+            prompt, 
+            response: data.response,
+            toolId, 
+            toolName,
+            cost: TOOL_PRICES[toolId],
+            timestamp: Date.now()
+          });
+          setStep('COMPLETE');
+          return data.response;
+        }
+        attempts++;
+      }
+      throw new Error('Response timed out. Check Celoscan for your transaction.');
     } catch (error) {
-      console.error('Payment failed:', error);
+      console.error('Payment/Generation failed:', error);
+      setStep('ERROR');
       throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  return { pay, loading, step };
+  return { payAndGenerate, loading, step };
 }
