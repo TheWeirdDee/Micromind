@@ -27,11 +27,8 @@ export function Navbar() {
       )}
     >
       <div className="container mx-auto px-6 flex justify-between items-center relative">
-        <Link href="/" className="flex items-center gap-3 group">
-          <Logo className="w-8 h-8 group-hover:scale-110 transition-transform duration-300" />
-          <span className="font-serif text-2xl tracking-tight text-text-primary">
-            MicroMind
-          </span>
+        <Link href="/" className="flex items-center gap-2 group">
+          <Logo className="h-[20px] w-auto group-hover:scale-105 transition-transform duration-300" />
         </Link>
 
         {/* Centered Tagline - Hidden on mobile */}
