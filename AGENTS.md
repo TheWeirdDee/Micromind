@@ -20,7 +20,7 @@ This document tracks the progress of the MicroMind AI Agent and its integration 
 ### 3. Backend & AI Logic
 - [x] **Prompt Submission API**: Endpoint to securely map prompt content to on-chain hashes off-chain.
 - [x] **Payment Verification**: Backend logic to verify `PromptPaid` events on the Celo blockchain using Viem `publicClient`.
-- [x] **OpenAI Integration**: Configured GPT-4o-mini processing with tool-specific system prompts.
+- [x] **Dual AI Integration**: Implemented **Groq (Llama-3.3-70b)** as the primary high-speed engine with **OpenAI (GPT-4o-mini)** as a fallback.
 - [x] **Polling Architecture**: Asynchronous response retrieval system ensuring the user sees results as soon as the agent finishes.
 
 ### 4. Code Quality & Deployment
