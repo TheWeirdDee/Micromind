@@ -36,7 +36,7 @@ export function Navbar() {
 
         {/* Centered Tagline - Hidden on mobile */}
         <div className="hidden md:flex absolute left-1/2 -translate-x-1/2">
-          <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-accent-gold/60 whitespace-nowrap">
+          <span className="font-mono text-[11px] tracking-[0.3em] uppercase text-accent-gold whitespace-nowrap">
             PAY · PER · PROMPT · NO SUBSCRIPTIONS
           </span>
         </div>
