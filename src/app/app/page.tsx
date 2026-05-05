@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, FileText, X, User } from 'lucide-react';
 import Link from 'next/link';
@@ -37,21 +38,45 @@ const tools = [
 ];
 
 export default function AppHome() {
-  const { isConnected, connect } = useWallet();
+  const { isConnected, isMiniPay, connect } = useWallet();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (!isConnected) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <h2 className="text-3xl font-serif mb-4">Welcome back.</h2>
-        <p className="text-text-muted font-mono text-sm mb-8 max-w-[280px]">
-          Connect your MiniPay wallet to start using MicroMind.
-        </p>
-        <button 
-          onClick={() => connect()}
-          className="pill-button bg-accent text-bg px-8 py-3"
-        >
-          Connect MiniPay
-        </button>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-8">
+        <h2 className="text-3xl font-serif mb-6 text-text-primary">Welcome to MicroMind.</h2>
+        
+        {!isMiniPay ? (
+          <div className="bg-surface border border-border p-8 rounded-3xl max-w-sm w-full">
+            <p className="text-text-muted font-mono text-xs uppercase tracking-widest mb-6 leading-relaxed">
+              MicroMind runs inside MiniPay. Open this URL on your phone in the MiniPay app to connect your wallet.
+            </p>
+            <button 
+              onClick={handleCopy}
+              className="w-full pill-button bg-accent text-bg px-8 py-3 flex items-center justify-center gap-2"
+            >
+              {copied ? 'Link Copied!' : 'Copy App Link'}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center">
+            <p className="text-text-muted font-mono text-sm mb-8 max-w-[280px]">
+              Detecting MiniPay wallet...
+            </p>
+            <button 
+              onClick={() => connect()}
+              className="pill-button bg-accent text-bg px-10 py-4"
+            >
+              Connect Now
+            </button>
+          </div>
+        )}
       </div>
     );
   }
