@@ -1,16 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount, useWalletClient } from 'wagmi';
+import { useWalletClient } from 'wagmi';
 import { parseUnits, keccak256, encodePacked } from 'viem';
 import { MICROMIND_ABI, ERC20_ABI } from '@/lib/contract';
 import { publicClient } from '@/lib/viem';
+import { useWallet } from '@/context/WalletContext';
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`;
 const CUSD_ADDRESS = process.env.NEXT_PUBLIC_CUSD_ADDRESS as `0x${string}`;
 
 export function usePayForPrompt() {
-  const { address } = useAccount();
+  const { address } = useWallet();
   const { data: walletClient } = useWalletClient();
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(0);
