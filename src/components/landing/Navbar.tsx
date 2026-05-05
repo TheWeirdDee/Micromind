@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { Logo } from '@/components/brand/Logo';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -26,8 +27,11 @@ export function Navbar() {
       )}
     >
       <div className="container mx-auto px-6 flex justify-between items-center relative">
-        <Link href="/" className="font-serif text-2xl tracking-tight text-text-primary">
-          MicroMind
+        <Link href="/" className="flex items-center gap-3 group">
+          <Logo className="w-8 h-8 group-hover:scale-110 transition-transform duration-300" />
+          <span className="font-serif text-2xl tracking-tight text-text-primary">
+            MicroMind
+          </span>
         </Link>
 
         {/* Centered Tagline - Hidden on mobile */}
