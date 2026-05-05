@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, FileText, X, User } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
+import { QRCodeSVG } from 'qrcode.react';
 
 const tools = [
   {
@@ -40,9 +41,16 @@ const tools = [
 export default function AppHome() {
   const { isConnected, isMiniPay, connect } = useWallet();
   const [copied, setCopied] = useState(false);
+  const [appUrl, setAppUrl] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setAppUrl(window.location.href);
+    }
+  }, []);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(window.location.href);
+    navigator.clipboard.writeText(appUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -50,18 +58,30 @@ export default function AppHome() {
   if (!isConnected) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-8">
-        <h2 className="text-3xl font-serif mb-6 text-text-primary">Welcome to MicroMind.</h2>
+        <h2 className="text-3xl font-serif mb-8 text-text-primary">Welcome to MicroMind.</h2>
         
         {!isMiniPay ? (
-          <div className="bg-surface border border-border p-8 rounded-3xl max-w-sm w-full">
-            <p className="text-text-muted font-mono text-xs uppercase tracking-widest mb-6 leading-relaxed">
-              MicroMind runs inside MiniPay. Open this URL on your phone in the MiniPay app to connect your wallet.
+          <div className="bg-surface border border-border p-8 rounded-[2rem] max-w-sm w-full flex flex-col items-center">
+            <div className="bg-[#1A1A1A] p-4 rounded-2xl mb-6 border border-white/5">
+              <QRCodeSVG 
+                value={appUrl} 
+                size={180}
+                bgColor="#1A1A1A"
+                fgColor="#E8E0CC"
+                level="H"
+                includeMargin={false}
+              />
+            </div>
+            
+            <p className="text-text-muted font-mono text-[10px] uppercase tracking-widest mb-8 leading-relaxed max-w-[200px]">
+              Scan with your phone's camera, then open in MiniPay
             </p>
+
             <button 
               onClick={handleCopy}
-              className="w-full pill-button bg-accent text-bg px-8 py-3 flex items-center justify-center gap-2"
+              className="w-full text-[10px] font-mono tracking-[0.2em] uppercase text-text-muted hover:text-accent transition-colors"
             >
-              {copied ? 'Link Copied!' : 'Copy App Link'}
+              {copied ? 'Link Copied!' : 'Copy Link Instead'}
             </button>
           </div>
         ) : (
