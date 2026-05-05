@@ -10,6 +10,7 @@ interface WalletContextType {
   isMiniPay: boolean;
   isCelo: boolean;
   connect: () => Promise<void>;
+  disconnect: () => void;
   walletClient: WalletClient | null;
 }
 
@@ -30,14 +31,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
 
     if (typeof window !== 'undefined' && window.ethereum) {
-      // Initial chain check
       // @ts-ignore
       window.ethereum.request({ method: 'eth_chainId' }).then((id: string) => {
         setChainId(parseInt(id, 16));
       });
 
       if (detectMiniPay()) {
-        // Silent connect for MiniPay
         // @ts-ignore
         window.ethereum.request({ method: 'eth_accounts' }).then((accounts: string[]) => {
           if (accounts.length > 0) {
@@ -52,13 +51,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      // Listen for account changes
       // @ts-ignore
       window.ethereum.on('accountsChanged', (accounts: string[]) => {
         setAddress(accounts[0] || null);
       });
 
-      // Listen for chain changes
       // @ts-ignore
       window.ethereum.on('chainChanged', (id: string) => {
         setChainId(parseInt(id, 16));
@@ -93,6 +90,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const disconnect = useCallback(() => {
+    setAddress(null);
+    setWalletClient(null);
+  }, []);
+
   return (
     <WalletContext.Provider value={{ 
       address, 
@@ -100,6 +102,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       isMiniPay,
       isCelo: chainId === 42220,
       connect,
+      disconnect,
       walletClient 
     }}>
       {children}
