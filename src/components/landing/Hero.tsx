@@ -21,33 +21,36 @@ export function Hero() {
   };
 
   return (
-    <section className="relative min-h-screen flex flex-col justify-center items-center px-6 halftone-bg">
+    <section className="relative min-h-screen flex flex-col justify-center items-center px-6 overflow-hidden">
+      {/* Background Layer */}
+      <div className="absolute inset-0 halftone-bg z-0" />
+      
       <motion.div 
         variants={container}
         initial="hidden"
         animate="show"
-        className="max-w-4xl w-full text-center z-10"
+        className="max-w-5xl w-full text-center z-10 pt-32 md:pt-40"
       >
         <motion.h1 
           variants={item}
-          className="text-5xl md:text-8xl font-serif mb-8 leading-[1.1] tracking-tight"
+          className="text-6xl md:text-[120px] font-serif mb-12 leading-[0.95] tracking-tight text-text-primary"
         >
           AI Tools That Cost <br />
-          <span className="italic">What You Actually Use.</span>
+          <span className="italic text-accent">What You Actually Use.</span>
         </motion.h1>
         
         <motion.p 
           variants={item}
-          className="text-text-muted font-mono text-lg md:text-xl max-w-2xl mx-auto mb-12"
+          className="text-text-primary/70 font-mono text-lg md:text-xl max-w-2xl mx-auto mb-16 leading-relaxed"
         >
-          Pay in cUSD. Get AI. No monthly fees. No lock-in. 
+          Pay in cUSD. Get AI. No monthly fees. No lock-in. <br className="hidden md:block" />
           Built for the next generation of Celo users.
         </motion.p>
         
         <motion.div variants={item} className="flex justify-center">
           <Link 
             href="/app" 
-            className="pill-button bg-accent text-bg hover:bg-white text-lg px-8 py-4 group"
+            className="pill-button bg-accent text-bg hover:bg-white text-xl px-12 py-5 group shadow-2xl shadow-accent/10"
           >
             Start for 0.01 cUSD 
             <span className="transition-transform duration-300 group-hover:rotate-45">→</span>
