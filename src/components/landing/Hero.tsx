@@ -28,13 +28,6 @@ export function Hero() {
         animate="show"
         className="max-w-4xl w-full text-center z-10"
       >
-        <motion.span 
-          variants={item}
-          className="font-mono text-xs tracking-widest uppercase text-accent-gold mb-6 block"
-        >
-          PAY · PER · PROMPT · NO SUBSCRIPTIONS
-        </motion.span>
-        
         <motion.h1 
           variants={item}
           className="text-5xl md:text-8xl font-serif mb-8 leading-[1.1] tracking-tight"
