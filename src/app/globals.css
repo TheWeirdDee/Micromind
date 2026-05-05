@@ -35,8 +35,10 @@
   .halftone-bg {
     position: relative;
     background-color: var(--color-bg);
-    background-image: radial-gradient(var(--color-border) 1px, transparent 1px);
-    background-size: 24px 24px;
+    background-image: radial-gradient(var(--color-border) 1.5px, transparent 1.5px);
+    background-size: 6px 6px;
+    mask-image: radial-gradient(circle at center, black 0%, transparent 80%);
+    -webkit-mask-image: radial-gradient(circle at center, black 0%, transparent 80%);
   }
 
   .grain-overlay {
