@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { OpenAI } from 'openai';
 import Groq from 'groq-sdk';
 import { createPublicClient, http, decodeEventLog } from 'viem';
@@ -21,13 +21,12 @@ const publicClient = createPublicClient({
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`;
 
 export async function GET(
-  req: Request,
-  { params }: { params: { txHash: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ txHash: string }> }
 ) {
-  const { txHash } = params;
+  const { txHash } = await params;
 
   try {
-    // 1. Get transaction receipt
     const receipt = await publicClient.getTransactionReceipt({
       hash: txHash as `0x${string}`,
     });
@@ -36,7 +35,6 @@ export async function GET(
       return NextResponse.json({ status: 'pending' });
     }
 
-    // 2. Find the PromptPaid event
     const log = receipt.logs.find(
       (l) => l.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase()
     );
@@ -55,7 +53,6 @@ export async function GET(
     // @ts-ignore
     const { promptHash, toolId } = event.args;
 
-    // 3. Lookup prompt from off-chain store
     // @ts-ignore
     const stored = global.promptStore?.get(promptHash);
 
@@ -72,7 +69,6 @@ export async function GET(
 
     let response = '';
 
-    // 4. Try Groq (Main)
     try {
       const groqCompletion = await groq.chat.completions.create({
         messages: [
@@ -86,7 +82,6 @@ export async function GET(
     } catch (groqError) {
       console.error('Groq failed, falling back to OpenAI:', groqError);
       
-      // 5. Fallback to OpenAI
       const openaiCompletion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
