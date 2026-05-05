@@ -1,11 +1,10 @@
 'use client';
 
-import { useDisconnect, useAccount } from 'wagmi';
 import { LogOut, Shield, Info, ExternalLink } from 'lucide-react';
+import { useWallet } from '@/context/WalletContext';
 
 export default function SettingsPage() {
-  const { address } = useAccount();
-  const { disconnect } = useDisconnect();
+  const { address, disconnect } = useWallet();
 
   const settings = [
     { icon: Shield, label: 'Privacy Policy', href: '#' },
