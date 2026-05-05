@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { MessageSquare, FileText, X, User } from 'lucide-react';
 import Link from 'next/link';
-import { useAccount, useConnect, useConnectors } from 'wagmi';
+import { useWallet } from '@/context/WalletContext';
 
 const tools = [
   {
@@ -37,9 +37,7 @@ const tools = [
 ];
 
 export default function AppHome() {
-  const { isConnected } = useAccount();
-  const { connect } = useConnect();
-  const connectors = useConnectors();
+  const { isConnected, connect } = useWallet();
 
   if (!isConnected) {
     return (
@@ -49,7 +47,7 @@ export default function AppHome() {
           Connect your MiniPay wallet to start using MicroMind.
         </p>
         <button 
-          onClick={() => connect({ connector: connectors[0] })}
+          onClick={() => connect()}
           className="pill-button bg-accent text-bg px-8 py-3"
         >
           Connect MiniPay

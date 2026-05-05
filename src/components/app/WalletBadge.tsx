@@ -1,14 +1,14 @@
 'use client';
 
-import { useAccount, useReadContract, useConnect, useConnectors } from 'wagmi';
+import { useReadContract } from 'wagmi';
 import { celo } from 'wagmi/chains';
 import { formatUnits } from 'viem';
 import { useState } from 'react';
 import { ERC20_ABI } from '@/lib/contract';
+import { useWallet } from '@/context/WalletContext';
 
 export function WalletBadge() {
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
+  const { address, isConnected, connect } = useWallet();
   const [copied, setCopied] = useState(false);
 
   // cUSD Balance using useReadContract
@@ -33,7 +33,7 @@ export function WalletBadge() {
   if (!isConnected) {
     return (
       <button 
-        onClick={() => connect({ connector: connectors[0] })}
+        onClick={() => connect()}
         className="text-[10px] font-mono tracking-widest uppercase bg-accent text-bg px-4 py-1.5 rounded-full hover:bg-white transition-colors"
       >
         Connect
