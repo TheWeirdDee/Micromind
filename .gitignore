@@ -10,14 +10,20 @@
 !.yarn/releases
 !.yarn/versions
 
+# dependencies
+node_modules/
+.next/
+out/
+build/
+
 # MicroMind specific
-/agent/node_modules
-/agent/dist
-/agent/data
-/contracts/node_modules
-/contracts/artifacts
-/contracts/cache
-/contracts/typechain-types
+agent/node_modules/
+agent/dist/
+agent/data/
+contracts/node_modules/
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
 
 # testing
 /coverage
