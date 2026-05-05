@@ -1,97 +1,94 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback } from 'react';
-import { http, createConfig, WagmiProvider } from 'wagmi';
-import { celo } from 'wagmi/chains';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-const config = createConfig({
-  chains: [celo],
-  transports: {
-    [celo.id]: http(),
-  },
-});
-
-const queryClient = new QueryClient();
+import { createWalletClient, custom, type WalletClient } from 'viem';
+import { celo } from 'viem/chains';
 
 interface WalletContextType {
   address: string | null;
-  chainId: number | null;
   isConnected: boolean;
+  isMiniPay: boolean;
   connect: () => Promise<void>;
-  isCelo: boolean;
+  walletClient: WalletClient | null;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
-  const [chainId, setChainId] = useState<number | null>(null);
-
-  const checkNetwork = useCallback(async () => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
-      setChainId(parseInt(currentChainId, 16));
-    }
-  }, []);
+  const [walletClient, setWalletClient] = useState<WalletClient | null>(null);
+  const [isMiniPay, setIsMiniPay] = useState(false);
 
   useEffect(() => {
+    const detectMiniPay = () => {
+      // @ts-ignore
+      const isMP = typeof window !== 'undefined' && window.ethereum?.isMiniPay === true;
+      setIsMiniPay(isMP);
+      return isMP;
+    };
+
+    if (detectMiniPay()) {
+      // Silent connect for MiniPay
+      // @ts-ignore
+      window.ethereum.request({ method: 'eth_accounts' }).then((accounts: string[]) => {
+        if (accounts.length > 0) {
+          const client = createWalletClient({
+            chain: celo,
+            // @ts-ignore
+            transport: custom(window.ethereum)
+          });
+          setAddress(accounts[0]);
+          setWalletClient(client);
+        }
+      });
+    }
+
+    // Listen for account changes
     if (typeof window !== 'undefined' && window.ethereum) {
+      // @ts-ignore
       window.ethereum.on('accountsChanged', (accounts: string[]) => {
         setAddress(accounts[0] || null);
       });
-      window.ethereum.on('chainChanged', (hexChainId: string) => {
-        setChainId(parseInt(hexChainId, 16));
-      });
-      
-      // Initial check
-      window.ethereum.request({ method: 'eth_accounts' }).then((accounts: string[]) => {
-        setAddress(accounts[0] || null);
-      });
-      checkNetwork();
     }
-  }, [checkNetwork]);
+  }, []);
 
   const connect = useCallback(async () => {
     if (typeof window === 'undefined' || !window.ethereum) {
-      alert('Please open MicroMind inside the MiniPay app');
       return;
     }
-    
-    try {
-      // Works with MiniPay (phone) AND MetaMask (desktop testing)
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
-      });
-      
-      // Force Celo network
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0xA4EC' }] // 42220 in hex = Celo Mainnet
-        });
-      } catch (e) {
-        // MiniPay doesn't need this — it's already on Celo
-        console.log('Switch network skipped or failed', e);
-      }
-      
-      setAddress(accounts[0]);
-      await checkNetwork();
-    } catch (error) {
-      console.error('Connection failed', error);
-    }
-  }, [checkNetwork]);
 
-  const isCelo = chainId === 42220;
+    // @ts-ignore
+    const isMP = window.ethereum?.isMiniPay === true;
+
+    if (isMP) {
+      try {
+        // @ts-ignore
+        const accounts = await window.ethereum.request({ 
+          method: 'eth_requestAccounts' 
+        });
+        const client = createWalletClient({
+          chain: celo,
+          // @ts-ignore
+          transport: custom(window.ethereum)
+        });
+        setAddress(accounts[0]);
+        setWalletClient(client);
+      } catch (error) {
+        console.error('MiniPay connection failed', error);
+      }
+    }
+  }, []);
 
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <WalletContext.Provider value={{ address, chainId, isConnected: !!address, connect, isCelo }}>
-          {children}
-        </WalletContext.Provider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <WalletContext.Provider value={{ 
+      address, 
+      isConnected: !!address, 
+      isMiniPay, 
+      connect,
+      walletClient 
+    }}>
+      {children}
+    </WalletContext.Provider>
   );
 }
 
