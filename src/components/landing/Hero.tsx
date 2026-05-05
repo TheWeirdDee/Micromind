@@ -29,11 +29,11 @@ export function Hero() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="max-w-5xl w-full text-center z-10 pt-32 md:pt-40"
+        className="max-w-4xl w-full text-center z-10 pt-20 md:pt-24"
       >
         <motion.h1 
           variants={item}
-          className="text-6xl md:text-[120px] font-serif mb-12 leading-[0.95] tracking-tight text-text-primary"
+          className="text-[clamp(2.2rem,8vw,3.2rem)] md:text-[clamp(3rem,6vw,5rem)] font-serif mb-6 leading-[1.05] tracking-tight text-text-primary"
         >
           AI Tools That Cost <br />
           <span className="italic text-accent">What You Actually Use.</span>
@@ -41,7 +41,7 @@ export function Hero() {
         
         <motion.p 
           variants={item}
-          className="text-text-primary/70 font-mono text-lg md:text-xl max-w-2xl mx-auto mb-16 leading-relaxed"
+          className="text-text-primary/70 font-mono text-base md:text-lg max-w-xl mx-auto mb-10 leading-relaxed"
         >
           Pay in cUSD. Get AI. No monthly fees. No lock-in. <br className="hidden md:block" />
           Built for the next generation of Celo users.
