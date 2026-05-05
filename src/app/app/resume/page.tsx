@@ -1,13 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, Wallet, Loader2 } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { TOOLS } from '@/constants/tools';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
-import { PaymentSteps } from '@/components/app/PaymentSteps';
 import { ResponseCard } from '@/components/app/ResponseCard';
-import { saveToHistory } from '@/lib/storage';
 
 export default function ResumePage() {
   const [formData, setFormData] = useState({
@@ -18,29 +16,32 @@ export default function ResumePage() {
   });
   const [response, setResponse] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
-  const { pay, loading, step } = usePayForPrompt();
+  const { payAndGenerate, loading, step } = usePayForPrompt();
 
   const handleGenerate = async () => {
     const prompt = `Name: ${formData.name}\nRole: ${formData.role}\nSkills: ${formData.skills}\nExperience: ${formData.experience}`;
     
     try {
-      const result = await pay(TOOLS.RESUME.id, prompt, TOOLS.RESUME.price);
-      if (result) {
-        const mockResponse = `${formData.name.toUpperCase()}\n${formData.role}\n\nSKILLS\n${formData.skills}\n\nEXPERIENCE\n${formData.experience}`;
-        setResponse(mockResponse);
-        setTxHash(result.txHash);
-        saveToHistory({
-          id: Math.random().toString(36).substring(7),
-          toolId: TOOLS.RESUME.id,
-          toolName: TOOLS.RESUME.name,
-          prompt,
-          response: mockResponse,
-          cost: TOOLS.RESUME.price,
-          txHash: result.txHash,
-          timestamp: Date.now(),
-        });
+      const aiResponse = await payAndGenerate(TOOLS.RESUME.id, TOOLS.RESUME.name, prompt);
+      if (aiResponse) {
+        setResponse(aiResponse);
+        // txHash is handled by the hook saving to history, 
+        // but we can set it locally if needed for the UI.
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+    }
+  };
+
+  const getStepMessage = () => {
+    switch (step) {
+      case 'SUBMITTING': return 'Preparing prompt...';
+      case 'APPROVING': return 'Approve cUSD in MiniPay...';
+      case 'PAYING': return 'Sending payment...';
+      case 'POLLING': return 'AI is thinking...';
+      case 'COMPLETE': return 'Generation complete!';
+      default: return 'Processing...';
+    }
   };
 
   return (
@@ -83,22 +84,18 @@ export default function ResumePage() {
           disabled={loading || !formData.name}
           className="pill-button pill-button-primary w-full py-4 mt-4 disabled:opacity-40 group"
         >
-          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Generate Resume <span className="group-hover:translate-x-1 transition-transform">→</span></>}
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>{getStepMessage()}</span>
+            </div>
+          ) : (
+            <>Generate Resume <span className="group-hover:translate-x-1 transition-transform">→</span></>
+          )}
         </button>
       </div>
 
-      {loading && (
-        <PaymentSteps 
-          steps={[
-            { label: 'Preparing prompt...', status: step >= 1 ? 'complete' : 'dim' },
-            { label: 'Confirm in MiniPay...', status: step === 2 ? 'active' : step > 2 ? 'complete' : 'dim' },
-            { label: 'Broadcasting to Celo...', status: step === 3 ? 'active' : step > 3 ? 'complete' : 'dim' },
-            { label: 'AI is generating...', status: step === 4 ? 'active' : 'dim' },
-          ]}
-        />
-      )}
-
-      {response && <ResponseCard response={response} txHash={txHash || undefined} />}
+      {response && <ResponseCard response={response} />}
     </div>
   );
 }
