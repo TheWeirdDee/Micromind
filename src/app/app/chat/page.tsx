@@ -1,112 +1,182 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ChevronLeft, Wallet, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Send, Bot, User as UserIcon, Loader2, History as HistoryIcon } from 'lucide-react';
 import Link from 'next/link';
-import { TOOLS } from '@/constants/tools';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
-import { PaymentSteps } from '@/components/app/PaymentSteps';
-import { ResponseCard } from '@/components/app/ResponseCard';
+import { TOOLS } from '@/constants/tools';
 import { saveToHistory } from '@/lib/storage';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export default function ChatPage() {
-  const router = useRouter();
   const [prompt, setPrompt] = useState('');
-  const [response, setResponse] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [txHash, setTxHash] = useState<string | null>(null);
-  const { pay, loading, step } = usePayForPrompt();
+  const { payAndGenerate, loading, step } = usePayForPrompt();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prompt.trim() || loading) return;
+
+    const userPrompt = prompt;
+    setPrompt('');
+    setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
 
     try {
-      const result = await pay(TOOLS.CHAT.id, prompt, TOOLS.CHAT.price);
-      if (result) {
-        // In reality, this would be the response from the agent
-        const mockResponse = "MicroMind is a payment-native AI tool built for Celo. It enables friction-less AI access via MiniPay by using cUSD for per-prompt transactions. This model eliminates the need for subscriptions, making premium AI accessible to everyone.";
-        
-        setResponse(mockResponse);
-        setTxHash(result.txHash);
-        
-        saveToHistory({
-          id: Math.random().toString(36).substring(7),
-          toolId: TOOLS.CHAT.id,
-          toolName: TOOLS.CHAT.name,
-          prompt,
-          response: mockResponse,
-          cost: TOOLS.CHAT.price,
-          txHash: result.txHash,
-          timestamp: Date.now(),
-        });
+      const aiResponse = await payAndGenerate(TOOLS.CHAT.id, TOOLS.CHAT.name, userPrompt);
+      if (aiResponse) {
+        setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
       }
     } catch (err) {
       console.error(err);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: 'Error: Connection failed or payment rejected. Ensure you are in MiniPay with enough cUSD.' 
+      }]);
+    }
+  };
+
+  const getStepMessage = () => {
+    switch (step) {
+      case 'SUBMITTING': return 'Preparing prompt...';
+      case 'APPROVING': return 'Approve cUSD in MiniPay...';
+      case 'PAYING': return 'Sending payment...';
+      case 'POLLING': return 'AI is thinking...';
+      case 'COMPLETE': return 'Generation complete!';
+      default: return 'Processing...';
     }
   };
 
   return (
-    <div className="space-y-8">
-      <header className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <Link href="/app" className="p-2 hover:bg-surface-2 rounded-full transition-colors">
-            <ChevronLeft className="w-5 h-5 text-text-muted" />
-          </Link>
-          <h2 className="text-2xl font-serif">AI Chat</h2>
-        </div>
-        <span className="text-[10px] font-mono text-accent-green px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/20">
-          {TOOLS.CHAT.price} cUSD
-        </span>
-      </header>
-
-      <div className="space-y-6">
-        <div className="relative">
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value.slice(0, 500))}
-            placeholder={TOOLS.CHAT.placeholder}
-            className="w-full bg-surface border border-border rounded-2xl p-6 font-mono text-sm min-h-[200px] focus:border-text-muted focus:outline-none transition-colors resize-none"
-          />
-          <span className="absolute bottom-4 right-6 font-mono text-[10px] text-text-muted opacity-40">
-            {prompt.length}/500
-          </span>
-        </div>
-
-        <div className="flex items-center gap-3 px-2">
-          <Wallet className="w-4 h-4 text-accent-gold/60" />
-          <p className="text-[10px] font-mono text-text-muted uppercase tracking-wider">
-            This will cost {TOOLS.CHAT.price} cUSD from your balance
+    <div className="flex flex-col h-[calc(100vh-180px)]">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-serif">AI Chat</h1>
+          <p className="text-text-muted font-mono text-xs uppercase tracking-widest mt-1">
+            {TOOLS.CHAT.price} per prompt
           </p>
         </div>
+        <Link 
+          href="/app/history" 
+          className="p-2 rounded-full border border-border hover:bg-surface transition-colors"
+        >
+          <HistoryIcon className="w-5 h-5 text-text-muted" />
+        </Link>
+      </div>
 
+      {/* Messages Area */}
+      <div 
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto space-y-6 mb-6 pr-2 scrollbar-hide"
+      >
+        <AnimatePresence initial={false}>
+          {messages.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="h-full flex flex-col items-center justify-center text-center px-8"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-surface border border-border flex items-center justify-center mb-4">
+                <Bot className="w-6 h-6 text-accent" />
+              </div>
+              <h3 className="text-lg font-serif mb-2">How can I help today?</h3>
+              <p className="text-text-muted text-sm font-mono max-w-[240px]">
+                Ask me anything. Every response is powered by GPT-4o.
+              </p>
+            </motion.div>
+          ) : (
+            messages.map((msg, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={cn(
+                  "flex gap-4 max-w-[85%]",
+                  msg.role === 'user' ? "ml-auto flex-row-reverse" : ""
+                )}
+              >
+                <div className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center shrink-0 border",
+                  msg.role === 'assistant' ? "bg-accent border-accent" : "bg-surface border-border"
+                )}>
+                  {msg.role === 'assistant' ? (
+                    <Bot className="w-4 h-4 text-bg" />
+                  ) : (
+                    <UserIcon className="w-4 h-4 text-text-muted" />
+                  )}
+                </div>
+                <div className={cn(
+                  "px-4 py-3 rounded-2xl text-sm leading-relaxed",
+                  msg.role === 'assistant' 
+                    ? "bg-surface border border-border text-text-primary" 
+                    : "bg-accent/10 border border-accent/20 text-text-primary"
+                )}>
+                  {msg.content}
+                </div>
+              </motion.div>
+            ))
+          )}
+          {loading && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex gap-4"
+            >
+              <div className="w-8 h-8 rounded-full bg-accent border border-accent flex items-center justify-center shrink-0">
+                <Loader2 className="w-4 h-4 text-bg animate-spin" />
+              </div>
+              <div className="bg-surface border border-border px-4 py-3 rounded-2xl text-xs font-mono text-accent animate-pulse uppercase tracking-widest">
+                {getStepMessage()}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Input Area */}
+      <form 
+        onSubmit={handleSubmit}
+        className="relative"
+      >
+        <input
+          type="text"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Type your message..."
+          disabled={loading}
+          className="w-full bg-surface border border-border rounded-2xl px-6 py-4 pr-16 text-sm focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
+        />
         <button
-          onClick={handleGenerate}
-          disabled={loading || !prompt.trim()}
-          className="pill-button pill-button-primary w-full py-4 disabled:opacity-40 disabled:cursor-not-allowed group"
+          type="submit"
+          disabled={!prompt.trim() || loading}
+          className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-accent text-bg flex items-center justify-center hover:bg-white transition-colors disabled:opacity-50 disabled:hover:bg-accent"
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
-            <>
-              Pay & Generate
-              <span className="transition-transform group-hover:translate-x-1">→</span>
-            </>
+            <Send className="w-5 h-5" />
           )}
         </button>
-      </div>
-
-      {loading && (
-        <PaymentSteps 
-          steps={[
-            { label: 'Preparing prompt...', status: step >= 1 ? 'complete' : 'dim' },
-            { label: 'Confirm in MiniPay...', status: step === 2 ? 'active' : step > 2 ? 'complete' : 'dim' },
-            { label: 'Broadcasting to Celo...', status: step === 3 ? 'active' : step > 3 ? 'complete' : 'dim' },
-            { label: 'AI is generating...', status: step === 4 ? 'active' : 'dim' },
-          ]}
-        />
-      )}
-
-      {response && <ResponseCard response={response} txHash={txHash || undefined} />}
+      </form>
     </div>
   );
 }
