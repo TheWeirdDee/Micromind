@@ -13,28 +13,28 @@ const tools = [
     name: 'Chat',
     href: '/app/chat',
     desc: 'Ask anything.',
-    price: '0.01 cUSD',
+    price: '0.001 CELO',
   },
   {
     icon: FileText,
     name: 'Resume',
     href: '/app/resume',
     desc: 'Stand out.',
-    price: '0.05 cUSD',
+    price: '0.005 CELO',
   },
   {
     icon: X,
     name: 'Tweet',
     href: '/app/tweet',
     desc: 'Go viral.',
-    price: '0.01 cUSD',
+    price: '0.001 CELO',
   },
   {
     icon: User,
     name: 'Bio',
     href: '/app/bio',
     desc: 'Own your story.',
-    price: '0.02 cUSD',
+    price: '0.002 CELO',
   },
 ];
 
