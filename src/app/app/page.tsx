@@ -40,7 +40,6 @@ const tools = [
 
 export default function AppHome() {
   const { isConnected, isMiniPay, connect } = useWallet();
-  const [copied, setCopied] = useState(false);
   const [appUrl, setAppUrl] = useState('');
 
   useEffect(() => {
@@ -49,52 +48,53 @@ export default function AppHome() {
     }
   }, []);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(appUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   if (!isConnected) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-8">
         <h2 className="text-3xl font-serif mb-8 text-text-primary">Welcome to MicroMind.</h2>
         
-        {!isMiniPay ? (
-          <div className="bg-surface border border-border p-8 rounded-[2rem] max-w-sm w-full flex flex-col items-center">
-            <div className="bg-[#1A1A1A] p-4 rounded-2xl mb-6 border border-white/5">
-              <QRCodeSVG 
-                value={appUrl} 
-                size={180}
-                bgColor="#1A1A1A"
-                fgColor="#E8E0CC"
-                level="H"
-                includeMargin={false}
-              />
-            </div>
-            
-            <p className="text-text-muted font-mono text-[10px] uppercase tracking-widest mb-8 leading-relaxed max-w-[200px]">
-              Scan with your phone's camera, then open in MiniPay
-            </p>
-
-            <button 
-              onClick={handleCopy}
-              className="w-full text-[10px] font-mono tracking-[0.2em] uppercase text-text-muted hover:text-accent transition-colors"
-            >
-              {copied ? 'Link Copied!' : 'Copy Link Instead'}
-            </button>
-          </div>
-        ) : (
+        {isMiniPay ? (
           <div className="flex flex-col items-center">
             <p className="text-text-muted font-mono text-sm mb-8 max-w-[280px]">
-              Detecting MiniPay wallet...
+              MiniPay detected. Please connect to continue.
             </p>
             <button 
               onClick={() => connect()}
-              className="pill-button bg-accent text-bg px-10 py-4"
+              className="pill-button-primary px-10 py-4"
             >
               Connect Now
             </button>
+          </div>
+        ) : (
+          <div className="space-y-6 w-full max-w-sm">
+            {/* Option 1: Connect Button */}
+            <button 
+              onClick={() => connect()}
+              className="w-full pill-button pill-button-primary text-sm tracking-widest"
+            >
+              Connect Wallet
+            </button>
+
+            <div className="flex items-center gap-4 text-text-muted opacity-30">
+              <div className="h-[1px] flex-1 bg-border" />
+              <span className="text-[10px] font-mono uppercase tracking-widest">Or</span>
+              <div className="h-[1px] flex-1 bg-border" />
+            </div>
+
+            {/* Option 2: QR Code */}
+            <div className="bg-surface border border-border p-8 rounded-[2rem] flex flex-col items-center">
+              <div className="bg-white p-3 rounded-2xl mb-6">
+                <QRCodeSVG 
+                  value={appUrl} 
+                  size={160}
+                  level="H"
+                />
+              </div>
+              
+              <p className="text-text-muted font-mono text-[10px] uppercase tracking-widest leading-relaxed">
+                Open in MiniPay on Android
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -102,7 +102,7 @@ export default function AppHome() {
   }
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-12 animate-fade-up">
       <header>
         <h2 className="text-4xl font-serif mb-2 tracking-tight">
           What do you want <br /> to build?
