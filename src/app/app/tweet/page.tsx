@@ -1,37 +1,55 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { TOOLS } from '@/constants/tools';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { ResponseCard } from '@/components/app/ResponseCard';
-
+import { getHistory } from '@/lib/storage';
 import { AgentWarning } from '@/components/app/AgentWarning';
 
-export default function TweetPage() {
+import { Suspense } from 'react';
+
+function TweetPageInner() {
   const [topic, setTopic] = useState('');
   const [response, setResponse] = useState<string | null>(null);
   const { payAndGenerate, loading, step } = usePayForPrompt();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const historyId = searchParams.get('id');
+    if (historyId) {
+      const history = getHistory();
+      const item = history.find(h => h.txHash === historyId);
+      if (item && item.toolId === 2) {
+        setResponse(item.response);
+        setTopic(item.prompt);
+      }
+    }
+  }, [searchParams]);
 
   const handleGenerate = async () => {
     try {
-      const aiResponse = await payAndGenerate(TOOLS.TWEET.id, TOOLS.TWEET.name, topic);
+      const aiResponse = await payAndGenerate(2, 'Tweet', topic);
       if (aiResponse) {
         setResponse(aiResponse);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert('Transaction failed. Make sure you have enough CELO in your wallet.');
     }
   };
 
   const getStepMessage = () => {
     switch (step) {
-      case 'SUBMITTING': return 'Preparing tweet idea...';
-      case 'APPROVING': return 'Approve cUSD in MiniPay...';
-      case 'PAYING': return 'Sending payment...';
-      case 'POLLING': return 'AI is crafting your tweet...';
-      case 'COMPLETE': return 'Tweet ready!';
+      case 'checking': return 'Checking agent...';
+      case 'submitting': return 'Preparing prompt...';
+      case 'paying': return 'Confirm in wallet...';
+      case 'confirming': return 'Confirming payment...';
+      case 'generating': return 'AI is thinking...';
+      case 'complete': return 'Done!';
       default: return 'Processing...';
     }
   };
@@ -47,7 +65,7 @@ export default function TweetPage() {
           <h2 className="text-2xl font-serif">Tweet Gen</h2>
         </div>
         <span className="text-[10px] font-mono text-accent-green px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/20">
-          {TOOLS.TWEET.price} cUSD
+          0.001 CELO
         </span>
       </header>
 
@@ -80,5 +98,13 @@ export default function TweetPage() {
 
       {response && <ResponseCard response={response} />}
     </div>
+  );
+}
+
+export default function TweetPage() {
+  return (
+    <Suspense fallback={<div className="h-full flex items-center justify-center animate-pulse font-mono text-accent uppercase tracking-widest">Loading context...</div>}>
+      <TweetPageInner />
+    </Suspense>
   );
 }
