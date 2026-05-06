@@ -17,6 +17,9 @@ const dmMono = DM_Mono({
 export const metadata: Metadata = {
   title: "MicroMind | Pay-per-thought AI",
   description: "AI Tools That Cost What You Actually Use. No subscriptions. Just cUSD.",
+  icons: {
+    icon: "/logo.svg",
+  },
   other: {
     "talentapp:project_verification": "334059f5ad573814e422e6282d39f1342429b9110189011a0885598328c8c1c39acde285687b932add1fe18f82782008e8f9c5652eb2e8f2cb4d1cc7d62f9b41",
   },
