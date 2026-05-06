@@ -1,32 +1,50 @@
-export const TOOLS = {
-  CHAT: {
+export const TOOLS = [
+  {
     id: 0,
-    name: 'AI Chat',
-    price: '0.01',
-    placeholder: 'Ask me anything...',
-    systemPrompt: 'You are a helpful AI assistant. Be concise and professional.',
+    name: 'Chat',
+    description: 'Ask anything.',
+    price: '0.001',           // in CELO
+    priceDisplay: '0.001 CELO',
+    priceWei: '1000000000000000',
+    icon: '💬',
+    href: '/app/chat',
+    color: '#3B82F6',
+    toolId: 0,
   },
-  RESUME: {
+  {
     id: 1,
-    name: 'Resume Gen',
-    price: '0.05',
-    placeholder: 'Summarize your professional experience...',
-    systemPrompt: 'Format this professional experience into a clean, modern text resume.',
+    name: 'Resume',
+    description: 'Stand out.',
+    price: '0.005',
+    priceDisplay: '0.005 CELO',
+    priceWei: '5000000000000000',
+    icon: '📄',
+    href: '/app/resume',
+    color: '#C9A84C',
+    toolId: 1,
   },
-  TWEET: {
+  {
     id: 2,
-    name: 'Tweet Gen',
-    price: '0.01',
-    placeholder: 'What is your tweet about?',
-    systemPrompt: 'Transform this idea into a viral tweet. Maximum 280 characters.',
+    name: 'Tweet',
+    description: 'Go viral.',
+    price: '0.001',
+    priceDisplay: '0.001 CELO',
+    priceWei: '1000000000000000',
+    icon: '🐦',
+    href: '/app/tweet',
+    color: '#35D07F',
+    toolId: 2,
   },
-  BIO: {
+  {
     id: 3,
-    name: 'Bio Gen',
-    price: '0.02',
-    placeholder: 'Tell me about yourself...',
-    systemPrompt: 'Write a professional bio based on these keywords.',
+    name: 'Bio',
+    description: 'Own your story.',
+    price: '0.002',
+    priceDisplay: '0.002 CELO',
+    priceWei: '2000000000000000',
+    icon: '👤',
+    href: '/app/bio',
+    color: '#8B5CF6',
+    toolId: 3,
   },
-} as const;
-
-export type ToolKey = keyof typeof TOOLS;
+];
