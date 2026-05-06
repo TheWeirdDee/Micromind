@@ -1,6 +1,7 @@
 import React from 'react';
 
 export function Logo({ className = "h-[20px] w-auto" }: { className?: string }) {
+  const gradientId = "logo-gradient-unique";
   return (
     <div className="flex items-center gap-3">
       <svg 
@@ -12,32 +13,32 @@ export function Logo({ className = "h-[20px] w-auto" }: { className?: string }) 
         className={className}
       >
         <defs>
-          <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#C9A84C" />
             <stop offset="100%" stopColor="#E8E0CC" />
           </linearGradient>
         </defs>
         
         {/* Central Node */}
-        <circle cx="12" cy="12" r="2.5" fill="url(#logo-gradient)" />
+        <circle cx="12" cy="12" r="2.5" fill={`url(#${gradientId})`} />
         
         {/* Neural Paths (Radiating Lines) */}
-        <line x1="12" y1="9.5" x2="12" y2="4" stroke="url(#logo-gradient)" strokeWidth="1.5" strokeLinecap="square" />
-        <line x1="14.5" y1="10.5" x2="19" y2="8" stroke="url(#logo-gradient)" strokeWidth="1.5" strokeLinecap="square" />
-        <line x1="14.5" y1="13.5" x2="19" y2="16" stroke="url(#logo-gradient)" strokeWidth="1.5" strokeLinecap="square" />
-        <line x1="9.5" y1="13.5" x2="5" y2="16" stroke="url(#logo-gradient)" strokeWidth="1.5" strokeLinecap="square" />
-        <line x1="9.5" y1="10.5" x2="5" y2="8" stroke="url(#logo-gradient)" strokeWidth="1.5" strokeLinecap="square" />
+        <line x1="12" y1="9.5" x2="12" y2="4" stroke={`url(#${gradientId})`} strokeWidth="1.5" strokeLinecap="square" />
+        <line x1="14.5" y1="10.5" x2="19" y2="8" stroke={`url(#${gradientId})`} strokeWidth="1.5" strokeLinecap="square" />
+        <line x1="14.5" y1="13.5" x2="19" y2="16" stroke={`url(#${gradientId})`} strokeWidth="1.5" strokeLinecap="square" />
+        <line x1="9.5" y1="13.5" x2="5" y2="16" stroke={`url(#${gradientId})`} strokeWidth="1.5" strokeLinecap="square" />
+        <line x1="9.5" y1="10.5" x2="5" y2="8" stroke={`url(#${gradientId})`} strokeWidth="1.5" strokeLinecap="square" />
         
         {/* Lightning Bolt (6th line) */}
         <path 
           d="M12 14.5L10 18L13 18L11 22" 
-          stroke="url(#logo-gradient)" 
+          stroke={`url(#${gradientId})`} 
           strokeWidth="1.5" 
           strokeLinecap="square" 
           strokeLinejoin="miter" 
         />
       </svg>
-      <span className="font-serif text-[18px] font-normal tracking-tight text-[#E8E0CC] leading-none">
+      <span className="font-serif text-[18px] font-normal tracking-tight text-accent-gold leading-none">
         MicroMind
       </span>
     </div>
