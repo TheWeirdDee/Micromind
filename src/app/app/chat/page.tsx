@@ -19,6 +19,8 @@ interface Message {
   content: string;
 }
 
+import { AgentWarning } from '@/components/app/AgentWarning';
+
 export default function ChatPage() {
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -67,6 +69,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-180px)]">
+      <AgentWarning />
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -100,7 +103,7 @@ export default function ChatPage() {
               </div>
               <h3 className="text-lg font-serif mb-2">How can I help today?</h3>
               <p className="text-text-muted text-sm font-mono max-w-[240px]">
-                Ask me anything. Every response is powered by GPT-4o.
+                Ask me anything. Every response is powered by Llama-3.3.
               </p>
             </motion.div>
           ) : (
