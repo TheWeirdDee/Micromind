@@ -7,6 +7,8 @@ import { TOOLS } from '@/constants/tools';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { ResponseCard } from '@/components/app/ResponseCard';
 
+import { AgentWarning } from '@/components/app/AgentWarning';
+
 export default function ResumePage() {
   const [formData, setFormData] = useState({
     name: '',
@@ -46,6 +48,7 @@ export default function ResumePage() {
 
   return (
     <div className="space-y-8">
+      <AgentWarning />
       <header className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <Link href="/app" className="p-2 hover:bg-surface-2 rounded-full transition-colors">
