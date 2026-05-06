@@ -17,7 +17,11 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const publicClient = createPublicClient({
   chain: IS_TESTNET ? celoAlfajores : celo,
-  transport: http(),
+  transport: http(
+    IS_TESTNET 
+      ? 'https://celo-sepolia.drpc.org'
+      : 'https://forno.celo.org'
+  )
 });
 
 // Storage Setup (Redis or Memory)
@@ -71,19 +75,23 @@ const SYSTEM_PROMPTS: Record<number, string> = {
 
 async function callAI(toolId: number, prompt: string): Promise<string> {
   try {
+    console.log(`[AI] Generating for tool ${toolId}...`);
     const completion = await groq.chat.completions.create({
-      model: "llama3-8b-8192",
-      max_tokens: 800,
+      model: "llama-3.3-70b-versatile",
+      max_tokens: 1024,
       temperature: 0.7,
       messages: [
         { role: "system", content: SYSTEM_PROMPTS[toolId] ?? SYSTEM_PROMPTS[0] },
         { role: "user", content: prompt }
       ]
     });
-    return completion.choices[0]?.message?.content ?? "No response generated.";
-  } catch (error) {
-    console.error('Groq Error:', error);
-    return "AI generation failed. Please try again.";
+    const result = completion.choices[0]?.message?.content ?? "No response generated.";
+    console.log(`[AI] Success! Response length: ${result.length}`);
+    return result;
+  } catch (error: any) {
+    console.error('[AI] Groq Error:', error.message);
+    if (error.response) console.error('[AI] Data:', error.response.data);
+    return `AI generation failed: ${error.message}`;
   }
 }
 
@@ -101,36 +109,53 @@ app.get('/api/health', (req, res) => {
 });
 
 app.post('/api/prompt/submit', async (req, res) => {
+  console.log('[SUBMIT] Received:', req.body);
   const { prompt, toolId, userAddress } = req.body;
-  if (!prompt || toolId === undefined) return res.status(400).json({ error: 'Missing data' });
+  
+  if (!prompt || toolId === undefined || !userAddress) {
+    console.log('[SUBMIT] Missing fields');
+    return res.status(400).json({ error: 'Missing fields' });
+  }
 
-  // In a real app, you'd hash this or store it with a lookup
-  // For simplicity, we'll use the promptHash requested by the user
-  const { keccak256, encodePacked } = await import('viem');
-  const nonce = Date.now();
+  const { keccak256, toBytes } = await import('viem');
+  const nonce = Date.now().toString();
   const promptHash = keccak256(
-    encodePacked(['string', 'address', 'uint256'], [prompt, userAddress as `0x${string}`, BigInt(nonce)])
+    toBytes(`${prompt}:${userAddress}:${nonce}`)
   );
-
-  await storeData(`prompt:${promptHash}`, JSON.stringify({ prompt, toolId }));
+  
+  console.log('[SUBMIT] promptHash:', promptHash);
+  await storeData(`prompt:${promptHash}`, JSON.stringify({
+    prompt, toolId: Number(toolId), user: userAddress, nonce
+  }));
+  
   res.json({ promptHash });
+  console.log('[SUBMIT] Done');
 });
 
 app.get('/api/response/:txHash', async (req, res) => {
   const { txHash } = req.params;
-  const cached = await getData(`resp:${txHash}`);
+  console.log('[RESPONSE] Checking for:', txHash);
   
-  if (cached) {
-    return res.json({ status: 'ready', response: cached });
-  }
-
   try {
-    const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
-    if (!receipt) return res.json({ status: 'pending' });
+    const response = await getData(`resp:${txHash}`);
+    console.log('[RESPONSE] Found in cache:', response ? 'YES' : 'NO');
+    
+    if (response) {
+      return res.json({ status: 'ready', response });
+    }
 
-    // Find the PromptPaid log
+    // Attempt to process from event if not in cache
+    const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+    if (!receipt) {
+      console.log('[RESPONSE] No receipt found yet');
+      return res.json({ status: 'pending' });
+    }
+
     const log = receipt.logs.find(l => l.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase());
-    if (!log) return res.status(400).json({ error: 'No payment log found' });
+    if (!log) {
+      console.log('[RESPONSE] No contract log found');
+      return res.json({ status: 'pending' });
+    }
 
     const event = decodeEventLog({
       abi: MICROMIND_ABI,
@@ -141,15 +166,40 @@ app.get('/api/response/:txHash', async (req, res) => {
 
     const { promptHash, toolId } = event.args as any;
     const storedStr = await getData(`prompt:${promptHash}`);
-    if (!storedStr) return res.status(404).json({ error: 'Prompt not found' });
+    if (!storedStr) {
+      console.log('[RESPONSE] Prompt source not found for hash:', promptHash);
+      return res.json({ status: 'pending' });
+    }
 
     const { prompt } = JSON.parse(storedStr);
-    const response = await callAI(toolId, prompt);
+    console.log('[RESPONSE] Calling AI for tool:', toolId);
+    const aiResponse = await callAI(toolId, prompt);
     
-    await storeData(`resp:${txHash}`, response, 86400); // Cache for 24h
-    res.json({ status: 'ready', response });
-  } catch (error) {
+    await storeData(`resp:${txHash}`, aiResponse, 86400);
+    res.json({ status: 'ready', response: aiResponse });
+  } catch (e) {
+    console.error('[RESPONSE] Error:', e);
     res.json({ status: 'pending' });
+  }
+});
+
+app.post('/api/process-direct', async (req, res) => {
+  const { txHash, prompt, toolId, userAddress } = req.body;
+  console.log('[DIRECT] Processing:', { txHash, toolId });
+  
+  try {
+    const response = await callAI(Number(toolId), prompt);
+    
+    await storeData(`resp:${txHash}`, response, 86400);
+    console.log('[DIRECT] Success, response length:', response.length);
+    
+    res.json({ status: 'ready', response });
+  } catch (e: any) {
+    console.error('[DIRECT] Failed:', e.message);
+    res.status(500).json({ 
+      status: 'error', 
+      message: e.message 
+    });
   }
 });
 
