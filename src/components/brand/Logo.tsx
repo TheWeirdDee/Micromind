@@ -22,14 +22,13 @@ export function Logo({ className = "h-[20px] w-auto" }: { className?: string }) 
         {/* Central Node */}
         <circle cx="12" cy="12" r="2.5" fill={`url(#${gradientId})`} />
         
-        {/* Neural Paths (Radiating Lines) */}
-        <line x1="12" y1="9.5" x2="12" y2="4" stroke={`url(#${gradientId})`} strokeWidth="1.5" strokeLinecap="square" />
+        {/* Neural Paths (4 radiating arms in X shape) */}
         <line x1="14.5" y1="10.5" x2="19" y2="8" stroke={`url(#${gradientId})`} strokeWidth="1.5" strokeLinecap="square" />
         <line x1="14.5" y1="13.5" x2="19" y2="16" stroke={`url(#${gradientId})`} strokeWidth="1.5" strokeLinecap="square" />
         <line x1="9.5" y1="13.5" x2="5" y2="16" stroke={`url(#${gradientId})`} strokeWidth="1.5" strokeLinecap="square" />
         <line x1="9.5" y1="10.5" x2="5" y2="8" stroke={`url(#${gradientId})`} strokeWidth="1.5" strokeLinecap="square" />
         
-        {/* Lightning Bolt (6th line) */}
+        {/* Lightning Bolt */}
         <path 
           d="M12 14.5L10 18L13 18L11 22" 
           stroke={`url(#${gradientId})`} 
