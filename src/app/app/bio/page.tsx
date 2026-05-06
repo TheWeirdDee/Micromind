@@ -22,22 +22,24 @@ export default function BioPage() {
     const prompt = `Name: ${formData.name}, Role: ${formData.role}, Keywords: ${formData.keywords}`;
     
     try {
-      const aiResponse = await payAndGenerate(TOOLS.BIO.id, TOOLS.BIO.name, prompt);
+      const aiResponse = await payAndGenerate(3, 'Bio', prompt);
       if (aiResponse) {
         setResponse(aiResponse);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert('Transaction failed. Make sure you have enough CELO in your wallet.');
     }
   };
 
   const getStepMessage = () => {
     switch (step) {
-      case 'SUBMITTING': return 'Preparing bio prompt...';
-      case 'APPROVING': return 'Approve cUSD in MiniPay...';
-      case 'PAYING': return 'Sending payment...';
-      case 'POLLING': return 'AI is writing your bio...';
-      case 'COMPLETE': return 'Bio ready!';
+      case 'checking': return 'Checking agent...';
+      case 'submitting': return 'Preparing prompt...';
+      case 'paying': return 'Confirm in wallet...';
+      case 'confirming': return 'Confirming payment...';
+      case 'generating': return 'AI is thinking...';
+      case 'complete': return 'Done!';
       default: return 'Processing...';
     }
   };
@@ -53,7 +55,7 @@ export default function BioPage() {
           <h2 className="text-2xl font-serif">Bio Generator</h2>
         </div>
         <span className="text-[10px] font-mono text-accent-green px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/20">
-          {TOOLS.BIO.price} cUSD
+          0.002 CELO
         </span>
       </header>
 
