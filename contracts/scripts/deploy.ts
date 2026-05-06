@@ -1,50 +1,57 @@
-console.log("🔥 DEPLOY SCRIPT STARTED");
 import { ethers, network } from "hardhat";
-import * as fs from "fs";
 
 async function main() {
-  const CUSD = network.name === "celo"
-    ? "0x765DE816845861e75A25fCA122bb6898B8B1282a"
-    : "0x765DE816845861e75A25fCA122bb6898B8B1282a";
-  
-  console.log(`Deploying to ${network.name}...`);
-  console.log(`Using cUSD: ${CUSD}`);
+  console.log(`\nDeploying MicroMindPayment to ${network.name}...`);
+  console.log("Payment token: Native CELO");
   
   const [deployer] = await ethers.getSigners();
   console.log(`Deployer: ${deployer.address}`);
   
   const balance = await ethers.provider.getBalance(deployer.address);
-  console.log(`Deployer balance: ${ethers.formatEther(balance)} CELO`);
+  console.log(`Balance: ${ethers.formatEther(balance)} CELO`);
   
-  if (balance === 0n) {
+  if (balance < ethers.parseEther("0.01")) {
     throw new Error(
-      "Deployer has no CELO. Get testnet tokens at " +
-      "https://faucet.celo.org"
+      "Not enough CELO to deploy!\n" +
+      "Need at least 0.01 CELO for gas.\n" +
+      "Your address: " + deployer.address
     );
   }
   
   const Factory = await ethers.getContractFactory("MicroMindPayment");
-  const contract = await Factory.deploy(CUSD);
+  console.log("Deploying...");
+  
+  const feeData = await ethers.provider.getFeeData();
+  console.log(`Base fee: ${feeData.gasPrice?.toString()}`);
+
+  const contract = await Factory.deploy({
+    maxFeePerGas: feeData.maxFeePerGas ?? undefined,
+    maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? undefined,
+  });
   await contract.waitForDeployment();
   const address = await contract.getAddress();
   
-  console.log("\n✅ SUCCESS!");
-  console.log(`Contract address: ${address}`);
-
-  // Fallback: Write to file in case console is suppressed
-  fs.writeFileSync("deploy-info.json", JSON.stringify({
-    address,
-    network: network.name,
-    timestamp: new Date().toISOString()
-  }, null, 2));
-
-  console.log(`\nNext steps:`);
-  console.log(`1. Add to .env.local:`);
-  console.log(`   NEXT_PUBLIC_CONTRACT_ADDRESS=${address}`);
-  console.log(`\n2. Verify on Celoscan:`);
+  const explorerBase = network.name === "celo" 
+    ? "https://celoscan.io"
+    : "https://celo-sepolia.blockscout.com";
+  
+  console.log("\n✅ DEPLOYED SUCCESSFULLY!");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log(`Contract:  ${address}`);
+  console.log(`Network:   ${network.name}`);
+  console.log(`Explorer:  ${explorerBase}/address/${address}`);
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("\n📋 Copy these to your .env.local:");
+  console.log(`NEXT_PUBLIC_CONTRACT_ADDRESS=${address}`);
+  console.log(`NEXT_PUBLIC_IS_TESTNET=false`);
+  console.log(`NEXT_PUBLIC_CHAIN_ID=42220`);
+  console.log("\n📋 Copy to contracts/.env for verification:");
   console.log(
-    `   npx hardhat verify --network ${network.name} ${address} ${CUSD}`
+    `npx hardhat verify --network ${network.name} ${address}`
   );
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error("\n❌ Deploy failed:", e.message);
+  process.exit(1);
+});
