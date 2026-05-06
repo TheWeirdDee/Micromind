@@ -15,6 +15,17 @@ export const MICROMIND_ABI = [
     "stateMutability": "view",
     "inputs": [{ "name": "toolId", "type": "uint8" }],
     "outputs": [{ "type": "uint256" }]
+  },
+  {
+    "name": "PromptPaid",
+    "type": "event",
+    "inputs": [
+      { "name": "user", "type": "address", "indexed": true },
+      { "name": "toolId", "type": "uint8", "indexed": true },
+      { "name": "promptHash", "type": "bytes32", "indexed": false },
+      { "name": "amount", "type": "uint256", "indexed": false },
+      { "name": "timestamp", "type": "uint256", "indexed": false }
+    ]
   }
 ] as const;
 
