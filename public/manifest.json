@@ -1,0 +1,16 @@
+{
+  "name": "MicroMind",
+  "short_name": "MicroMind",
+  "description": "AI Tools That Cost What You Actually Use.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F0F0F",
+  "theme_color": "#C9A84C",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
