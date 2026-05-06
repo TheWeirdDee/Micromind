@@ -1,15 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { TOOLS } from '@/constants/tools';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { ResponseCard } from '@/components/app/ResponseCard';
-
+import { getHistory } from '@/lib/storage';
 import { AgentWarning } from '@/components/app/AgentWarning';
 
-export default function ResumePage() {
+import { Suspense } from 'react';
+
+function ResumePageInner() {
   const [formData, setFormData] = useState({
     name: '',
     role: '',
@@ -17,31 +20,42 @@ export default function ResumePage() {
     experience: '',
   });
   const [response, setResponse] = useState<string | null>(null);
-  const [txHash, setTxHash] = useState<string | null>(null);
   const { payAndGenerate, loading, step } = usePayForPrompt();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const historyId = searchParams.get('id');
+    if (historyId) {
+      const history = getHistory();
+      const item = history.find(h => h.txHash === historyId);
+      if (item && item.toolId === 1) {
+        setResponse(item.response);
+      }
+    }
+  }, [searchParams]);
 
   const handleGenerate = async () => {
     const prompt = `Name: ${formData.name}\nRole: ${formData.role}\nSkills: ${formData.skills}\nExperience: ${formData.experience}`;
     
     try {
-      const aiResponse = await payAndGenerate(TOOLS.RESUME.id, TOOLS.RESUME.name, prompt);
+      const aiResponse = await payAndGenerate(1, 'Resume', prompt);
       if (aiResponse) {
         setResponse(aiResponse);
-        // txHash is handled by the hook saving to history, 
-        // but we can set it locally if needed for the UI.
       }
-    } catch (err) { 
+    } catch (err: any) { 
       console.error(err); 
+      alert('Transaction failed. Make sure you have enough CELO in your wallet.');
     }
   };
 
   const getStepMessage = () => {
     switch (step) {
-      case 'SUBMITTING': return 'Preparing prompt...';
-      case 'APPROVING': return 'Approve cUSD in MiniPay...';
-      case 'PAYING': return 'Sending payment...';
-      case 'POLLING': return 'AI is thinking...';
-      case 'COMPLETE': return 'Generation complete!';
+      case 'checking': return 'Checking agent...';
+      case 'submitting': return 'Preparing prompt...';
+      case 'paying': return 'Confirm in wallet...';
+      case 'confirming': return 'Confirming payment...';
+      case 'generating': return 'AI is thinking...';
+      case 'complete': return 'Done!';
       default: return 'Processing...';
     }
   };
@@ -57,7 +71,7 @@ export default function ResumePage() {
           <h2 className="text-2xl font-serif">Resume Gen</h2>
         </div>
         <span className="text-[10px] font-mono text-accent-green px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/20">
-          {TOOLS.RESUME.price} cUSD
+          0.005 CELO
         </span>
       </header>
 
@@ -100,5 +114,13 @@ export default function ResumePage() {
 
       {response && <ResponseCard response={response} />}
     </div>
+  );
+}
+
+export default function ResumePage() {
+  return (
+    <Suspense fallback={<div className="h-full flex items-center justify-center animate-pulse font-mono text-accent uppercase tracking-widest">Loading context...</div>}>
+      <ResumePageInner />
+    </Suspense>
   );
 }
