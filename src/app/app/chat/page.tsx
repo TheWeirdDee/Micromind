@@ -6,9 +6,11 @@ import { Send, Bot, User as UserIcon, Loader2, History as HistoryIcon } from 'lu
 import Link from 'next/link';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { TOOLS } from '@/constants/tools';
-import { saveToHistory } from '@/lib/storage';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useSearchParams } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
+import { getHistory } from '@/lib/storage';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -21,12 +23,28 @@ interface Message {
 
 import { AgentWarning } from '@/components/app/AgentWarning';
 
-export default function ChatPage() {
+import { Suspense } from 'react';
+
+function ChatPageInner() {
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
-  const [txHash, setTxHash] = useState<string | null>(null);
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const historyId = searchParams.get('id');
+    if (historyId) {
+      const history = getHistory();
+      const item = history.find(h => h.txHash === historyId);
+      if (item && item.toolId === 0) {
+        setMessages([
+          { role: 'user', content: item.prompt },
+          { role: 'assistant', content: item.response }
+        ]);
+      }
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -43,7 +61,7 @@ export default function ChatPage() {
     setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
 
     try {
-      const aiResponse = await payAndGenerate(TOOLS.CHAT.id, TOOLS.CHAT.name, userPrompt);
+      const aiResponse = await payAndGenerate(0, 'Chat', userPrompt);
       if (aiResponse) {
         setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
       }
@@ -51,18 +69,19 @@ export default function ChatPage() {
       console.error(err);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Error: Connection failed or payment rejected. Ensure you are in MiniPay with enough cUSD.' 
+        content: 'Error: Transaction failed. Make sure you have enough CELO in your wallet.' 
       }]);
     }
   };
 
   const getStepMessage = () => {
     switch (step) {
-      case 'SUBMITTING': return 'Preparing prompt...';
-      case 'APPROVING': return 'Approve cUSD in MiniPay...';
-      case 'PAYING': return 'Sending payment...';
-      case 'POLLING': return 'AI is thinking...';
-      case 'COMPLETE': return 'Generation complete!';
+      case 'checking': return 'Checking agent...';
+      case 'submitting': return 'Preparing prompt...';
+      case 'paying': return 'Confirm in wallet...';
+      case 'confirming': return 'Confirming payment...';
+      case 'generating': return 'AI is thinking...';
+      case 'complete': return 'Done!';
       default: return 'Processing...';
     }
   };
@@ -75,7 +94,7 @@ export default function ChatPage() {
         <div>
           <h1 className="text-3xl font-serif">AI Chat</h1>
           <p className="text-text-muted font-mono text-xs uppercase tracking-widest mt-1">
-            {TOOLS.CHAT.price} per prompt
+            0.001 CELO per prompt
           </p>
         </div>
         <Link 
@@ -133,7 +152,11 @@ export default function ChatPage() {
                     ? "bg-surface border border-border text-text-primary" 
                     : "bg-accent/10 border border-accent/20 text-text-primary"
                 )}>
-                  {msg.content}
+                  {msg.role === 'assistant' ? (
+                    <div className="prose prose-invert prose-sm max-w-none">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : msg.content}
                 </div>
               </motion.div>
             ))
@@ -181,5 +204,13 @@ export default function ChatPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="h-full flex items-center justify-center animate-pulse font-mono text-accent uppercase tracking-widest">Loading context...</div>}>
+      <ChatPageInner />
+    </Suspense>
   );
 }
