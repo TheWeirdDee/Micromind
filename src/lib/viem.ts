@@ -1,5 +1,7 @@
 import { createPublicClient, createWalletClient, custom, http } from 'viem';
-import { celo } from 'viem/chains';
+import { celo, celoSepolia } from 'viem/chains';
+
+const IS_TESTNET = process.env.NEXT_PUBLIC_IS_TESTNET === 'true';
 
 declare global {
   interface Window {
@@ -8,7 +10,7 @@ declare global {
 }
 
 export const publicClient = createPublicClient({
-  chain: celo,
+  chain: IS_TESTNET ? celoSepolia : celo,
   transport: http(),
 });
 
