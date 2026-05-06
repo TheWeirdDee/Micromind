@@ -45,7 +45,7 @@ export function WalletBadge() {
       <div className="hidden xs:flex items-center gap-2">
         <span className="text-[10px] font-mono text-text-muted opacity-40">·</span>
         <span className="text-[10px] font-mono text-accent-green font-medium whitespace-nowrap">
-          {cUSDBalance} <span className="text-[8px] opacity-70">cUSD</span>
+          {celoBalance} <span className="text-[8px] opacity-70">CELO</span>
         </span>
       </div>
       
