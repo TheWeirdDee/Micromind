@@ -17,7 +17,7 @@ export const publicClient = createPublicClient({
 export const getWalletClient = async () => {
   if (typeof window !== 'undefined' && window.ethereum) {
     return createWalletClient({
-      chain: celo,
+      chain: IS_TESTNET ? celoSepolia : celo,
       transport: custom(window.ethereum),
     });
   }
