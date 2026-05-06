@@ -6,11 +6,11 @@ import { celo, celoSepolia } from 'viem/chains';
 import { publicClient } from '@/lib/viem';
 
 const IS_TESTNET = process.env.NEXT_PUBLIC_IS_TESTNET === 'true';
-const CUSD_ADDRESS = '0x765DE816845861e75A25fCA122bb6898B8B1282a' as `0x${string}`;
+const CUSD_ADDRESS = (process.env.NEXT_PUBLIC_CUSD_ADDRESS || '0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1') as `0x${string}`;
 
 const NETWORKS = {
   testnet: {
-    chainId: '0xAA1480',
+    chainId: '0xAA044C',
     chainName: 'Celo Sepolia Testnet',
     nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
     rpcUrls: ['https://forno.celo-sepolia.celo-testnet.org'],
@@ -52,20 +52,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const fetchBalances = useCallback(async (addr: string) => {
     try {
-      // cUSD balance
-      const cUSDRaw = await publicClient.readContract({
-        address: CUSD_ADDRESS,
-        abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [addr as `0x${string}`]
+      const raw = await publicClient.getBalance({
+        address: addr as `0x${string}`
       });
-      setCUSDBalance((Number(cUSDRaw) / 1e18).toFixed(4));
-
-      // CELO balance (native)
-      const celoRaw = await publicClient.getBalance({ address: addr as `0x${string}` });
-      setCeloBalance((Number(celoRaw) / 1e18).toFixed(4));
-    } catch (error) {
-      console.error('Error fetching balances:', error);
+      const celo = (Number(raw) / 1e18).toFixed(4);
+      setCeloBalance(celo);
+      // Show CELO as primary balance
+      setCUSDBalance(celo); // reuse for display
+    } catch (e) {
+      setCeloBalance('0');
+      setCUSDBalance('0');
     }
   }, []);
 
@@ -113,8 +109,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const isMP = window.ethereum.isMiniPay === true;
       setIsMiniPay(isMP);
 
+      const userDisconnected = window.localStorage.getItem('micromind_user_disconnected') === 'true';
+
       if (isMP) {
-        // Silent auto-connect for MiniPay
+        // Silent auto-connect for MiniPay (always connected in-wallet)
         window.ethereum.request({ method: 'eth_accounts' }).then((accounts: string[]) => {
           if (accounts.length > 0) {
             const client = createWalletClient({
@@ -126,12 +124,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             fetchBalances(accounts[0]);
           }
         });
+      } else if (!userDisconnected) {
+        // Auto-connect for desktop only if not explicitly disconnected
+        window.ethereum.request({ method: 'eth_accounts' }).then((accounts: string[]) => {
+          if (accounts.length > 0) {
+            connect();
+          }
+        });
       }
 
       window.ethereum.on('accountsChanged', (accounts: string[]) => {
         if (accounts.length > 0) {
           setAddress(accounts[0]);
           fetchBalances(accounts[0]);
+          window.localStorage.removeItem('micromind_user_disconnected');
         } else {
           setAddress(null);
           setWalletClient(null);
@@ -142,7 +148,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setChainId(parseInt(id, 16));
       });
     }
-  }, [fetchBalances]);
+  }, [fetchBalances, connect]);
 
   // Network enforcement effect
   useEffect(() => {
@@ -167,10 +173,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [address, chainId]);
 
   const disconnect = useCallback(() => {
+    // Clear state
     setAddress(null);
+    setCeloBalance('0');
+    setCUSDBalance('0');
     setWalletClient(null);
-    setCUSDBalance('0.0000');
-    setCeloBalance('0.0000');
+    setChainId(null);
+    
+    // Set persistent disconnect flag
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('micromind_user_disconnected', 'true');
+      window.localStorage.removeItem('micromind_connected');
+      window.localStorage.removeItem('wagmi.connected');
+      window.localStorage.removeItem('wagmi.wallet');
+    }
   }, []);
 
   return (
