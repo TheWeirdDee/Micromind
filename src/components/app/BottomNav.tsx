@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, MessageSquare, History, Settings } from 'lucide-react';
+import { Home, MessageSquare, History, Settings, ArrowUp } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -16,6 +16,7 @@ export function BottomNav() {
   const navItems = [
     { icon: Home, label: 'Home', href: '/app' },
     { icon: MessageSquare, label: 'Chat', href: '/app/chat' },
+    { icon: ArrowUp, label: 'Send', href: '/app/send' },
     { icon: History, label: 'History', href: '/app/history' },
     { icon: Settings, label: 'Settings', href: '/app/settings' },
   ];
@@ -35,7 +36,7 @@ export function BottomNav() {
               )}
             >
               <item.icon className="w-5 h-5" />
-              <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-surface border border-border text-[10px] px-2 py-1 rounded font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-surface border border-border text-[10px] px-2 py-1 rounded font-mono opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                 {item.label}
               </span>
             </Link>
