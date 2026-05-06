@@ -1,77 +1,48 @@
-# MicroMind — Pay-per-use AI on Celo
+# MicroMind — AI-Powered Builder Tools on Celo
 
-> AI Tools That Cost What You Actually Use.
+MicroMind is a minimalist, mobile-first AI agent suite built for the Celo MiniPay ecosystem. It provides high-speed, on-chain tools for creators and developers, including AI Chat, Resume Generation, Tweet Crafting, and Bio Optimization.
 
-MicroMind is a MiniPay-native Mini App that lets users access AI tools 
-by paying small amounts of cUSD per prompt — no subscriptions, no accounts.
+## 🚀 Key Features
+- **MiniPay Optimized**: Silent auto-detection and seamless payments.
+- **On-Chain Payments**: Pay-per-prompt using cUSD on Celo Mainnet.
+- **AI Agent Suite**: Powered by Llama-3.3-70b (via Groq) for high-fidelity responses.
+- **Non-Custodial**: Full control of your assets via MetaMask or MiniPay.
 
-## Live App
-[https://micromind.vercel.app](https://micromind.vercel.app)
+## 🛠 Tech Stack
+- **Frontend**: Next.js 15+, Tailwind CSS 4, Framer Motion.
+- **Smart Contracts**: Solidity, Hardhat, Viem.
+- **Backend**: Node.js, Express, Groq SDK, Upstash Redis.
+- **Network**: Celo Mainnet / Alfajores Testnet.
 
-## Smart Contract (Celo Mainnet)
-[0xYOUR_CONTRACT_ADDRESS](https://celoscan.io/address/0xYOUR_CONTRACT)
+## 📦 How to Run Locally
 
-## AI Agent
-- 8004 Agent ID: [FILL IN]
-- Self Agent ID: [FILL IN]
-- Agent Wallet: [FILL IN]
+### 1. Prerequisites
+- Node.js 18+
+- [Foundry](https://getfoundry.sh) (for wallet generation)
 
-## Tools
-| Tool | Price |
-|------|-------|
-| AI Chat | 0.01 cUSD |
-| Resume Generator | 0.05 cUSD |
-| Tweet Generator | 0.01 cUSD |
-| Bio Generator | 0.02 cUSD |
+### 2. Environment Setup
+Create `.env.local` in root and `.env` in `agent/` and `contracts/` following the `.env.example` files provided in each directory.
 
-## Tech Stack
-- Next.js 14 + Tailwind CSS
-- Viem (no ethers.js)
-- Solidity + Hardhat
-- Groq API (Llama 3)
-- Celo Mainnet
-
-## Local Development
+### 3. Installation
 ```bash
-# Frontend
 npm install
-npm run dev
-
-# Backend Agent
-cd agent
-npm install
-npm run dev
+cd agent && npm install
+cd ../contracts && npm install
 ```
 
-## Deploy
+### 4. Run Everything
 ```bash
-# Deploy contract
-cd contracts
-npx hardhat run scripts/deploy.ts --network alfajores  # test first
-npx hardhat run scripts/deploy.ts --network celo       # then mainnet
-npx hardhat verify --network celo <ADDRESS> <CUSD_ADDRESS>
-
-# Deploy frontend
-vercel --prod
-
-# Deploy agent
-railway up
+npm run dev:all
 ```
 
-## Built for Proof of Ship — May 2026
+## 📜 Smart Contract
+- **Celo Mainnet**: `[MAINNET_ADDRESS_HERE]`
+- **Alfajores Testnet**: `[TESTNET_ADDRESS_HERE]`
+
+## 🤖 AI Agent Compliance
+- **8004 Agent ID**: `[AGENT_8004_ID_HERE]`
+- **Self Agent ID**: `[SELF_AGENT_ID_HERE]`
 
 ---
-
-### PROOF OF SHIP CHECKLIST:
-- [ ] Smart contract deployed on Celo Mainnet
-- [ ] Contract verified on Celoscan
-- [ ] GitHub repo is public
-- [ ] Project registered on talent.app
-- [ ] Contract address added to talent.app project
-- [ ] Agent registered with 8004 (https://8004.xyz)
-- [ ] Agent registered with Self Protocol (https://self.xyz)
-- [ ] Agent wallet has onchain transactions
-- [ ] App deployed to Vercel (live URL)
-- [ ] Agent deployed to Railway (live URL)
-- [ ] Real end-to-end transaction tested on Mainnet
-- [ ] Submitted before May 25, 2026 at 23:59 GMT
+Built for the **Celo Proof of Ship** competition.
+Deadline: May 25, 2025.
