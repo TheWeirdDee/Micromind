@@ -50,7 +50,7 @@ export default function SettingsPage() {
         </button>
 
         <p className="text-[10px] font-mono text-text-muted uppercase tracking-wider text-center max-w-[200px] leading-relaxed">
-          Share this to receive CELO or cUSD
+          Share this to receive CELO
         </p>
       </section>
 
