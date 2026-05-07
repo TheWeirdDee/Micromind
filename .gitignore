@@ -12,11 +12,15 @@ yarn-error.log*
 
 # Env
 .env
-.env.local
-.env.production
-.env.development
+.env.*
+!.env.example
 agent/.env
+agent/.env.*
 contracts/.env
+contracts/.env.*
+
+# Flattened Contracts (Security Risk)
+*Flattened.sol
 
 # IDE
 .vscode/
