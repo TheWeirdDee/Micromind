@@ -24,6 +24,12 @@ export default function SettingsPage() {
     }
   };
 
+  const handleDisconnect = () => {
+    if (window.confirm('Disconnect your wallet?')) {
+      disconnect();
+    }
+  };
+
   return (
     <div className="space-y-10 animate-fade-up">
       <header>
@@ -70,7 +76,7 @@ export default function SettingsPage() {
         ))}
         
         <button
-          onClick={() => disconnect()}
+          onClick={handleDisconnect}
           className="w-full flex items-center justify-between p-5 bg-surface border border-border rounded-2xl group hover:border-red-500/40 transition-colors mt-8"
         >
           <div className="flex items-center gap-4">
