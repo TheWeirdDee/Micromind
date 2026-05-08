@@ -61,7 +61,13 @@ function ChatPageInner() {
     setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
 
     try {
-      const aiResponse = await payAndGenerate(0, 'Chat', userPrompt);
+      // Send the last 5 messages as context for memory
+      const historyContext = [
+        ...messages.slice(-5),
+        { role: 'user', content: userPrompt }
+      ];
+
+      const aiResponse = await payAndGenerate(0, 'Chat', userPrompt, historyContext);
       if (aiResponse) {
         setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
       }
