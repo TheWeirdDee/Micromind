@@ -17,10 +17,14 @@ export function usePayForPrompt() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<string | null>(null);
 
-  const payAndGenerate = async (toolId: number, toolName: string, prompt: string) => {
+  const payAndGenerate = async (toolId: number, toolName: string, prompt: string, history?: any[]) => {
     if (!address || !walletClient) return;
     const tool = TOOLS.find(t => t.id === toolId);
     if (!tool) throw new Error('Invalid tool');
+    
+    // If history is provided, we send the history as the prompt
+    // The backend is now updated to detect this JSON array
+    const finalPrompt = history ? JSON.stringify(history) : prompt;
     
     const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
     const celoChain = IS_TESTNET ? celoSepolia : celo;
@@ -45,7 +49,7 @@ export function usePayForPrompt() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt,
+          prompt: finalPrompt,
           toolId,
           userAddress: address
         })
@@ -87,7 +91,7 @@ export function usePayForPrompt() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 
                 txHash, 
-                prompt, 
+                prompt: finalPrompt, 
                 toolId, 
                 userAddress: address 
               })
@@ -99,7 +103,7 @@ export function usePayForPrompt() {
                 txHash,
                 toolId,
                 toolName,
-                prompt,
+                prompt: history ? history[history.length - 1].content : prompt,
                 response: directRes.response,
                 cost: tool.priceDisplay,
                 timestamp: Date.now()
@@ -123,7 +127,7 @@ export function usePayForPrompt() {
               txHash,
               toolId,
               toolName,
-              prompt,
+              prompt: history ? history[history.length - 1].content : prompt,
               response: data.response,
               cost: tool.priceDisplay,
               timestamp: Date.now()

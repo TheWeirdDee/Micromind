@@ -76,21 +76,39 @@ const SYSTEM_PROMPTS: Record<number, string> = {
 async function callAI(toolId: number, prompt: string): Promise<string> {
   try {
     console.log(`[AI] Generating for tool ${toolId}...`);
+    
+    let messages: any[] = [
+      { role: "system", content: SYSTEM_PROMPTS[toolId] ?? SYSTEM_PROMPTS[0] }
+    ];
+
+    // Check if prompt is a JSON array of messages (chat history)
+    try {
+      if (prompt.trim().startsWith('[') && prompt.trim().endsWith(']')) {
+        const history = JSON.parse(prompt);
+        if (Array.isArray(history)) {
+          messages = [...messages, ...history];
+        } else {
+          messages.push({ role: "user", content: prompt });
+        }
+      } else {
+        messages.push({ role: "user", content: prompt });
+      }
+    } catch {
+      messages.push({ role: "user", content: prompt });
+    }
+
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       max_tokens: 1024,
       temperature: 0.7,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPTS[toolId] ?? SYSTEM_PROMPTS[0] },
-        { role: "user", content: prompt }
-      ]
+      messages
     });
+    
     const result = completion.choices[0]?.message?.content ?? "No response generated.";
     console.log(`[AI] Success! Response length: ${result.length}`);
     return result;
   } catch (error: any) {
     console.error('[AI] Groq Error:', error.message);
-    if (error.response) console.error('[AI] Data:', error.response.data);
     return `AI generation failed: ${error.message}`;
   }
 }
