@@ -28,7 +28,7 @@ This document tracks the progress of the MicroMind AI Agent and its integration 
 ### 4. Code Quality & Deployment
 - [x] **TypeScript Stability**: Resolved all linting and type errors.
 - [x] **Deployment Config**: Optimized Hardhat and Vercel configs for Celo Mainnet production.
-- [x] **Contract Deployment**: Deployed the refactored native CELO contract to Celo Mainnet (`0x1F2090B4ce50fB2e85915Bcd0EcDA76EE4DB3cBF`).
+- [x] **Contract Deployment**: Deployed the refactored native CELO contract to Celo Mainnet.
 
 ## 🚀 Next Steps
 
