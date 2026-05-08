@@ -16,7 +16,7 @@ const dmMono = DM_Mono({
 
 export const metadata: Metadata = {
   title: "MicroMind | Pay-per-thought AI Agent",
-  description: "Stop paying for AI subscriptions. MicroMind offers premium AI tools with a simple pay-per-prompt model using cUSD on Celo.",
+  description: "Stop paying for AI subscriptions. MicroMind offers premium AI tools with a simple pay-per-thought model using native CELO on Celo.",
   keywords: ["AI", "Celo", "MiniPay", "Web3", "Pay-per-prompt", "Llama 3", "Crypto AI"],
   authors: [{ name: "MicroMind Team" }],
   icons: {
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "MicroMind | Pay-per-thought AI",
-    description: "AI Tools That Cost What You Actually Use. No subscriptions. Just cUSD.",
+    description: "AI Tools That Cost What You Actually Use. No subscriptions. Just CELO.",
     url: "https://micromind.vercel.app",
     siteName: "MicroMind",
     images: [
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "MicroMind | AI That Costs What You Use",
-    description: "Premium AI tools on Celo. No subscriptions, just cUSD.",
+    description: "Premium AI tools on Celo. No subscriptions, just CELO.",
     images: ["/logo.svg"],
   },
   other: {
@@ -56,7 +56,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${playfair.variable} ${dmMono.variable} antialiased selection:bg-accent selection:text-bg`}
       >
