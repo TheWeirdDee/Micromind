@@ -157,11 +157,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const isMP = window.ethereum.isMiniPay === true;
       setIsMiniPay(isMP);
 
+      // 1. Always auto-connect in MiniPay
       if (isMP) {
         try {
-          const accounts = await window.ethereum.request({
-            method: 'eth_requestAccounts'
-          });
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
           if (accounts[0]) {
             const addr = accounts[0];
             const client = createWalletClient({
@@ -172,13 +171,29 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             setWalletClient(client);
             setIsTestingMode(false);
             await fetchBalances(addr);
-            
             const id = await window.ethereum.request({ method: 'eth_chainId' });
             setChainId(parseInt(id, 16));
           }
-        } catch (e) {
-          console.log('MiniPay auto-connect failed:', e);
-        }
+        } catch (e) { console.log('MiniPay auto-connect failed:', e); }
+      } 
+      // 2. For MetaMask: Only auto-connect if already authorized (no popup)
+      else {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts.length > 0) {
+            const addr = accounts[0];
+            const client = createWalletClient({
+              chain: IS_TESTNET ? celoSepolia : celo,
+              transport: custom(window.ethereum)
+            });
+            setAddress(addr);
+            setWalletClient(client);
+            setIsTestingMode(true);
+            await fetchBalances(addr);
+            const id = await window.ethereum.request({ method: 'eth_chainId' });
+            setChainId(parseInt(id, 16));
+          }
+        } catch (e) { console.log('MetaMask persistence failed:', e); }
       }
     };
     
