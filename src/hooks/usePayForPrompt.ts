@@ -27,6 +27,11 @@ export function usePayForPrompt() {
     const finalPrompt = history ? JSON.stringify(history) : prompt;
     
     const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+    
+    if (!CONTRACT_ADDRESS) {
+      alert("Error: NEXT_PUBLIC_CONTRACT_ADDRESS is not set in environment variables.");
+      return;
+    }
     const celoChain = IS_TESTNET ? celoSepolia : celo;
 
     try {
