@@ -54,20 +54,15 @@ export function usePayForPrompt() {
 
       // Step 3: Pay with native CELO (single transaction, no approve)
       setStep('paying');
-      const nonce = await publicClient.getTransactionCount({
-        address: address as `0x${string}`,
-        blockTag: 'pending'
-      });
 
       const txHash = await walletClient.writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
         abi: MICROMIND_ABI,
         functionName: 'payForPrompt',
         args: [toolId, promptHash as `0x${string}`],
-        value: parseEther(tool.price), // Send CELO with transaction
+        value: parseEther(tool.price),
         chain: celoChain,
-        account: address as `0x${string}`,
-        nonce,
+        account: address as `0x${string}`
       });
 
       setStep('confirming');
