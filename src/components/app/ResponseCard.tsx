@@ -19,7 +19,7 @@ export function ResponseCard({ response, txHash }: ResponseCardProps) {
   };
 
   const handleShare = () => {
-    const text = encodeURIComponent(`Check out what I generated with @MicroMind_AI! 🧠✨\n\n"${response.slice(0, 200)}${response.length > 200 ? '...' : ''}"\n\nTry it here: https://micromind.vercel.app`);
+    const text = encodeURIComponent(`Check out what I generated with @MicroMind_AI! 🧠✨\n\n"${response.slice(0, 200)}${response.length > 200 ? '...' : ''}"\n\nTry it here: https://micromind-three.vercel.app`);
     window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
   };
 
