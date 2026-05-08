@@ -66,12 +66,13 @@ export default function HistoryPage() {
               3: '/app/bio'
             };
             const route = toolRoutes[item.toolId as number] || '/app/chat';
+            const fullRoute = `${route}?id=${item.txHash}`;
 
             return (
-              <Link 
+              <div 
                 key={item.id} 
-                href={`${route}?id=${item.txHash}`}
-                className="bg-surface-2 border border-border rounded-2xl p-6 space-y-4 group hover:border-text-muted/40 transition-colors block"
+                onClick={() => window.location.href = fullRoute}
+                className="bg-surface-2 border border-border rounded-2xl p-6 space-y-4 group hover:border-text-muted/40 transition-colors block cursor-pointer"
               >
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
@@ -94,7 +95,7 @@ export default function HistoryPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="p-2 hover:bg-surface rounded-full transition-colors text-text-muted hover:text-text-primary"
+                      className="p-2 hover:bg-surface rounded-full transition-colors text-text-muted hover:text-text-primary relative z-10"
                     >
                       <ExternalLink className="w-4 h-4" />
                     </a>
@@ -103,7 +104,7 @@ export default function HistoryPage() {
                 <p className="text-sm font-mono text-text-muted line-clamp-2 px-2 italic">
                   "{item.prompt}"
                 </p>
-              </Link>
+              </div>
             );
           })
         )}
