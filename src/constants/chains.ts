@@ -1,22 +1,26 @@
-export const IS_TESTNET = 
-  process.env.NEXT_PUBLIC_IS_TESTNET === 'true';
+import { celo } from 'viem/chains';
 
-export const CHAIN_CONFIG = IS_TESTNET ? {
-  chainId: 11155420,
-  chainIdHex: '0xAA37DC',
-  name: 'Celo Sepolia Testnet',
-  rpc: 'https://celo-sepolia.drpc.org',
-  explorer: 'https://celo-sepolia.blockscout.com',
-  networkLabel: 'TESTNET',
-} : {
-  chainId: 42220,
-  chainIdHex: '0xA4EC',
-  name: 'Celo Mainnet',
-  rpc: 'https://forno.celo.org',
-  explorer: 'https://celoscan.io',
-  networkLabel: 'MAINNET',
+// MAINNET ONLY — no testnet
+export const CHAIN = celo;
+export const CHAIN_ID = 42220;
+export const CHAIN_ID_HEX = '0xA4EC';
+export const RPC_URL = 'https://forno.celo.org';
+export const EXPLORER = 'https://celoscan.io';
+
+// USDC on Celo Mainnet
+export const USDC_ADDRESS = '0xcebA9300f2b948710d2653dD7B07f33A8B32118C';
+
+// Payment token info
+export const PAYMENT_TOKEN_SYMBOL = 'USDC';
+export const PAYMENT_TOKEN_DECIMALS = 6; // USDC uses 6 decimals
+
+// MiniPay fee currency (pay gas in USDm)
+export const USDm_ADDRESS = '0x765DE816845861e75A25fCA122bb6898B8B1282a';
+
+export const CELO_MAINNET_PARAMS = {
+  chainId: '0xA4EC',
+  chainName: 'Celo Mainnet',
+  nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+  rpcUrls: ['https://forno.celo.org'],
+  blockExplorerUrls: ['https://celoscan.io']
 };
-
-// No ERC20 token — using native CELO
-export const PAYMENT_TOKEN = 'CELO';
-export const PAYMENT_DECIMALS = 18;
