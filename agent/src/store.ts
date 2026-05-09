@@ -4,7 +4,6 @@ import path from 'path';
 const STORE_PATH = path.join(__dirname, '../data/prompts.json');
 const RESPONSE_PATH = path.join(__dirname, '../data/responses.json');
 
-// Ensure data directory exists
 if (!fs.existsSync(path.dirname(STORE_PATH))) {
   fs.mkdirSync(path.dirname(STORE_PATH), { recursive: true });
 }
