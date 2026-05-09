@@ -59,6 +59,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         className={`${playfair.variable} ${dmMono.variable} antialiased selection:bg-accent selection:text-bg`}
       >
         <WalletProvider>
