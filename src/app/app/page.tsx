@@ -39,7 +39,7 @@ const tools = [
 ];
 
 export default function AppHome() {
-  const { isConnected, isMiniPay, connect } = useWallet();
+  const { isConnected, address, isMiniPay, connect } = useWallet();
   const [appUrl, setAppUrl] = useState('');
 
   useEffect(() => {
@@ -57,7 +57,8 @@ export default function AppHome() {
     }
   }, []);
 
-  if (!isConnected) {
+  // If not connected, show connect screen
+  if (!isConnected || !address) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-8">
         <h2 className="text-3xl font-serif mb-8 text-text-primary">Welcome to MicroMind.</h2>
@@ -118,6 +119,7 @@ export default function AppHome() {
     );
   }
 
+  // Only show app content when connected
   return (
     <div className="space-y-12 animate-fade-up">
       <header>
