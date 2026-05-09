@@ -1,40 +1,57 @@
-'use client';
-
-import { useState } from 'react';
-import { parseEther } from 'viem';
-import { celo, celoSepolia } from 'viem/chains';
-import { MICROMIND_ABI } from '@/lib/contract';
-import { publicClient } from '@/lib/viem';
+import { useState, useCallback } from 'react';
+import { parseUnits, erc20Abi } from 'viem';
+import { celo } from 'viem/chains';
 import { useWallet } from '@/context/WalletContext';
-import { saveToHistory } from '@/lib/storage';
+import { CONTRACT_ADDRESS, MICROMIND_ABI } from '@/lib/contract';
+import { USDC_ADDRESS, PAYMENT_TOKEN_DECIMALS } from '@/constants/chains';
 import { TOOLS } from '@/constants/tools';
-import { CHAIN_CONFIG, IS_TESTNET } from '@/constants/chains';
+import { saveToHistory } from '@/lib/storage';
 
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+export type PaymentStep =
+  | 'idle'
+  | 'checking'
+  | 'submitting'
+  | 'approving'
+  | 'paying'
+  | 'confirming'
+  | 'generating'
+  | 'complete'
+  | 'error';
 
 export function usePayForPrompt() {
-  const { address, walletClient } = useWallet();
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<string | null>(null);
+  const { address, walletClient, publicClient } = useWallet();
+  const [step, setStep] = useState<PaymentStep>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [response, setResponse] = useState<string | null>(null);
 
-  const payAndGenerate = async (toolId: number, toolName: string, prompt: string, history?: any[]) => {
-    if (!address || !walletClient) return;
-    const tool = TOOLS.find(t => t.id === toolId);
-    if (!tool) throw new Error('Invalid tool');
-    
-    const finalPrompt = history ? JSON.stringify(history) : prompt;
-    
-    const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
-    
-    if (!CONTRACT_ADDRESS) {
-      alert("Error: NEXT_PUBLIC_CONTRACT_ADDRESS is not set in environment variables.");
+  const loading = step !== 'idle' && step !== 'complete' && step !== 'error';
+
+  const payAndGenerate = useCallback(async (
+    toolId: number,
+    toolName: string,
+    prompt: string,
+    chatHistory?: any[]
+  ) => {
+    if (!address || !walletClient) {
+      setError('Wallet not connected');
       return;
     }
-    const celoChain = IS_TESTNET ? celoSepolia : celo;
+
+    const tool = TOOLS[toolId];
+    const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+
+    if (!agentUrl) {
+      setError('Agent URL not configured');
+      return;
+    }
+
+    setError(null);
+    setResponse(null);
+    setTxHash(null);
 
     try {
-      setLoading(true);
-      
+      // STEP 1 — Check agent health
       setStep('checking');
       try {
         const health = await fetch(`${agentUrl}/api/health`, {
@@ -42,115 +59,160 @@ export function usePayForPrompt() {
         });
         if (!health.ok) throw new Error('Agent offline');
       } catch {
-        throw new Error('AI agent is offline. Run: npm run agent');
+        throw new Error(
+          'AI agent is offline. Contact support or try again.'
+        );
       }
 
+      // STEP 2 — Submit prompt, get hash
       setStep('submitting');
+      const finalPrompt = chatHistory ? JSON.stringify(chatHistory) : prompt;
+      
       const submitRes = await fetch(`${agentUrl}/api/prompt/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: finalPrompt,
-          toolId,
-          userAddress: address
+        body: JSON.stringify({ 
+          prompt: finalPrompt, 
+          toolId, 
+          userAddress: address 
         })
       });
+
+      if (!submitRes.ok) throw new Error('Failed to submit prompt');
       const { promptHash } = await submitRes.json();
 
-      setStep('paying');
+      // Get current gas price (legacy tx for MiniPay)
+      const gasPrice = await publicClient.getGasPrice();
 
-      const txHash = await walletClient.writeContract({
+      // STEP 3 — Approve USDC
+      setStep('approving');
+      const price = parseUnits(tool.price, PAYMENT_TOKEN_DECIMALS);
+
+      const approveNonce = await publicClient.getTransactionCount({
+        address: address as `0x${string}`,
+        blockTag: 'pending'
+      });
+
+      const approveTx = await walletClient.writeContract({
+        address: USDC_ADDRESS as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [CONTRACT_ADDRESS as `0x${string}`, price],
+        chain: celo,
+        account: address as `0x${string}`,
+        gasPrice,
+        nonce: approveNonce,
+      });
+
+      await publicClient.waitForTransactionReceipt({
+        hash: approveTx,
+        confirmations: 1
+      });
+
+      // STEP 4 — Pay for prompt
+      setStep('paying');
+      const payNonce = await publicClient.getTransactionCount({
+        address: address as `0x${string}`,
+        blockTag: 'pending'
+      });
+
+      const payTx = await walletClient.writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
         abi: MICROMIND_ABI,
         functionName: 'payForPrompt',
         args: [toolId, promptHash as `0x${string}`],
-        value: parseEther(tool.price),
-        chain: celoChain,
-        account: address as `0x${string}`
+        chain: celo,
+        account: address as `0x${string}`,
+        gasPrice,
+        nonce: payNonce,
       });
 
       setStep('confirming');
-      await publicClient.waitForTransactionReceipt({ 
-        hash: txHash,
+      await publicClient.waitForTransactionReceipt({
+        hash: payTx,
         confirmations: 1
       });
 
+      setTxHash(payTx);
+
+      // STEP 5 — Get AI response
       setStep('generating');
-      let attempts = 0;
+
+      // Try direct processing first (faster)
+      try {
+        const directRes = await fetch(`${agentUrl}/api/process-direct`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            txHash: payTx,
+            prompt: finalPrompt,
+            toolId,
+            userAddress: address
+          })
+        }).then(r => r.json());
+
+        if (directRes.status === 'ready') {
+          saveToHistory({
+            id: Math.random().toString(36).substring(7),
+            txHash: payTx,
+            toolId,
+            toolName,
+            prompt,
+            response: directRes.response,
+            cost: tool.priceDisplay,
+            timestamp: Date.now()
+          });
+          setResponse(directRes.response);
+          setStep('complete');
+          return directRes.response;
+        }
+      } catch { /* fallback to polling */ }
+
+      // Poll for response
       for (let i = 0; i < 60; i++) {
         await new Promise(r => setTimeout(r, 2000));
-        attempts++;
-
-        // After 5 failed polls (~10 seconds), try direct processing fallback
-        if (attempts === 5) {
-          console.log('Trying direct processing fallback...');
-          try {
-            const directRes = await fetch(`${agentUrl}/api/process-direct`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                txHash, 
-                prompt: finalPrompt, 
-                toolId, 
-                userAddress: address 
-              })
-            }).then(r => r.json());
-            
-            if (directRes.status === 'ready') {
-              saveToHistory({
-                id: txHash,
-                txHash,
-                toolId,
-                toolName,
-                prompt: history ? history[history.length - 1].content : prompt,
-                response: directRes.response,
-                cost: tool.priceDisplay,
-                timestamp: Date.now()
-              });
-              setStep('complete');
-              return directRes.response;
-            }
-          } catch (e) {
-            console.log('Direct fallback failed, continuing poll...', e);
-          }
-        }
-
         try {
-          const res = await fetch(`${agentUrl}/api/response/${txHash}`);
-          if (!res.ok) continue;
-          const data = await res.json();
-          
+          const data = await fetch(
+            `${agentUrl}/api/response/${payTx}`
+          ).then(r => r.json());
+
           if (data.status === 'ready') {
             saveToHistory({
-              id: txHash,
-              txHash,
+              id: Math.random().toString(36).substring(7),
+              txHash: payTx,
               toolId,
               toolName,
-              prompt: history ? history[history.length - 1].content : prompt,
+              prompt,
               response: data.response,
               cost: tool.priceDisplay,
               timestamp: Date.now()
             });
+            setResponse(data.response);
             setStep('complete');
             return data.response;
           }
-        } catch {
-          // Continue polling on network error
-        }
+        } catch { /* continue polling */ }
       }
 
       throw new Error(
-        'Response timed out. Check ' +
-        CHAIN_CONFIG.explorer + '/tx/' + txHash
+        `Response timed out. Payment confirmed. ` +
+        `Check: https://celoscan.io/tx/${payTx}`
       );
-    } catch (error) {
-      console.error('Payment/Generation failed:', error);
-      setStep('error');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  return { payAndGenerate, loading, step };
+    } catch (e: any) {
+      const msg = e?.shortMessage || e?.message || 'Transaction failed';
+      setError(msg);
+      setStep('error');
+      throw e;
+    }
+  }, [address, walletClient, publicClient]);
+
+  const reset = useCallback(() => {
+    setStep('idle');
+    setError(null);
+    setTxHash(null);
+    setResponse(null);
+  }, []);
+
+  return { payAndGenerate, loading, step, error, txHash, response, reset };
 }
