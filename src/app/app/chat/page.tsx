@@ -75,7 +75,7 @@ function ChatPageInner() {
       console.error(err);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Error: Transaction failed. Make sure you have enough CELO in your wallet.' 
+        content: 'Error: Transaction failed. Make sure you have enough USDC in your wallet.' 
       }]);
     }
   };
@@ -84,9 +84,10 @@ function ChatPageInner() {
     switch (step) {
       case 'checking': return 'Checking agent...';
       case 'submitting': return 'Preparing prompt...';
-      case 'paying': return 'Confirm in wallet...';
-      case 'confirming': return 'Confirming payment...';
-      case 'generating': return 'AI is thinking...';
+      case 'approving': return 'Approving USDC spend...';
+      case 'paying': return 'Sending payment...';
+      case 'confirming': return 'Confirming on Celo...';
+      case 'generating': return 'AI is generating...';
       case 'complete': return 'Done!';
       default: return 'Processing...';
     }
@@ -99,7 +100,7 @@ function ChatPageInner() {
         <div>
           <h1 className="text-3xl font-serif">AI Chat</h1>
           <p className="text-text-muted font-mono text-xs uppercase tracking-widest mt-1">
-            0.001 CELO per prompt
+            0.01 USDC per prompt
           </p>
         </div>
         <Link 
