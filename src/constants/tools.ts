@@ -3,7 +3,7 @@ export const TOOLS = [
     id: 0,
     name: 'Chat',
     description: 'Ask anything.',
-    price: '0.001',           // in CELO
+    price: '0.001',
     priceDisplay: '0.001 CELO',
     priceWei: '1000000000000000',
     icon: '💬',
