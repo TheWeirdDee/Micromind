@@ -5,9 +5,8 @@ import { useWallet } from '@/context/WalletContext';
 import { Copy, Check } from 'lucide-react';
 
 export function WalletBadge() {
-  const { address, cUSDBalance, celoBalance, isConnected, connect } = useWallet();
+  const { address, usdcBalance, isConnected, connect } = useWallet();
   const [copied, setCopied] = useState(false);
-  const IS_TESTNET = process.env.NEXT_PUBLIC_IS_TESTNET === 'true';
 
   const handleCopyAddress = () => {
     if (address) {
@@ -44,15 +43,13 @@ export function WalletBadge() {
       
       <div className="hidden xs:flex items-center gap-2">
         <span className="text-[10px] font-mono text-text-muted opacity-40">·</span>
-        <span className="text-[10px] font-mono text-accent-green font-medium whitespace-nowrap">
-          {celoBalance} <span className="text-[8px] opacity-70">CELO</span>
+        <span className="text-[10px] font-mono text-[#35D07F] font-medium whitespace-nowrap">
+          {usdcBalance} <span className="text-[8px] opacity-70">USDC</span>
         </span>
       </div>
       
-      <div className={`text-[8px] font-mono px-1.5 py-0.5 rounded border flex-shrink-0 ${
-        IS_TESTNET ? 'border-yellow-500/50 text-yellow-500 bg-yellow-500/10' : 'border-accent-green/50 text-accent-green bg-accent-green/10'
-      }`}>
-        {IS_TESTNET ? 'SEPOLIA' : 'MAINNET'}
+      <div className="text-[8px] font-mono px-1.5 py-0.5 rounded border flex-shrink-0 border-[#35D07F]/50 text-[#35D07F] bg-[#35D07F]/10">
+        MAINNET
       </div>
     </div>
   );
