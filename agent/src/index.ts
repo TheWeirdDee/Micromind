@@ -16,12 +16,8 @@ const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS as `0x${string}`;
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const publicClient = createPublicClient({
-  chain: IS_TESTNET ? celoAlfajores : celo,
-  transport: http(
-    IS_TESTNET 
-      ? 'https://celo-sepolia.drpc.org'
-      : 'https://forno.celo.org'
-  )
+  chain: celo,
+  transport: http('https://forno.celo.org')
 });
 
 let useRedis = false;
@@ -114,10 +110,12 @@ app.use(express.json());
 app.use(cors());
 
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    network: IS_TESTNET ? 'alfajores' : 'celo',
-    contractAddress: CONTRACT_ADDRESS 
+  res.json({
+    status: 'ok',
+    network: 'celo-mainnet',
+    contract: process.env.CONTRACT_ADDRESS,
+    paymentToken: 'USDC',
+    groqConfigured: !!process.env.GROQ_API_KEY,
   });
 });
 
