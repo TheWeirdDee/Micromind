@@ -39,7 +39,7 @@ export default function HistoryPage() {
       <div className="bg-surface border border-border rounded-2xl p-6 flex justify-between items-center">
         <div>
           <p className="font-mono text-[10px] tracking-widest uppercase text-text-muted mb-1">Total Spent</p>
-          <p className="text-2xl font-mono text-accent-green font-medium">{totalSpent} CELO</p>
+          <p className="text-2xl font-mono text-accent-green font-medium">{totalSpent} USDC</p>
         </div>
         <div className="text-right">
           <p className="font-mono text-[10px] tracking-widest uppercase text-text-muted mb-1">Total Prompts</p>
