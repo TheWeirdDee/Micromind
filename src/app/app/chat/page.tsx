@@ -95,7 +95,6 @@ function ChatPageInner() {
   return (
     <div className="flex flex-col h-[calc(100vh-180px)]">
       <AgentWarning />
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-serif">AI Chat</h1>
@@ -111,7 +110,6 @@ function ChatPageInner() {
         </Link>
       </div>
 
-      {/* Messages Area */}
       <div 
         ref={scrollRef}
         className="flex-1 overflow-y-auto space-y-6 mb-6 pr-2 scrollbar-hide"
@@ -184,7 +182,6 @@ function ChatPageInner() {
         </AnimatePresence>
       </div>
 
-      {/* Input Area */}
       <form 
         onSubmit={handleSubmit}
         className="relative"
