@@ -1,53 +1,54 @@
 import { ethers, network } from "hardhat";
 
 async function main() {
-  console.log(`\nDeploying MicroMindPayment to ${network.name}...`);
-  console.log("Payment token: Native CELO");
-  
+  // MAINNET ONLY
+  const USDC_CELO_MAINNET = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C";
+
+  console.log("\nDeploying MicroMindPayment to Celo Mainnet...");
+  console.log(`Payment token: USDC (${USDC_CELO_MAINNET})`);
+
   const [deployer] = await ethers.getSigners();
   console.log(`Deployer: ${deployer.address}`);
-  
+
   const balance = await ethers.provider.getBalance(deployer.address);
-  console.log(`Balance: ${ethers.formatEther(balance)} CELO`);
-  
+  console.log(`CELO balance: ${ethers.formatEther(balance)} CELO`);
+
   if (balance < ethers.parseEther("0.01")) {
     throw new Error(
-      "Not enough CELO to deploy!\n" +
-      "Need at least 0.01 CELO for gas.\n" +
+      "Not enough CELO for gas. Need at least 0.01 CELO.\n" +
       "Your address: " + deployer.address
     );
   }
-  
-  const Factory = await ethers.getContractFactory("MicroMindPayment");
-  console.log("Deploying...");
-  
-  const feeData = await ethers.provider.getFeeData();
-  console.log(`Base fee: ${feeData.gasPrice?.toString()}`);
 
-  const contract = await Factory.deploy({
-    maxFeePerGas: feeData.maxFeePerGas ?? undefined,
-    maxPriorityFeePerGas: feeData.maxPriorityFeePerGas ?? undefined,
+  // Use legacy gasPrice for Celo mainnet compatibility
+  const feeData = await ethers.provider.getFeeData();
+  const gasPrice = feeData.gasPrice ?? BigInt(5000000000);
+  console.log(`Gas price: ${gasPrice.toString()}`);
+
+  const Factory = await ethers.getContractFactory("MicroMindPayment");
+
+  const contract = await Factory.deploy(USDC_CELO_MAINNET, {
+    gasPrice: gasPrice,
   });
+
   await contract.waitForDeployment();
   const address = await contract.getAddress();
-  
-  const explorerBase = network.name === "celo" 
-    ? "https://celoscan.io"
-    : "https://celo-sepolia.blockscout.com";
-  
-  console.log("\n✅ DEPLOYED SUCCESSFULLY!");
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+  console.log("\n✅ DEPLOYED TO CELO MAINNET!");
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log(`Contract:  ${address}`);
-  console.log(`Network:   ${network.name}`);
-  console.log(`Explorer:  ${explorerBase}/address/${address}`);
-  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  console.log("\n📋 Copy these to your .env.local:");
+  console.log(`Token:     USDC`);
+  console.log(`Explorer:  https://celoscan.io/address/${address}`);
+  console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  console.log("\n📋 Add these to .env.local:");
   console.log(`NEXT_PUBLIC_CONTRACT_ADDRESS=${address}`);
-  console.log(`NEXT_PUBLIC_IS_TESTNET=false`);
+  console.log(`NEXT_PUBLIC_USDC_ADDRESS=${USDC_CELO_MAINNET}`);
   console.log(`NEXT_PUBLIC_CHAIN_ID=42220`);
-  console.log("\n📋 Copy to contracts/.env for verification:");
+  console.log("\n📋 Add to agent/.env:");
+  console.log(`CONTRACT_ADDRESS=${address}`);
+  console.log("\n📋 Verify contract:");
   console.log(
-    `npx hardhat verify --network ${network.name} ${address}`
+    `npx hardhat verify --network celo ${address} ${USDC_CELO_MAINNET}`
   );
 }
 
