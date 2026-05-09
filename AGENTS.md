@@ -10,39 +10,42 @@ This document tracks the progress of the MicroMind AI Agent and its integration 
 - [x] **Brand Identity**: Custom minimalist neural-path logo and favicon with gold-to-white gradients.
 - [x] **Hero Section**: Optimized typography using `clamp` and refined spacing for maximum visual impact.
 - [x] **Tool Suites**: Functional interfaces for AI Chat, Resume Generator, Tweet Generator, and Bio Generator.
-- [x] **Price Labels**: Updated all UI labels to reflect native CELO pricing.
+- [x] **USDC Pricing**: Updated all UI labels and backend logic to reflect **USDC** pricing (6 decimals).
 
 ### 2. Web3 & Wallet Integration
 - [x] **Pure Viem Implementation**: Removed Wagmi dependencies in favor of a lean, custom Viem-based `WalletProvider`.
-- [x] **MiniPay Optimization**: Implemented silent auto-detection for `window.ethereum.isMiniPay`.
+- [x] **MiniPay Optimization**: Implemented silent auto-detection for `window.ethereum.isMiniPay` and auto-connect flow.
 - [x] **Network Enforcement**: Automated forcing of Celo Mainnet (`0xA4EC`) and implemented a "Network Warning" banner.
-- [x] **Native CELO Payment**: Refactored from ERC20 (cUSD) to native CELO for simpler, one-click transactions.
-- [x] **Single-Tx Flow**: Removed the `approve` step, enabling direct `payable` contract calls.
+- [x] **USDC Payment Flow**: Implemented `Approve` + `Pay` sequence for USDC (Celo Mainnet).
+- [x] **Single-Tx Optimization**: MiniPay users get a specialized auto-connect experience.
 
 ### 3. Backend & AI Logic
 - [x] **Prompt Submission API**: Endpoint to securely map prompt content to on-chain hashes off-chain.
 - [x] **Payment Verification**: Backend logic to verify native `PromptPaid` events on the Celo blockchain using Viem `publicClient`.
 - [x] **Dual AI Integration**: Implemented **Groq (Llama-3.3-70b)** as the primary high-speed engine.
 - [x] **Polling Architecture**: Asynchronous response retrieval system ensuring the user sees results as soon as the agent finishes.
+- [x] **Persistent Storage**: Integrated **Upstash Redis** for prompt and response tracking.
 
 ### 4. Code Quality & Deployment
-- [x] **TypeScript Stability**: Resolved all linting and type errors.
+- [x] **TypeScript Stability**: Resolved all linting and type errors in frontend and hook systems.
 - [x] **Deployment Config**: Optimized Hardhat and Vercel configs for Celo Mainnet production.
-- [x] **Contract Deployment**: Deployed the refactored native CELO contract to Celo Mainnet.
+- [x] **Contract Deployment**: Deployed `MicroMindPayment` to Celo Mainnet (`0x13420A500AA42668a41cEc27Debd8B3C2f9Ce300`).
+- [x] **Verification**: Successfully submitted contract for verification on Celoscan.
 
 ## 🚀 Next Steps
 
-### Phase 1: Mainnet Stability (Immediate)
-- [ ] **Verification**: Verify the contract on Celoscan.
-- [ ] **End-to-End Test**: Perform first live mainnet transaction via MiniPay.
+### Phase 1: Production Launch (Immediate)
+- [ ] **Agent Deployment**: Push the latest agent backend to Railway with the new contract address.
+- [ ] **Frontend Deployment**: Trigger final Vercel build (`npx vercel --prod`).
+- [ ] **End-to-End Test**: Perform first live mainnet transaction via MiniPay using USDC.
 
 ### Phase 2: Refinement & Scalability
-- [ ] **Persistent Storage**: Migration from in-memory `promptStore` to Vercel KV or Redis.
 - [ ] **Real-time Events**: Implementation of a persistent Node.js listener for faster response detection.
+- [ ] **Chat Context Memory**: Expand chat history context to support longer conversations.
 
 ### Phase 3: MiniPay Optimization (Pre-Submission)
-- [ ] **cUSD Hybrid Support**: Re-introduce cUSD as an optional payment method alongside CELO (MiniPay users prefer stablecoins).
+- [ ] **MiniPay PWA**: Configure `manifest.json` for full PWA support in MiniPay.
 - [ ] **Extended Tooling**: Adding more specialized AI models for complex resume formatting.
 
 ---
-*Last Updated: 2026-05-06*
+*Last Updated: 2026-05-09*
