@@ -41,6 +41,24 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
+const detectMiniPay = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  // Standard MiniPay flag
+  if (window.ethereum?.isMiniPay === true) return true;
+  
+  // Fallback: check user agent for Opera Mini
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('opios') || ua.includes('opr/')) return true;
+  
+  // Fallback: check if ethereum is injected without MetaMask
+  if (window.ethereum && !window.ethereum.isMetaMask) {
+    return true;
+  }
+  
+  return false;
+};
+
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [walletClient, setWalletClient] = useState<WalletClient | null>(null);
@@ -52,15 +70,22 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const fetchBalances = useCallback(async (addr: string) => {
     try {
-      const raw = await publicClient.getBalance({
+      const celoRaw = await publicClient.getBalance({
         address: addr as `0x${string}`
       });
-      const celoValue = (Number(raw) / 1e18).toFixed(4);
-      setCeloBalance(celoValue);
-      setCUSDBalance(celoValue); // reuse for display
+      setCeloBalance((Number(celoRaw) / 1e18).toFixed(4));
+
+      const cusdRaw = await publicClient.readContract({
+        address: CUSD_ADDRESS,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [addr as `0x${string}`]
+      });
+      setCUSDBalance((Number(cusdRaw) / 1e18).toFixed(2));
     } catch (e) {
-      setCeloBalance('0');
-      setCUSDBalance('0');
+      console.error('Fetch balances failed:', e);
+      setCeloBalance('0.0000');
+      setCUSDBalance('0.00');
     }
   }, []);
 
@@ -107,7 +132,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       setAddress(addr);
       setWalletClient(client);
-      setIsTestingMode(!window.ethereum?.isMiniPay);
+      setIsTestingMode(!detectMiniPay());
       
       await fetchBalances(addr);
       
@@ -123,7 +148,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [fetchBalances]);
 
   const disconnect = useCallback(() => {
-    // Clear all wallet state
     setAddress(null);
     setCeloBalance('0');
     setCUSDBalance('0');
@@ -131,7 +155,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setIsTestingMode(false);
     setChainId(null);
     
-    // Clear ALL localStorage keys that could cache connection
     const keysToRemove = [
       'micromind_connected',
       'micromind_address',
@@ -154,10 +177,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const autoConnect = async () => {
       if (typeof window === 'undefined' || !window.ethereum) return;
       
-      const isMP = window.ethereum.isMiniPay === true;
+      const isMP = detectMiniPay();
       setIsMiniPay(isMP);
 
-      // 1. Always auto-connect in MiniPay
       if (isMP) {
         try {
           const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -216,7 +238,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchBalances]);
 
-  // Network enforcement effect
   useEffect(() => {
     if (address && chainId && chainId !== parseInt(TARGET_PARAMS.chainId, 16)) {
       const enforceNetwork = async () => {
