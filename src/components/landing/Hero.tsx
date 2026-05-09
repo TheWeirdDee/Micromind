@@ -42,7 +42,7 @@ export function Hero() {
           variants={item}
           className="text-text-primary/70 font-mono text-base md:text-lg max-w-xl mx-auto mb-10 leading-relaxed"
         >
-          Pay in CELO. Get AI. No monthly fees. No lock-in. <br className="hidden md:block" />
+          Pay in USDC. Get AI. No monthly fees. No lock-in. <br className="hidden md:block" />
           Built for the next generation of Celo users.
         </motion.p>
         
@@ -51,7 +51,7 @@ export function Hero() {
             href="/app" 
             className="pill-button bg-accent text-bg hover:bg-white text-xl px-12 py-5 group shadow-2xl shadow-accent/10"
           >
-            Start for 0.001 CELO 
+            Start for 0.01 USDC 
             <span className="transition-transform duration-300 group-hover:rotate-45">→</span>
           </Link>
         </motion.div>
