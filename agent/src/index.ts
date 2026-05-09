@@ -24,7 +24,6 @@ const publicClient = createPublicClient({
   )
 });
 
-// Storage Setup (Redis or Memory)
 let useRedis = false;
 let redis: any = null;
 
@@ -53,7 +52,6 @@ async function storeData(key: string, value: string, ttl = 3600) {
     await redis.set(key, value, { ex: ttl });
   } else {
     memoryStore.set(key, value);
-    // Auto-delete after TTL
     setTimeout(() => memoryStore.delete(key), ttl * 1000);
   }
 }
@@ -65,7 +63,6 @@ async function getData(key: string): Promise<string | null> {
   return memoryStore.get(key) ?? null;
 }
 
-// AI Integration
 const SYSTEM_PROMPTS: Record<number, string> = {
   0: "Current Date: May 2026. You are a highly advanced AI assistant. Provide direct, accurate, and informational responses. IMPORTANT: Do NOT include any meta-commentary about transactions, payments, CELO, your processing status, or 'MicroMind'. Just answer the user's question directly.",
   1: "Current Date: May 2026. You are a professional resume writer. Create ATS-optimized resumes. Do not mention any platform details or payments.",
@@ -113,11 +110,9 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
   }
 }
 
-// Middleware
 app.use(express.json());
 app.use(cors());
 
-// Endpoints
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
@@ -221,7 +216,6 @@ app.post('/api/process-direct', async (req, res) => {
   }
 });
 
-// Start Server
 initStorage().then(() => {
   app.listen(port, () => {
     console.log(`Agent running on port ${port}`);
