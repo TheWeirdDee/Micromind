@@ -2,41 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, FileText, X, User } from 'lucide-react';
+import { MessageSquare, FileText, X, User, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 import { QRCodeSVG } from 'qrcode.react';
 
-const tools = [
-  {
-    icon: MessageSquare,
-    name: 'Chat',
-    href: '/app/chat',
-    desc: 'Ask anything.',
-    price: '0.001 CELO',
-  },
-  {
-    icon: FileText,
-    name: 'Resume',
-    href: '/app/resume',
-    desc: 'Stand out.',
-    price: '0.005 CELO',
-  },
-  {
-    icon: X,
-    name: 'Tweet',
-    href: '/app/tweet',
-    desc: 'Go viral.',
-    price: '0.001 CELO',
-  },
-  {
-    icon: User,
-    name: 'Bio',
-    href: '/app/bio',
-    desc: 'Own your story.',
-    price: '0.002 CELO',
-  },
-];
+import { TOOLS } from '@/constants/tools';
 
 export default function AppHome() {
   const { isConnected, address, isMiniPay, connect } = useWallet();
@@ -63,19 +34,8 @@ export default function AppHome() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-8">
         <h2 className="text-3xl font-serif mb-8 text-text-primary">Welcome to MicroMind.</h2>
         
-        {isMiniPay ? (
-          <div className="flex flex-col items-center">
-            <p className="text-text-muted font-mono text-sm mb-8 max-w-[280px]">
-              MiniPay detected. Please connect to continue.
-            </p>
-            <button 
-              onClick={() => connect()}
-              className="pill-button-primary px-10 py-4"
-            >
-              Connect Now
-            </button>
-          </div>
-        ) : (
+        {/* Hide connect button inside MiniPay */}
+        {!isMiniPay ? (
           <div className="space-y-6 w-full max-w-sm">
             <button 
               onClick={() => connect()}
@@ -114,6 +74,14 @@ export default function AppHome() {
               </button>
             </div>
           </div>
+        ) : (
+          <div className="flex flex-col items-center">
+            <Loader2 className="w-8 h-8 text-accent animate-spin mb-4" />
+            <p className="text-text-muted font-mono text-sm max-w-[280px]">
+              MiniPay detected. <br />
+              Connecting automatically...
+            </p>
+          </div>
         )}
       </div>
     );
@@ -130,20 +98,23 @@ export default function AppHome() {
       </header>
       
       <div className="grid grid-cols-2 gap-4">
-        {tools.map((tool, i) => (
+        {TOOLS.map((tool, i) => (
           <Link key={tool.name} href={tool.href}>
             <motion.div 
               whileTap={{ scale: 0.98 }}
               className="bg-surface border border-border p-5 rounded-2xl flex flex-col gap-4 group hover:border-text-muted transition-colors"
             >
-              <div className="p-2.5 bg-surface-2 rounded-xl w-fit border border-border group-hover:border-accent-gold/40 transition-colors">
-                <tool.icon className="w-5 h-5 text-accent" />
+              <div 
+                className="p-2.5 rounded-xl w-fit border border-border group-hover:border-accent-gold/40 transition-colors"
+                style={{ backgroundColor: `${tool.color}10`, borderColor: `${tool.color}30` }}
+              >
+                <span className="text-xl">{tool.icon}</span>
               </div>
               <div>
                 <h3 className="font-serif text-xl mb-1">{tool.name}</h3>
-                <p className="text-[10px] font-mono text-text-muted mb-3 uppercase tracking-wider">{tool.desc}</p>
+                <p className="text-[10px] font-mono text-text-muted mb-3 uppercase tracking-wider">{tool.description}</p>
                 <span className="text-[10px] font-mono text-accent-green px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/20">
-                  {tool.price}
+                  {tool.priceDisplay}
                 </span>
               </div>
             </motion.div>
