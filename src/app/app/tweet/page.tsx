@@ -38,7 +38,7 @@ function TweetPageInner() {
       }
     } catch (err: any) {
       console.error(err);
-      alert('Transaction failed. Make sure you have enough CELO in your wallet.');
+      alert('Transaction failed. Make sure you have enough USDC in your wallet.');
     }
   };
 
@@ -46,9 +46,10 @@ function TweetPageInner() {
     switch (step) {
       case 'checking': return 'Checking agent...';
       case 'submitting': return 'Preparing prompt...';
-      case 'paying': return 'Confirm in wallet...';
-      case 'confirming': return 'Confirming payment...';
-      case 'generating': return 'AI is thinking...';
+      case 'approving': return 'Approving USDC spend...';
+      case 'paying': return 'Sending payment...';
+      case 'confirming': return 'Confirming on Celo...';
+      case 'generating': return 'AI is generating...';
       case 'complete': return 'Done!';
       default: return 'Processing...';
     }
@@ -65,7 +66,7 @@ function TweetPageInner() {
           <h2 className="text-2xl font-serif">Tweet Gen</h2>
         </div>
         <span className="text-[10px] font-mono text-accent-green px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/20">
-          0.001 CELO
+          0.01 USDC
         </span>
       </header>
 
