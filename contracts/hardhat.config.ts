@@ -21,17 +21,12 @@ const config: HardhatUserConfig = {
     celo: {
       url: "https://forno.celo.org",
       chainId: 42220,
-      accounts: process.env.PRIVATE_KEY 
-        ? [process.env.PRIVATE_KEY] 
+      accounts: process.env.PRIVATE_KEY
+        ? [process.env.PRIVATE_KEY]
         : [],
+      // Legacy gasPrice for Celo mainnet
+      gasPrice: 5000000000, // 5 gwei starting point
     },
-    sepolia: {
-      url: "https://celo-sepolia.drpc.org",
-      chainId: 11155420,
-      accounts: process.env.PRIVATE_KEY 
-        ? [process.env.PRIVATE_KEY] 
-        : [],
-    }
   },
   etherscan: {
     apiKey: {
