@@ -22,7 +22,6 @@ export function Hero() {
 
   return (
     <section className="relative min-h-screen flex flex-col justify-center items-center px-6 overflow-hidden">
-      {/* Background Layer */}
       <div className="absolute inset-0 halftone-bg z-0" />
       
       <motion.div 
