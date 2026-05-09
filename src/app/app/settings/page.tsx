@@ -37,7 +37,6 @@ export default function SettingsPage() {
         <p className="text-text-muted font-mono text-sm mt-2">Manage your experience.</p>
       </header>
 
-      {/* Receive Section */}
       <section className="bg-surface border border-border p-8 rounded-[2rem] flex flex-col items-center">
         <h3 className="font-mono text-[10px] uppercase tracking-widest text-text-muted mb-6">Your Wallet</h3>
         
