@@ -13,12 +13,14 @@ yarn-error.log*
 # Env
 .env
 .env.*
-!.env.example
+
 agent/.env
 agent/.env.*
 contracts/.env
 contracts/.env.*
-
+.env.local
+.env.local.*
+.env.example
 # Flattened Contracts (Security Risk)
 *Flattened.sol
 
