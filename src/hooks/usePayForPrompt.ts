@@ -22,8 +22,6 @@ export function usePayForPrompt() {
     const tool = TOOLS.find(t => t.id === toolId);
     if (!tool) throw new Error('Invalid tool');
     
-    // If history is provided, we send the history as the prompt
-    // The backend is now updated to detect this JSON array
     const finalPrompt = history ? JSON.stringify(history) : prompt;
     
     const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
@@ -37,7 +35,6 @@ export function usePayForPrompt() {
     try {
       setLoading(true);
       
-      // Step 1: Check agent is online
       setStep('checking');
       try {
         const health = await fetch(`${agentUrl}/api/health`, {
@@ -48,7 +45,6 @@ export function usePayForPrompt() {
         throw new Error('AI agent is offline. Run: npm run agent');
       }
 
-      // Step 2: Submit prompt to get hash
       setStep('submitting');
       const submitRes = await fetch(`${agentUrl}/api/prompt/submit`, {
         method: 'POST',
@@ -61,7 +57,6 @@ export function usePayForPrompt() {
       });
       const { promptHash } = await submitRes.json();
 
-      // Step 3: Pay with native CELO (single transaction, no approve)
       setStep('paying');
 
       const txHash = await walletClient.writeContract({
@@ -80,7 +75,6 @@ export function usePayForPrompt() {
         confirmations: 1
       });
 
-      // Step 4: Poll for AI response
       setStep('generating');
       let attempts = 0;
       for (let i = 0; i < 60; i++) {
@@ -140,7 +134,9 @@ export function usePayForPrompt() {
             setStep('complete');
             return data.response;
           }
-        } catch { /* continue polling */ }
+        } catch {
+          // Continue polling on network error
+        }
       }
 
       throw new Error(

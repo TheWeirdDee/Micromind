@@ -24,7 +24,6 @@ contract MicroMindPayment is Ownable, ReentrancyGuard {
     );
     
     constructor() Ownable(msg.sender) {
-        // Prices in CELO wei (18 decimals)
         // Keeping same USD value as before since 1 CELO ≈ $0.09
         // So 0.01 cUSD ≈ 0.11 CELO, but let's use simple round numbers
         toolPrices[TOOL_CHAT]   = 0.001 ether;  // 0.001 CELO (~$0.0001)
@@ -44,7 +43,6 @@ contract MicroMindPayment is Ownable, ReentrancyGuard {
         promptPaid[promptHash] = true;
         totalSpent[msg.sender] += msg.value;
         
-        // Refund excess payment
         if (msg.value > toolPrices[toolId]) {
             payable(msg.sender).transfer(
                 msg.value - toolPrices[toolId]
