@@ -44,7 +44,16 @@ export default function AppHome() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setAppUrl(window.location.href);
+      const url = process.env.NEXT_PUBLIC_APP_URL || (window.location.origin + '/app');
+      setAppUrl(url);
+      
+      if (!process.env.NEXT_PUBLIC_APP_URL) {
+        console.warn(
+          'NEXT_PUBLIC_APP_URL not set. ' +
+          'QR code will use localhost. ' +
+          'Add this in Vercel dashboard after deploying.'
+        );
+      }
     }
   }, []);
 
@@ -67,7 +76,6 @@ export default function AppHome() {
           </div>
         ) : (
           <div className="space-y-6 w-full max-w-sm">
-            {/* Option 1: Connect Button */}
             <button 
               onClick={() => connect()}
               className="w-full pill-button pill-button-primary text-sm tracking-widest"
@@ -77,23 +85,32 @@ export default function AppHome() {
 
             <div className="flex items-center gap-4 text-text-muted opacity-30">
               <div className="h-[1px] flex-1 bg-border" />
-              <span className="text-[10px] font-mono uppercase tracking-widest">Or</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest">— or open directly in MiniPay —</span>
               <div className="h-[1px] flex-1 bg-border" />
             </div>
 
-            {/* Option 2: QR Code */}
             <div className="bg-surface border border-border p-8 rounded-[2rem] flex flex-col items-center">
               <div className="bg-white p-3 rounded-2xl mb-6">
                 <QRCodeSVG 
                   value={appUrl} 
-                  size={160}
+                  size={200}
                   level="H"
                 />
               </div>
               
-              <p className="text-text-muted font-mono text-[10px] uppercase tracking-widest leading-relaxed">
-                Open in MiniPay on Android
+              <p className="text-text-muted font-mono text-[10px] uppercase tracking-widest leading-relaxed mb-6">
+                Scan with your phone camera, <br /> then open in MiniPay
               </p>
+
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(appUrl);
+                  alert('App link copied to clipboard!');
+                }}
+                className="text-[10px] font-mono text-accent uppercase tracking-widest border border-accent/20 px-4 py-2 rounded-full hover:bg-accent/5 transition-colors"
+              >
+                Copy App Link
+              </button>
             </div>
           </div>
         )}
