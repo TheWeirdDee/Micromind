@@ -29,7 +29,6 @@ export function HowItWorks() {
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-24 relative">
-          {/* Dashed line on desktop */}
           <div className="hidden md:block absolute top-12 left-[10%] right-[10%] border-t border-dashed border-border z-0" />
           
           {steps.map((step, i) => (
