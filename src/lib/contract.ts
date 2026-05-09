@@ -1,8 +1,11 @@
+export const CONTRACT_ADDRESS = 
+  process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`;
+
 export const MICROMIND_ABI = [
   {
     name: 'payForPrompt',
     type: 'function',
-    stateMutability: 'payable',
+    stateMutability: 'nonpayable',
     inputs: [
       { name: 'toolId', type: 'uint8' },
       { name: 'promptHash', type: 'bytes32' }
@@ -14,6 +17,13 @@ export const MICROMIND_ABI = [
     type: 'function',
     stateMutability: 'view',
     inputs: [{ name: 'toolId', type: 'uint8' }],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'getTotalSpent',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
     outputs: [{ name: '', type: 'uint256' }]
   },
   {
