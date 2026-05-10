@@ -200,7 +200,15 @@ export function usePayForPrompt() {
       );
 
     } catch (e: any) {
-      const msg = e?.shortMessage || e?.message || 'Transaction failed';
+      console.error('Payment Error:', e);
+      
+      let msg = e?.shortMessage || e?.message || 'Transaction failed';
+      
+      // Handle user rejection specifically
+      if (e?.code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
+        msg = 'Transaction cancelled by user.';
+      }
+
       setError(msg);
       setStep('error');
       throw e;
