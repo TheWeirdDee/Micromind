@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User as UserIcon, Loader2, History as HistoryIcon } from 'lucide-react';
+import { Send, Bot, User as UserIcon, Loader2, History as HistoryIcon, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { TOOLS } from '@/constants/tools';
