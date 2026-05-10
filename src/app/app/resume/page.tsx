@@ -19,6 +19,7 @@ function ResumePageInner() {
     skills: '',
     experience: '',
   });
+  const [mode, setMode] = useState<'professional' | 'creative'>('professional');
   const [response, setResponse] = useState<string | null>(null);
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
@@ -35,7 +36,7 @@ function ResumePageInner() {
   }, [searchParams]);
 
   const handleGenerate = async () => {
-    const prompt = `Name: ${formData.name}\nRole: ${formData.role}\nSkills: ${formData.skills}\nExperience: ${formData.experience}`;
+    const prompt = `Mode: ${mode.toUpperCase()}\nName: ${formData.name}\nRole: ${formData.role}\nSkills: ${formData.skills}\nExperience: ${formData.experience}`;
     
     try {
       const aiResponse = await payAndGenerate(1, 'Resume', prompt);
@@ -77,6 +78,23 @@ function ResumePageInner() {
       </header>
 
       <div className="space-y-4">
+        {/* Mode Selector */}
+        <div className="flex p-1 bg-surface border border-border rounded-xl">
+          {(['professional', 'creative'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`flex-1 py-2 text-[10px] font-mono uppercase tracking-widest rounded-lg transition-all ${
+                mode === m 
+                  ? 'bg-accent text-bg shadow-lg' 
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+
         {['name', 'role', 'skills'].map((field) => (
           <div key={field} className="space-y-2">
             <label className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-2">{field}</label>
