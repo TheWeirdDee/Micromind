@@ -46,9 +46,26 @@ export const metadata: Metadata = {
     description: "Premium AI tools on Celo. No subscriptions, just CELO.",
     images: ["/logo.svg"],
   },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "MicroMind",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   other: {
     "talentapp:project_verification": "334059f5ad573814e422e6282d39f1342429b9110189011a0885598328c8c1c39acde285687b932add1fe18f82782008e8f9c5652eb2e8f2cb4d1cc7d62f9b41",
   },
+};
+
+export const viewport = {
+  themeColor: "#0A0A0A",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
