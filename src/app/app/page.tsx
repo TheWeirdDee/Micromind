@@ -97,10 +97,25 @@ export default function AppHome() {
         <p className="text-text-muted font-mono text-sm">Select a tool to begin.</p>
       </header>
       
-      <div className="grid grid-cols-2 gap-4">
+      <motion.div 
+        variants={{
+          hidden: { opacity: 0 },
+          show: {
+            opacity: 1,
+            transition: { staggerChildren: 0.1 }
+          }
+        }}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-2 gap-4"
+      >
         {TOOLS.map((tool, i) => (
           <Link key={tool.name} href={tool.href}>
             <motion.div 
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                show: { opacity: 1, y: 0 }
+              }}
               whileTap={{ scale: 0.98 }}
               className="bg-surface border border-border p-5 rounded-2xl flex flex-col gap-4 group hover:border-text-muted transition-colors"
             >
@@ -120,7 +135,7 @@ export default function AppHome() {
             </motion.div>
           </Link>
         ))}
-      </div>
+      </motion.div>
 
       <section className="space-y-6">
         <h4 className="font-mono text-[10px] tracking-widest uppercase text-text-muted">Recent Prompts</h4>
