@@ -111,7 +111,11 @@ function ChatPageInner() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-180px)]">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col h-[calc(100vh-180px)]"
+    >
       <AgentWarning />
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -238,7 +242,7 @@ function ChatPageInner() {
           )}
         </button>
       </form>
-    </div>
+    </motion.div>
   );
 }
 
