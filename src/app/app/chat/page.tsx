@@ -43,8 +43,25 @@ function ChatPageInner() {
           { role: 'assistant', content: item.response }
         ]);
       }
+    } else {
+      // Load session memory
+      const saved = localStorage.getItem('micromind_chat_memory');
+      if (saved) {
+        try {
+          setMessages(JSON.parse(saved));
+        } catch (e) {
+          console.error('Failed to load chat memory', e);
+        }
+      }
     }
   }, [searchParams]);
+
+  // Persist messages
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem('micromind_chat_memory', JSON.stringify(messages));
+    }
+  }, [messages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -103,12 +120,26 @@ function ChatPageInner() {
             0.01 USDC per prompt
           </p>
         </div>
-        <Link 
-          href="/app/history" 
-          className="p-2 rounded-full border border-border hover:bg-surface transition-colors"
-        >
-          <HistoryIcon className="w-5 h-5 text-text-muted" />
-        </Link>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => {
+              if (confirm('Clear entire chat history?')) {
+                setMessages([]);
+                localStorage.removeItem('micromind_chat_memory');
+              }
+            }}
+            className="p-2 rounded-full border border-border hover:bg-surface text-text-muted hover:text-red-400 transition-colors"
+            title="Clear Chat"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <Link 
+            href="/app/history" 
+            className="p-2 rounded-full border border-border hover:bg-surface transition-colors"
+          >
+            <HistoryIcon className="w-5 h-5 text-text-muted" />
+          </Link>
+        </div>
       </div>
 
       <div 
