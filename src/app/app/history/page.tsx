@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { History, ExternalLink, MessageSquare, FileText, X, User } from 'lucide-react';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { getHistory, type HistoryItem } from '@/lib/storage';
 import { clsx, type ClassValue } from 'clsx';
@@ -28,7 +29,11 @@ export default function HistoryPage() {
   const totalSpent = history.reduce((acc, curr) => acc + parseFloat(curr.cost), 0).toFixed(2);
 
   return (
-    <div className="space-y-10">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-10"
+    >
       <header className="flex justify-between items-end">
         <div>
           <h2 className="text-4xl font-serif tracking-tight">Your History</h2>
@@ -109,6 +114,6 @@ export default function HistoryPage() {
           })
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
