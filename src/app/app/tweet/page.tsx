@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ChevronLeft, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { TOOLS } from '@/constants/tools';
@@ -56,7 +57,11 @@ function TweetPageInner() {
   };
 
   return (
-    <div className="space-y-8">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8"
+    >
       <AgentWarning />
       <header className="flex justify-between items-center">
         <div className="flex items-center gap-4">
@@ -98,7 +103,7 @@ function TweetPageInner() {
       </div>
 
       {response && <ResponseCard response={response} />}
-    </div>
+    </motion.div>
   );
 }
 
