@@ -62,7 +62,11 @@ function ResumePageInner() {
   };
 
   return (
-    <div className="space-y-8">
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8"
+    >
       <AgentWarning />
       <header className="flex justify-between items-center">
         <div className="flex items-center gap-4">
@@ -114,7 +118,7 @@ function ResumePageInner() {
       </div>
 
       {response && <ResponseCard response={response} />}
-    </div>
+    </motion.div>
   );
 }
 
