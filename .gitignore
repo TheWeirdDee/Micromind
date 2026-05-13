@@ -41,3 +41,22 @@ typechain-types/
 
 # Build
 dist/
+
+# Private/Sensitive Data
+/private/
+*.csv
+*.key
+*.json
+!package.json
+!tsconfig.json
+!next.config.mjs
+!postcss.config.mjs
+!eslint.config.mjs
+!vercel.json
+!*.env.example
+!*.env.sample
+
+# Build results
+.next/
+out/
+build/
