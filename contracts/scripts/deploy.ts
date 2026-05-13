@@ -1,11 +1,11 @@
 import { ethers, network } from "hardhat";
 
 async function main() {
-  // MAINNET ONLY
-  const USDC_CELO_MAINNET = "0xcebA9300f2b948710d2653dD7B07f33A8B32118C";
+  // MAINNET ONLY — cUSD address
+  const cUSD_CELO_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a";
 
   console.log("\nDeploying MicroMindPayment to Celo Mainnet...");
-  console.log(`Payment token: USDC (${USDC_CELO_MAINNET})`);
+  console.log(`Payment token: cUSD (${cUSD_CELO_MAINNET})`);
 
   const [deployer] = await ethers.getSigners();
   console.log(`Deployer: ${deployer.address}`);
@@ -27,7 +27,7 @@ async function main() {
 
   const Factory = await ethers.getContractFactory("MicroMindPayment");
 
-  const contract = await Factory.deploy(USDC_CELO_MAINNET, {
+  const contract = await Factory.deploy(cUSD_CELO_MAINNET, {
     gasPrice: gasPrice,
   });
 
@@ -37,18 +37,18 @@ async function main() {
   console.log("\n✅ DEPLOYED TO CELO MAINNET!");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log(`Contract:  ${address}`);
-  console.log(`Token:     USDC`);
+  console.log(`Token:     cUSD`);
   console.log(`Explorer:  https://celoscan.io/address/${address}`);
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("\n📋 Add these to .env.local:");
   console.log(`NEXT_PUBLIC_CONTRACT_ADDRESS=${address}`);
-  console.log(`NEXT_PUBLIC_USDC_ADDRESS=${USDC_CELO_MAINNET}`);
+  console.log(`NEXT_PUBLIC_CUSD_ADDRESS=${cUSD_CELO_MAINNET}`);
   console.log(`NEXT_PUBLIC_CHAIN_ID=42220`);
   console.log("\n📋 Add to agent/.env:");
   console.log(`CONTRACT_ADDRESS=${address}`);
   console.log("\n📋 Verify contract:");
   console.log(
-    `npx hardhat verify --network celo ${address} ${USDC_CELO_MAINNET}`
+    `npx hardhat verify --network celo ${address} ${cUSD_CELO_MAINNET}`
   );
 }
 
