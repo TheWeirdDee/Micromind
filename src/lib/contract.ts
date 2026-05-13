@@ -5,7 +5,7 @@ export const MICROMIND_ABI = [
   {
     name: 'payForPrompt',
     type: 'function',
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
     inputs: [
       { name: 'toolId', type: 'uint8' },
       { name: 'promptHash', type: 'bytes32' }
