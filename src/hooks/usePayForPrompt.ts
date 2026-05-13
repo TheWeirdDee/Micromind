@@ -3,7 +3,7 @@ import { parseUnits, erc20Abi } from 'viem';
 import { celo } from 'viem/chains';
 import { useWallet } from '@/context/WalletContext';
 import { CONTRACT_ADDRESS, MICROMIND_ABI } from '@/lib/contract';
-import { USDC_ADDRESS, PAYMENT_TOKEN_DECIMALS } from '@/constants/chains';
+import { cUSD_ADDRESS, PAYMENT_TOKEN_DECIMALS } from '@/constants/chains';
 import { TOOLS } from '@/constants/tools';
 import { saveToHistory } from '@/lib/storage';
 
@@ -94,7 +94,7 @@ export function usePayForPrompt() {
       });
 
       const approveTx = await walletClient.writeContract({
-        address: USDC_ADDRESS as `0x${string}`,
+        address: cUSD_ADDRESS as `0x${string}`,
         abi: erc20Abi,
         functionName: 'approve',
         args: [CONTRACT_ADDRESS as `0x${string}`, price],
