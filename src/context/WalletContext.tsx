@@ -16,7 +16,7 @@ import {
 } from 'viem';
 import { celo } from 'viem/chains';
 import {
-  USDC_ADDRESS,
+  cUSD_ADDRESS,
   PAYMENT_TOKEN_DECIMALS,
   CELO_MAINNET_PARAMS,
   CHAIN_ID_HEX
@@ -26,7 +26,7 @@ interface WalletContextType {
   address: string | null;
   isConnected: boolean;
   isMiniPay: boolean;
-  usdcBalance: string;
+  cusdBalance: string;
   celoBalance: string;
   walletClient: any;
   publicClient: any;
@@ -46,7 +46,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isMiniPay, setIsMiniPay] = useState(false);
-  const [usdcBalance, setUsdcBalance] = useState('0');
+  const [cusdBalance, setCusdBalance] = useState('0');
   const [celoBalance, setCeloBalance] = useState('0');
   const [walletClient, setWalletClient] = useState<any>(null);
 
@@ -60,23 +60,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } catch { setCeloBalance('0'); }
 
     try {
-      // USDC balance (6 decimals)
-      const usdcRaw = await publicClient.readContract({
-        address: USDC_ADDRESS as `0x${string}`,
+      // cUSD balance (18 decimals)
+      const cusdRaw = await publicClient.readContract({
+        address: cUSD_ADDRESS as `0x${string}`,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [addr as `0x${string}`]
       });
-      setUsdcBalance(
-        (Number(usdcRaw) / 10 ** PAYMENT_TOKEN_DECIMALS).toFixed(2)
+      setCusdBalance(
+        (Number(cusdRaw) / 10 ** PAYMENT_TOKEN_DECIMALS).toFixed(2)
       );
-    } catch { setUsdcBalance('0'); }
+    } catch { setCusdBalance('0'); }
   }, []);
 
   const disconnect = useCallback(() => {
     setAddress(null);
     setIsConnected(false);
-    setUsdcBalance('0');
+    setCusdBalance('0');
     setCeloBalance('0');
     setWalletClient(null);
     setIsMiniPay(false);
@@ -205,9 +205,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           params: {
             type: 'ERC20',
             options: {
-              address: USDC_ADDRESS,
-              symbol: 'USDC',
-              decimals: 6,
+              address: cUSD_ADDRESS,
+              symbol: 'cUSD',
+              decimals: 18,
             }
           }
         });
@@ -225,7 +225,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       address,
       isConnected,
       isMiniPay,
-      usdcBalance,
+      cusdBalance,
       celoBalance,
       walletClient,
       publicClient,
