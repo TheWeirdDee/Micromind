@@ -5,7 +5,7 @@ import { useWallet } from '@/context/WalletContext';
 import { Copy, Check } from 'lucide-react';
 
 export function WalletBadge() {
-  const { address, usdcBalance, isConnected, connect } = useWallet();
+  const { address, cusdBalance, isConnected, connect } = useWallet();
   const [copied, setCopied] = useState(false);
 
   const handleCopyAddress = () => {
@@ -44,7 +44,7 @@ export function WalletBadge() {
       <div className="hidden xs:flex items-center gap-2">
         <span className="text-[10px] font-mono text-text-muted opacity-40">·</span>
         <span className="text-[10px] font-mono text-[#35D07F] font-medium whitespace-nowrap">
-          {usdcBalance} <span className="text-[8px] opacity-70">USDC</span>
+          {cusdBalance} <span className="text-[8px] opacity-70">cUSD</span>
         </span>
       </div>
       
