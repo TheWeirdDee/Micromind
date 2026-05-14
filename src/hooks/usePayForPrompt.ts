@@ -122,7 +122,7 @@ export function usePayForPrompt() {
         args: [toolId, promptHash as `0x${string}`],
         chain: celo,
         account: address as `0x${string}`,
-        value: 0n, // Sending 0 CELO to trigger cUSD payment path
+        value: BigInt(0), // Sending 0 CELO to trigger cUSD payment path
         gasPrice,
         nonce: payNonce,
       });
