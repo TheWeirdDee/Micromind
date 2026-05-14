@@ -54,7 +54,7 @@ function ResumePageInner() {
     switch (step) {
       case 'checking': return 'Checking agent...';
       case 'submitting': return 'Preparing prompt...';
-      case 'approving': return 'Approving USDC spend...';
+      case 'approving': return 'Approving cUSD spend...';
       case 'paying': return 'Sending payment...';
       case 'confirming': return 'Confirming on Celo...';
       case 'generating': return 'AI is generating...';
@@ -78,7 +78,7 @@ function ResumePageInner() {
           <h2 className="text-2xl font-serif">Resume Gen</h2>
         </div>
         <span className="text-[10px] font-mono text-accent-green px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/20">
-          0.05 USDC
+            0.05 cUSD per document
         </span>
       </header>
 

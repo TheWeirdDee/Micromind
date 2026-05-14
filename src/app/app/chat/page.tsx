@@ -92,7 +92,7 @@ function ChatPageInner() {
       console.error(err);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Error: Transaction failed. Make sure you have enough USDC in your wallet.' 
+        content: 'Error: Transaction failed. Make sure you have enough cUSD in your wallet.' 
       }]);
     }
   };
@@ -101,7 +101,7 @@ function ChatPageInner() {
     switch (step) {
       case 'checking': return 'Checking agent...';
       case 'submitting': return 'Preparing prompt...';
-      case 'approving': return 'Approving USDC spend...';
+      case 'approving': return 'Approving cUSD spend...';
       case 'paying': return 'Sending payment...';
       case 'confirming': return 'Confirming on Celo...';
       case 'generating': return 'AI is generating...';
@@ -121,7 +121,7 @@ function ChatPageInner() {
         <div>
           <h1 className="text-3xl font-serif">AI Chat</h1>
           <p className="text-text-muted font-mono text-xs uppercase tracking-widest mt-1">
-            0.01 USDC per prompt
+            0.01 cUSD per prompt
           </p>
         </div>
         <div className="flex gap-2">
