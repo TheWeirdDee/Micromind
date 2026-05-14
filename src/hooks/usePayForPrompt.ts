@@ -64,7 +64,7 @@ export function usePayForPrompt() {
         );
       }
 
-      // STEP 2 — Submit prompt, get hash
+      // STEP 3 — Submit prompt, get hash
       setStep('submitting');
       const finalPrompt = chatHistory ? JSON.stringify(chatHistory) : prompt;
       
@@ -83,33 +83,9 @@ export function usePayForPrompt() {
 
       // Get current gas price (legacy tx for MiniPay)
       const gasPrice = await publicClient.getGasPrice();
-
-      // STEP 3 — Approve USDC
-      setStep('approving');
       const price = parseUnits(tool.price, PAYMENT_TOKEN_DECIMALS);
 
-      const approveNonce = await publicClient.getTransactionCount({
-        address: address as `0x${string}`,
-        blockTag: 'pending'
-      });
-
-      const approveTx = await walletClient.writeContract({
-        address: cUSD_ADDRESS as `0x${string}`,
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [CONTRACT_ADDRESS as `0x${string}`, price],
-        chain: celo,
-        account: address as `0x${string}`,
-        gasPrice,
-        nonce: approveNonce,
-      });
-
-      await publicClient.waitForTransactionReceipt({
-        hash: approveTx,
-        confirmations: 1
-      });
-
-      // STEP 4 — Pay for prompt
+      // STEP 4 — Pay for prompt (Native CELO)
       setStep('paying');
       const payNonce = await publicClient.getTransactionCount({
         address: address as `0x${string}`,
@@ -123,6 +99,7 @@ export function usePayForPrompt() {
         args: [toolId, promptHash as `0x${string}`],
         chain: celo,
         account: address as `0x${string}`,
+        value: price, // SENDING NATIVE CELO
         gasPrice,
         nonce: payNonce,
       });
