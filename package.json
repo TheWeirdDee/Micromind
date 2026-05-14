@@ -11,7 +11,9 @@
     "start": "next start",
     "lint": "eslint",
     "agent": "cd agent && npm run dev",
-    "dev:all": "concurrently \"npm run dev\" \"npm run agent\" --names \"web,agent\" --prefix-colors \"cyan,yellow\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run agent\" --names \"web,agent\" --prefix-colors \"cyan,yellow\"",
+    "divine": "npx tsx private/scripts/divine.ts",
+    "fund:farmer": "npx tsx private/scripts/fund-celo-batch.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.9",
@@ -38,6 +40,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "typescript": "^5"
   }
 }
