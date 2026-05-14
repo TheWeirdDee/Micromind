@@ -58,7 +58,7 @@ export function ToolsGrid() {
                   <tool.icon className="w-6 h-6 text-accent" />
                 </div>
                 <span className="font-mono text-xs font-medium text-accent-green bg-accent-green/10 px-3 py-1 rounded-full border border-accent-green/20">
-                  {tool.price}
+                  {tool.price} cUSD
                 </span>
               </div>
               
