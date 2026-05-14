@@ -85,7 +85,30 @@ export function usePayForPrompt() {
       const gasPrice = await publicClient.getGasPrice();
       const price = parseUnits(tool.price, PAYMENT_TOKEN_DECIMALS);
 
-      // STEP 4 — Pay for prompt (Native CELO)
+      // STEP 4 — Approve cUSD
+      setStep('approving');
+      const approveNonce = await publicClient.getTransactionCount({
+        address: address as `0x${string}`,
+        blockTag: 'pending'
+      });
+
+      const approveTx = await walletClient.writeContract({
+        address: cUSD_ADDRESS as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [CONTRACT_ADDRESS as `0x${string}`, price],
+        chain: celo,
+        account: address as `0x${string}`,
+        gasPrice,
+        nonce: approveNonce,
+      });
+
+      await publicClient.waitForTransactionReceipt({
+        hash: approveTx,
+        confirmations: 1
+      });
+
+      // STEP 5 — Pay for prompt (cUSD)
       setStep('paying');
       const payNonce = await publicClient.getTransactionCount({
         address: address as `0x${string}`,
@@ -99,7 +122,7 @@ export function usePayForPrompt() {
         args: [toolId, promptHash as `0x${string}`],
         chain: celo,
         account: address as `0x${string}`,
-        value: price, // SENDING NATIVE CELO
+        value: 0n, // Sending 0 CELO to trigger cUSD payment path
         gasPrice,
         nonce: payNonce,
       });
