@@ -47,7 +47,7 @@ function TweetPageInner() {
     switch (step) {
       case 'checking': return 'Checking agent...';
       case 'submitting': return 'Preparing prompt...';
-      case 'approving': return 'Approving USDC spend...';
+      case 'approving': return 'Approving cUSD spend...';
       case 'paying': return 'Sending payment...';
       case 'confirming': return 'Confirming on Celo...';
       case 'generating': return 'AI is generating...';
