@@ -29,7 +29,7 @@ This document tracks the progress of the MicroMind AI Agent and its integration 
 ### 4. Code Quality & Deployment
 - [x] **TypeScript Stability**: Resolved all linting and type errors in frontend and hook systems.
 - [x] **Deployment Config**: Optimized Hardhat and Vercel configs for Celo Mainnet production.
-- [x] **Contract Deployment**: Deployed `MicroMindPayment` to Celo Mainnet (`0x13420A500AA42668a41cEc27Debd8B3C2f9Ce300`).
+- [x] **Contract Deployment**: Deployed `MicroMindPayment` to Celo Mainnet (`0x2499F74A4ebADe7E61aac1B7E2760d55B598427F`).
 - [x] **Verification**: Successfully submitted contract for verification on Celoscan.
 
 ## 🚀 Next Steps
