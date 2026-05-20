@@ -116,6 +116,8 @@ app.get('/api/health', (req, res) => {
     contract: process.env.CONTRACT_ADDRESS,
     paymentToken: 'USDC',
     groqConfigured: !!process.env.GROQ_API_KEY,
+    agent8004Id: process.env.AGENT_8004_ID || null,
+    selfAgentId: process.env.SELF_AGENT_ID || null,
   });
 });
 
