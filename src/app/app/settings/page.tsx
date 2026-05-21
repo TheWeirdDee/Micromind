@@ -14,7 +14,7 @@ export default function SettingsPage() {
   const settings = [
     { icon: Shield, label: 'Privacy Policy', href: '/app/privacy', external: false },
     { icon: Info, label: 'About MicroMind', href: '/app/about', external: false },
-    { icon: ExternalLink, label: 'CeloScan', href: address ? `${IS_TESTNET ? 'https://alfajores.celoscan.io' : 'https://celoscan.io'}/address/${address}` : `${IS_TESTNET ? 'https://alfajores.celoscan.io' : 'https://celoscan.io'}`, external: true },
+    { icon: ExternalLink, label: 'CeloScan', href: `${IS_TESTNET ? 'https://alfajores.celoscan.io' : 'https://celoscan.io'}/address/0x2499F74A4ebADe7E61aac1B7E2760d55B598427F`, external: true },
   ];
 
   const handleCopy = () => {
