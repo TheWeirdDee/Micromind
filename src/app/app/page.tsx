@@ -8,6 +8,7 @@ import { useWallet } from '@/context/WalletContext';
 import { QRCodeSVG } from 'qrcode.react';
 
 import { TOOLS } from '@/constants/tools';
+import { DailyStreak } from '@/components/app/DailyStreak';
 
 export default function AppHome() {
   const { isConnected, address, isMiniPay, connect } = useWallet();
@@ -89,13 +90,15 @@ export default function AppHome() {
 
   // Only show app content when connected
   return (
-    <div className="space-y-12 animate-fade-up">
+    <div className="space-y-8 animate-fade-up">
       <header>
         <h2 className="text-4xl font-serif mb-2 tracking-tight">
           What do you want <br /> to build?
         </h2>
         <p className="text-text-muted font-mono text-sm">Select a tool to begin.</p>
       </header>
+
+      <DailyStreak />
       
       <motion.div 
         variants={{
