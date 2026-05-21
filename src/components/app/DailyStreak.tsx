@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Flame, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useWallet } from '@/context/WalletContext';
 
 interface StreakData {
   streakCount: number;
@@ -28,6 +29,9 @@ const SPARKS = [
 ];
 
 export function DailyStreak() {
+  const { address } = useWallet();
+  const streakKey = address ? `micromind_streak_data_${address}` : 'micromind_streak_data';
+  const sparkKey = address ? `micromind_today_spark_${address}` : 'micromind_today_spark';
   const [streak, setStreak] = useState<StreakData>({
     streakCount: 0,
     lastCheckInDate: '',
@@ -47,7 +51,7 @@ export function DailyStreak() {
 
   // Load streak state from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem('micromind_streak_data');
+    const stored = localStorage.getItem(streakKey);
     if (stored) {
       try {
         const data: StreakData = JSON.parse(stored);
@@ -76,7 +80,7 @@ export function DailyStreak() {
         
         // If checked in today, retrieve today's quote from storage or pre-fill
         if (claimed) {
-          const storedSpark = localStorage.getItem('micromind_today_spark');
+          const storedSpark = localStorage.getItem(sparkKey);
           if (storedSpark) {
             setSparkMessage(storedSpark);
             setShowSpark(true);
@@ -86,7 +90,7 @@ export function DailyStreak() {
         console.error('Failed to parse streak data', e);
       }
     }
-  }, []);
+  }, [streakKey, sparkKey]);
 
   const handleCheckIn = useCallback(() => {
     setLoading(true);
@@ -120,8 +124,8 @@ export function DailyStreak() {
       const randomIndex = Math.floor(Math.random() * SPARKS.length);
       const quote = SPARKS[randomIndex];
 
-      localStorage.setItem('micromind_streak_data', JSON.stringify(updatedStreak));
-      localStorage.setItem('micromind_today_spark', quote);
+      localStorage.setItem(streakKey, JSON.stringify(updatedStreak));
+      localStorage.setItem(sparkKey, quote);
 
       setStreak(updatedStreak);
       setIsClaimedToday(true);
@@ -129,7 +133,7 @@ export function DailyStreak() {
       setShowSpark(true);
       setLoading(false);
     }, 800);
-  }, [streak]);
+  }, [streak, streakKey, sparkKey]);
 
   // Generate last 7 days of activity dots
   const renderCalendarDots = () => {
