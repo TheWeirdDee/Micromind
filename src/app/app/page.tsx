@@ -9,10 +9,12 @@ import { QRCodeSVG } from 'qrcode.react';
 
 import { TOOLS } from '@/constants/tools';
 import { DailyStreak } from '@/components/app/DailyStreak';
+import { getHistory, type HistoryItem } from '@/lib/storage';
 
 export default function AppHome() {
   const { isConnected, address, isMiniPay, connect } = useWallet();
   const [appUrl, setAppUrl] = useState('');
+  const [recentPrompt, setRecentPrompt] = useState<HistoryItem | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -25,6 +27,11 @@ export default function AppHome() {
           'QR code will use localhost. ' +
           'Add this in Vercel dashboard after deploying.'
         );
+      }
+      
+      const hist = getHistory();
+      if (hist && hist.length > 0) {
+        setRecentPrompt(hist[0]);
       }
     }
   }, []);
@@ -141,11 +148,36 @@ export default function AppHome() {
       </motion.div>
 
       <section className="space-y-6">
-        <h4 className="font-mono text-[10px] tracking-widest uppercase text-text-muted">Recent Prompts</h4>
+        <div className="flex justify-between items-center">
+          <h4 className="font-mono text-[10px] tracking-widest uppercase text-text-muted">Recent Prompts</h4>
+          {recentPrompt && (
+            <Link href="/app/history" className="text-[10px] font-mono text-accent hover:text-accent-gold transition-colors">
+              View All →
+            </Link>
+          )}
+        </div>
         <div className="space-y-3">
-          <p className="text-text-muted font-mono text-xs italic opacity-40 py-4 border border-dashed border-border rounded-xl text-center">
-            No history yet. Start your first prompt above.
-          </p>
+          {recentPrompt ? (
+            <Link href={`/app/history`}>
+              <div className="bg-surface-2 border border-border rounded-2xl p-5 group hover:border-text-muted/40 transition-colors">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h4 className="font-serif text-md">{recentPrompt.toolName || 'Prompt'}</h4>
+                    <p className="text-[10px] font-mono text-text-muted uppercase tracking-wider">
+                      {new Date(recentPrompt.timestamp).toLocaleDateString()} · {recentPrompt.cost}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-sm font-mono text-text-muted line-clamp-2 italic">
+                  "{recentPrompt.prompt}"
+                </p>
+              </div>
+            </Link>
+          ) : (
+            <p className="text-text-muted font-mono text-xs italic opacity-40 py-4 border border-dashed border-border rounded-xl text-center">
+              No history yet. Start your first prompt above.
+            </p>
+          )}
         </div>
       </section>
     </div>
