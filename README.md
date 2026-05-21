@@ -36,12 +36,11 @@ npm run dev:all
 ```
 
 ## 📜 Smart Contract
-- **Celo Mainnet**: `[MAINNET_ADDRESS_HERE]`
-- **Alfajores Testnet**: `[TESTNET_ADDRESS_HERE]`
+- **Celo Mainnet**: `0x2499F74A4ebADe7E61aac1B7E2760d55B598427F`
 
 ## 🤖 AI Agent Compliance
-- **8004 Agent ID**: `[AGENT_8004_ID_HERE]`
-- **Self Agent ID**: `[SELF_AGENT_ID_HERE]`
+- **8004 Agent ID**: `9054`
+- **Self Agent ID**: `0x0aa829dd2c57c7c94635951d3d3c85379a150dbdc05a59323b0a489179c89ca0`
 
 ---
 Built for the **Celo Proof of Ship** competition.
