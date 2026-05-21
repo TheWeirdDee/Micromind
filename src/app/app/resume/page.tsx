@@ -46,7 +46,7 @@ function ResumePageInner() {
       }
     } catch (err: any) { 
       console.error(err); 
-      alert('Transaction failed. Make sure you have enough USDC in your wallet.');
+      alert('Transaction failed. Make sure you have enough cUSD in your wallet.');
     }
   };
 
