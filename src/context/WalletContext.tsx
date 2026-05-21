@@ -81,9 +81,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setWalletClient(null);
     setIsMiniPay(false);
 
-    try { localStorage.clear(); } catch {}
-    try { sessionStorage.clear(); } catch {}
-
     window.location.replace('/app');
   }, []);
 
