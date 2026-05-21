@@ -52,7 +52,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const fetchBalances = useCallback(async (addr: string) => {
     try {
-      // CELO balance
       const celoRaw = await publicClient.getBalance({
         address: addr as `0x${string}`
       });
@@ -60,7 +59,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } catch { setCeloBalance('0'); }
 
     try {
-      // cUSD balance (18 decimals)
       const cusdRaw = await publicClient.readContract({
         address: cUSD_ADDRESS as `0x${string}`,
         abi: erc20Abi,
@@ -81,10 +79,36 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setWalletClient(null);
     setIsMiniPay(false);
 
+    try { localStorage.removeItem('micromind_address'); } catch {}
+    try { localStorage.removeItem('micromind_connected'); } catch {}
+
     window.location.replace('/app');
   }, []);
 
-  // Auto-connect for MiniPay ONLY (handles late injection robustly)
+  // Hydrate from localStorage to prevent flash of disconnected state
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedAddress = localStorage.getItem('micromind_address');
+    const storedConnected = localStorage.getItem('micromind_connected');
+    
+    if (storedAddress && storedConnected === 'true') {
+      setAddress(storedAddress);
+      setIsConnected(true);
+      fetchBalances(storedAddress);
+      
+      // Initialize wallet client early if ethereum is available
+      if (window.ethereum) {
+        const client = createWalletClient({
+          chain: celo,
+          transport: custom(window.ethereum)
+        });
+        setWalletClient(client);
+        if (window.ethereum.isMiniPay) setIsMiniPay(true);
+      }
+    }
+  }, [fetchBalances]);
+
+  // Auto-connect and robust late-injection handling
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -92,45 +116,47 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     let attempts = 0;
 
     const checkAndConnect = async () => {
+      attempts++;
       if (window.ethereum) {
         const isMiniPayDetected = window.ethereum.isMiniPay === true;
-        if (isMiniPayDetected) {
-          setIsMiniPay(true);
-          try {
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            if (accounts?.[0]) {
-              const addr = accounts[0];
-              const client = createWalletClient({
-                chain: celo,
-                transport: custom(window.ethereum)
-              });
-              setAddress(addr);
-              setIsConnected(true);
-              setWalletClient(client);
-              await fetchBalances(addr);
-            }
-          } catch (e) {
-            console.log('MiniPay auto-connect failed:', e);
+        
+        try {
+          const method = isMiniPayDetected ? 'eth_requestAccounts' : 'eth_accounts';
+          const accounts = await window.ethereum.request({ method });
+          
+          if (accounts && accounts.length > 0) {
+            const addr = accounts[0];
+            const client = createWalletClient({
+              chain: celo,
+              transport: custom(window.ethereum)
+            });
+            if (isMiniPayDetected) setIsMiniPay(true);
+            setAddress(addr);
+            setIsConnected(true);
+            setWalletClient(client);
+            await fetchBalances(addr);
+            
+            try { localStorage.setItem('micromind_address', addr); } catch {}
+            try { localStorage.setItem('micromind_connected', 'true'); } catch {}
+            
+            clearInterval(checkInterval);
+            return; // Success
           }
+        } catch (e) {
+          console.log('Auto-connect failed:', e);
         }
-        clearInterval(checkInterval);
+        
+        // If we found ethereum but accounts are empty, we can stop polling unless it's very early
+        if (attempts > 5) clearInterval(checkInterval);
       } else {
-        attempts++;
-        if (attempts > 30) { // Check for 3 seconds (30 * 100ms)
-          clearInterval(checkInterval);
-        }
+        if (attempts > 30) clearInterval(checkInterval);
       }
     };
 
-    // Check immediately
     checkAndConnect();
-
-    // Poll every 100ms
     checkInterval = setInterval(checkAndConnect, 100);
 
-    return () => {
-      clearInterval(checkInterval);
-    };
+    return () => clearInterval(checkInterval);
   }, [fetchBalances]);
 
   // Listen for account/chain changes
@@ -209,6 +235,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setIsConnected(true);
       setIsMiniPay(window.ethereum?.isMiniPay === true);
       setWalletClient(client);
+
+      try { localStorage.setItem('micromind_address', addr); } catch {}
+      try { localStorage.setItem('micromind_connected', 'true'); } catch {}
 
       await fetchBalances(addr);
 
