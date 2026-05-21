@@ -87,36 +87,53 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     window.location.replace('/app');
   }, []);
 
-  // Auto-connect for MiniPay ONLY
+  // Auto-connect for MiniPay ONLY (handles late injection robustly)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!window.ethereum) return;
 
-    // MiniPay Hook — required for Proof of Ship 
-    // "Build for MiniPay" booster
-    // Detects MiniPay wallet and auto-connects
-    const isMiniPay = window.ethereum?.isMiniPay === true;
-    if (!isMiniPay) return;
+    let checkInterval: NodeJS.Timeout;
+    let attempts = 0;
 
-    setIsMiniPay(true);
+    const checkAndConnect = async () => {
+      if (window.ethereum) {
+        const isMiniPayDetected = window.ethereum.isMiniPay === true;
+        if (isMiniPayDetected) {
+          setIsMiniPay(true);
+          try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            if (accounts?.[0]) {
+              const addr = accounts[0];
+              const client = createWalletClient({
+                chain: celo,
+                transport: custom(window.ethereum)
+              });
+              setAddress(addr);
+              setIsConnected(true);
+              setWalletClient(client);
+              await fetchBalances(addr);
+            }
+          } catch (e) {
+            console.log('MiniPay auto-connect failed:', e);
+          }
+        }
+        clearInterval(checkInterval);
+      } else {
+        attempts++;
+        if (attempts > 30) { // Check for 3 seconds (30 * 100ms)
+          clearInterval(checkInterval);
+        }
+      }
+    };
 
-    window.ethereum
-      .request({ method: 'eth_requestAccounts' })
-      .then(async (accounts: string[]) => {
-        if (!accounts?.[0]) return;
-        const addr = accounts[0];
-        const client = createWalletClient({
-          chain: celo,
-          transport: custom(window.ethereum)
-        });
-        setAddress(addr);
-        setIsConnected(true);
-        setWalletClient(client);
-        await fetchBalances(addr);
-      })
-      .catch((e: any) => {
-        console.log('MiniPay auto-connect failed:', e);
-      });
+    // Check immediately
+    checkAndConnect();
+
+    // Poll every 100ms
+    checkInterval = setInterval(checkAndConnect, 100);
+
+    return () => {
+      clearInterval(checkInterval);
+    };
   }, [fetchBalances]);
 
   // Listen for account/chain changes
