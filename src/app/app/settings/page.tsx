@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { LogOut, Shield, Info, ExternalLink, Copy, Check } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
 import { QRCodeSVG } from 'qrcode.react';
@@ -11,9 +12,9 @@ export default function SettingsPage() {
   const IS_TESTNET = process.env.NEXT_PUBLIC_IS_TESTNET === 'true';
 
   const settings = [
-    { icon: Shield, label: 'Privacy Policy', href: '#' },
-    { icon: Info, label: 'About MicroMind', href: '#' },
-    { icon: ExternalLink, label: 'CeloScan', href: `${IS_TESTNET ? 'https://alfajores.celoscan.io' : 'https://celoscan.io'}/address/${address}` },
+    { icon: Shield, label: 'Privacy Policy', href: '/app/privacy', external: false },
+    { icon: Info, label: 'About MicroMind', href: '/app/about', external: false },
+    { icon: ExternalLink, label: 'CeloScan', href: address ? `${IS_TESTNET ? 'https://alfajores.celoscan.io' : 'https://celoscan.io'}/address/${address}` : `${IS_TESTNET ? 'https://alfajores.celoscan.io' : 'https://celoscan.io'}`, external: true },
   ];
 
   const handleCopy = () => {
@@ -60,19 +61,22 @@ export default function SettingsPage() {
       </section>
 
       <div className="space-y-2">
-        {settings.map((item) => (
-          <a
-            key={item.label}
-            href={item.href}
-            target={item.href.startsWith('http') ? '_blank' : undefined}
-            className="flex items-center justify-between p-5 bg-surface border border-border rounded-2xl group hover:border-text-muted transition-colors"
-          >
-            <div className="flex items-center gap-4">
-              <item.icon className="w-5 h-5 text-text-muted group-hover:text-accent transition-colors" />
-              <span className="font-mono text-sm uppercase tracking-wider">{item.label}</span>
-            </div>
-          </a>
-        ))}
+        {settings.map((item) => {
+          const Wrapper = item.external ? 'a' : Link;
+          return (
+            <Wrapper
+              key={item.label}
+              href={item.href}
+              target={item.external ? '_blank' : undefined}
+              className="flex items-center justify-between p-5 bg-surface border border-border rounded-2xl group hover:border-text-muted transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <item.icon className="w-5 h-5 text-text-muted group-hover:text-accent transition-colors" />
+                <span className="font-mono text-sm uppercase tracking-wider">{item.label}</span>
+              </div>
+            </Wrapper>
+          );
+        })}
         
         <button
           onClick={handleDisconnect}
