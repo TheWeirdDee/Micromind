@@ -64,15 +64,18 @@ export function DailyStreak() {
         const yesterday = getLocalDateString(yesterdayDate);
 
         let currentStreak = data.streakCount;
+        let currentHistory = data.history;
         if (data.lastCheckInDate && data.lastCheckInDate !== today && data.lastCheckInDate !== yesterday) {
           currentStreak = 0;
+          currentHistory = [];
         }
 
         const claimed = data.lastCheckInDate === today;
         
         const updatedData = {
           ...data,
-          streakCount: currentStreak
+          streakCount: currentStreak,
+          history: currentHistory
         };
 
         setStreak(updatedData);
@@ -103,13 +106,15 @@ export function DailyStreak() {
       const yesterday = getLocalDateString(yesterdayDate);
 
       let newStreakCount = streak.streakCount;
+      let newHistory = [...streak.history];
+
       if (streak.lastCheckInDate === yesterday) {
         newStreakCount += 1;
       } else if (streak.lastCheckInDate !== today) {
         newStreakCount = 1;
+        newHistory = []; // Reset history for broken streak
       }
 
-      const newHistory = [...streak.history];
       if (!newHistory.includes(today)) {
         newHistory.push(today);
       }
