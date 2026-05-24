@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { MessageSquare, FileText, X, User } from 'lucide-react';
+import { MessageSquare, FileText, X, User, Shield } from 'lucide-react';
 
 const tools = [
   {
@@ -32,6 +32,13 @@ const tools = [
     price: '0.02',
     color: 'accent-green',
   },
+  {
+    icon: Shield,
+    name: 'Auditor',
+    desc: 'Smart contract audit.',
+    price: '0.10',
+    color: 'accent-green',
+  },
 ];
 
 export function ToolsGrid() {
@@ -39,10 +46,10 @@ export function ToolsGrid() {
     <section className="py-32 px-6 bg-bg">
       <div className="container mx-auto max-w-6xl">
         <h2 className="text-4xl md:text-6xl font-serif mb-20 text-center md:text-left">
-          Four tools. One wallet.
+          Five tools. One wallet.
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {tools.map((tool, i) => (
             <motion.div 
               key={tool.name}
