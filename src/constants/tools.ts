@@ -47,4 +47,16 @@ export const TOOLS = [
     color: '#8B5CF6',
     toolId: 3,
   },
+  {
+    id: 4,
+    name: 'Auditor',
+    description: 'Smart contract audit.',
+    price: '0.10',
+    priceDisplay: '0.10 cUSD',
+    priceWei: '100000',
+    icon: '🛡️',
+    href: '/app/auditor',
+    color: '#F59E0B',
+    toolId: 4,
+  },
 ];
