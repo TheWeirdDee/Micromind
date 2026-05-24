@@ -1,6 +1,6 @@
 # MicroMind — AI-Powered Builder Tools on Celo
 
-MicroMind is a minimalist, mobile-first AI agent suite built for the Celo MiniPay ecosystem. It provides high-speed, on-chain tools for creators and developers, including AI Chat, Resume Generation, Tweet Crafting, and Bio Optimization.
+MicroMind is a minimalist, mobile-first AI agent suite built for the Celo MiniPay ecosystem. It provides high-speed, on-chain tools for creators and developers, including AI Chat, Resume Generation, Tweet Crafting, Bio Optimization, and Smart Contract Auditing.
 
 ## 🚀 Key Features
 - **MiniPay Optimized**: Silent auto-detection and seamless payments.
@@ -36,7 +36,7 @@ npm run dev:all
 ```
 
 ## 📜 Smart Contract
-- **Celo Mainnet**: `0x2499F74A4ebADe7E61aac1B7E2760d55B598427F`
+- **Celo Mainnet**: `0x24a00b7d167d4f2908bED91F706989faFDf958E6`
 
 ## 🤖 AI Agent Compliance
 - **8004 Agent ID**: `9054`
