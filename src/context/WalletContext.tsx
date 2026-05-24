@@ -81,6 +81,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     try { localStorage.removeItem('micromind_address'); } catch {}
     try { localStorage.removeItem('micromind_connected'); } catch {}
+    try { localStorage.setItem('micromind_disconnected', 'true'); } catch {}
 
     window.location.replace('/app');
   }, []);
@@ -117,6 +118,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const checkAndConnect = async () => {
       attempts++;
+      
+      const isExplicitlyDisconnected = localStorage.getItem('micromind_disconnected') === 'true';
+      if (isExplicitlyDisconnected) {
+        if (attempts > 5) clearInterval(checkInterval);
+        return;
+      }
+
       if (window.ethereum) {
         const isMiniPayDetected = window.ethereum.isMiniPay === true;
         
@@ -238,6 +246,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       try { localStorage.setItem('micromind_address', addr); } catch {}
       try { localStorage.setItem('micromind_connected', 'true'); } catch {}
+      try { localStorage.removeItem('micromind_disconnected'); } catch {}
 
       await fetchBalances(addr);
 
