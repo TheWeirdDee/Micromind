@@ -16,7 +16,8 @@ export default function HistoryPage() {
       setLoading(true);
       try {
         const latest = await publicClient.getBlockNumber();
-        const fromBlock = Math.max(0, latest - 20000);
+        const latestNum = Number(latest);
+        const fromBlock = Math.max(0, latestNum - 20000);
         const eventAbi = MICROMIND_ABI.find(e => (e as any).name === 'PromptPaid') as any;
 
         const logs = await publicClient.getLogs({
@@ -30,7 +31,7 @@ export default function HistoryPage() {
         const parsed = (logs || []).map((l: any) => ({
           txHash: l.transactionHash || l.transactionHash,
           user: l.args?.user || l.topics?.[1] || null,
-          toolId: l.args?.toolId ?? (l.args && l.args[1]) || null,
+          toolId: (l.args?.toolId ?? (l.args && l.args[1])) || null,
           promptHash: l.args?.promptHash || null,
           amount: l.args?.amount || null,
           timestamp: l.args?.timestamp || null,
