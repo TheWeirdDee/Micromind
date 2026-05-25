@@ -17,6 +17,7 @@ agent/.env
 agent/.env.*
 contracts/.env
 contracts/.env.*
+contracts/scripts/
 .env.local
 .env.local.*
 .env.example
