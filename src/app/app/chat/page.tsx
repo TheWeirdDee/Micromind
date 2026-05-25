@@ -29,7 +29,7 @@ function ChatPageInner() {
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string; chatHistory?: any[] }>(null);
-  const { payAndGenerate, loading, step } = usePayForPrompt();
+  const { pyAndGenerate, loading, step } = usePayForPrompt();
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
 
@@ -84,10 +84,7 @@ function ChatPageInner() {
         ...messages.slice(-5),
         { role: 'user', content: userPrompt }
       ];
-
-      // remember last submission so user can retry on failure
       setLastSubmission({ toolId: 0, toolName: 'Chat', prompt: userPrompt, chatHistory: historyContext });
-
       const aiResponse = await payAndGenerate(0, 'Chat', userPrompt, historyContext);
       if (aiResponse) {
         setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);

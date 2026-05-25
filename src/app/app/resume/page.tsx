@@ -23,6 +23,7 @@ function ResumePageInner() {
   const [mode, setMode] = useState<'professional' | 'creative'>('professional');
   const [response, setResponse] = useState<string | null>(null);
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string }>(null);
+
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
 
@@ -42,6 +43,7 @@ function ResumePageInner() {
     
     try {
       setLastSubmission({ toolId: 1, toolName: 'Resume', prompt });
+
       const aiResponse = await payAndGenerate(1, 'Resume', prompt);
       if (aiResponse) {
         setResponse(aiResponse);
@@ -49,7 +51,7 @@ function ResumePageInner() {
     } catch (err: any) { 
       console.error(err); 
       alert('Transaction failed. Make sure you have enough cUSD in your wallet.');
-    }
+  }
   };
 
   const handleRetry = async () => {
@@ -97,7 +99,7 @@ function ResumePageInner() {
       </header>
 
       <div className="space-y-4">
-                {step === 'error' && (
+              {step === 'error' && (
                   <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-700 text-sm text-red-100 flex items-center justify-between">
                     <div>Payment failed or cancelled. You can retry the last submission.</div>
                     <div className="flex gap-2">
