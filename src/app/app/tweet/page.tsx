@@ -16,6 +16,8 @@ import { Suspense } from 'react';
 function TweetPageInner() {
   const [topic, setTopic] = useState('');
   const [response, setResponse] = useState<string | null>(null);
+  const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string }>(null);
+
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
 
@@ -33,6 +35,8 @@ function TweetPageInner() {
 
   const handleGenerate = async () => {
     try {
+      setLastSubmission({ toolId: 2, toolName: 'Tweet', prompt: topic });
+
       const aiResponse = await payAndGenerate(2, 'Tweet', topic);
       if (aiResponse) {
         setResponse(aiResponse);
@@ -43,6 +47,17 @@ function TweetPageInner() {
     }
   };
 
+  const handleRetry = async () => {
+    if (!lastSubmission || loading) return;
+    try {
+      const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
+      if (aiResponse) setResponse(aiResponse);
+      setLastSubmission(null);
+    } catch (e) {
+      console.error('Retry failed', e);
+      alert('Retry failed. Check your wallet and try again.');
+    }
+  };
   const getStepMessage = () => {
     switch (step) {
       case 'checking': return 'Checking agent...';
@@ -76,6 +91,16 @@ function TweetPageInner() {
       </header>
 
       <div className="space-y-4">
+
+        {step === 'error' && (
+          <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-700 text-sm text-red-100 flex items-center justify-between">
+            <div>Payment failed or cancelled. You can retry the last submission.</div>
+            <div className="flex gap-2">
+              <button onClick={handleRetry} disabled={loading} className="px-3 py-1 rounded bg-accent text-bg text-xs">Retry</button>
+              <button onClick={() => setLastSubmission(null)} className="px-3 py-1 rounded border border-border text-xs">Dismiss</button>
+            </div>
+          </div>
+        )}
         <div className="space-y-2">
           <label className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-2">Topic / Idea</label>
           <textarea
