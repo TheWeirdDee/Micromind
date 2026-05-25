@@ -29,7 +29,7 @@ function ChatPageInner() {
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string; chatHistory?: any[] }>(null);
-  const { pyAndGenerate, loading, step } = usePayForPrompt();
+  const { payAndGenerate, loading, step } = usePayForPrompt();
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
 
