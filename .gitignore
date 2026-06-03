@@ -50,6 +50,7 @@ dist/
 *.json
 !package.json
 !tsconfig.json
+!agent/tsconfig.json
 !next.config.mjs
 !postcss.config.mjs
 !eslint.config.mjs
@@ -57,5 +58,11 @@ dist/
 !*.env.example
 !*.env.sample
 
-# PR Scripts
-create-real-prs.js
+
+
+# Ignore all markdown files except README
+**/*.md
+!**/README.md
+!**/readme.md
+!**/README.MD
+!**/README
