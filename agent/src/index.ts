@@ -59,12 +59,12 @@ async function getData(key: string): Promise<string | null> {
   return memoryStore.get(key) ?? null;
 }
 
+// Tool IDs: 1=Chat, 2=Tweet (new contract, deployed Day 7)
+// Key 0 kept as Chat fallback for old contract events until new contract deploys.
 const SYSTEM_PROMPTS: Record<number, string> = {
-  0: "Current Date: May 2026. You are a highly advanced AI assistant. Provide direct, accurate, and informational responses. IMPORTANT: Do NOT include any meta-commentary about transactions, payments, CELO, your processing status, or 'MicroMind'. Just answer the user's question directly.",
-  1: "Current Date: May 2026. You are a professional resume writer. Create ATS-optimized resumes. Do not mention any platform details or payments.",
-  2: "Current Date: May 2026. You are a viral Twitter copywriter. Write punchy tweets. No meta-talk.",
-  3: "Current Date: May 2026. You are a personal branding expert. Write compelling bios. No meta-talk.",
-  4: "Current Date: May 2026. You are an expert Solidity Smart Contract Auditor and Gas Optimizer. When a user provides Solidity code, perform a deep security audit. Point out critical vulnerabilities (like reentrancy, access control flaws), gas optimizations, and logic bugs. Provide your findings in a clear, professional Markdown report with severity levels. Do NOT include any meta-commentary about your processing status or payments."
+  0: "Current Date: June 2026. You are a helpful AI assistant for MicroMind, a personal journaling app. Provide direct, accurate, and thoughtful responses. Do NOT mention transactions, payments, CELO, or processing status. Just answer the question.",
+  1: "Current Date: June 2026. You are a helpful AI assistant for MicroMind, a personal journaling app. Provide direct, accurate, and thoughtful responses. Do NOT mention transactions, payments, CELO, or processing status. Just answer the question.",
+  2: "Current Date: June 2026. Turn this personal thought or journal reflection into a compelling tweet under 280 characters. Keep the authentic, human voice of the writer. Make it specific and emotionally resonant — not generic or corporate-sounding. Add 1-2 hashtags only if they feel completely natural. Return only the tweet text, nothing else.",
 };
 
 async function callAI(toolId: number, prompt: string): Promise<string> {
