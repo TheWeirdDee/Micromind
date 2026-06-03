@@ -1,62 +1,65 @@
-export const TOOLS = [
-  {
-    id: 0,
-    name: 'Chat',
-    description: 'Ask anything.',
-    price: '0.01',
-    priceDisplay: '0.01 cUSD',
-    priceWei: '10000', // 0.01 * 10^18 (Note: priceWei is legacy, hook uses tool.price)
-    icon: '💬',
-    href: '/app/chat',
-    color: '#3B82F6',
-    toolId: 0,
-  },
+export interface Tool {
+  id: number;
+  slug: string;
+  name: string;
+  description: string;
+  price: string;
+  priceWei: string;
+  icon: string;
+  route: string;
+  hasFreeMode?: boolean;
+}
+
+export const TOOLS: Tool[] = [
   {
     id: 1,
-    name: 'Resume',
-    description: 'Stand out.',
-    price: '0.05',
-    priceDisplay: '0.05 cUSD',
-    priceWei: '50000',
-    icon: '📄',
-    href: '/app/resume',
-    color: '#C9A84C',
-    toolId: 1,
+    slug: 'chat',
+    name: 'Chat',
+    description: 'Ask anything. General AI assistant.',
+    price: '0.005',
+    priceWei: '5000000000000000',
+    icon: '💬',
+    route: '/app/chat',
   },
   {
     id: 2,
+    slug: 'tweet',
     name: 'Tweet',
-    description: 'Go viral.',
-    price: '0.01',
-    priceDisplay: '0.01 cUSD',
-    priceWei: '10000',
+    description: 'Turn a thought or journal entry into a viral tweet.',
+    price: '0.005',
+    priceWei: '5000000000000000',
     icon: '🐦',
-    href: '/app/tweet',
-    color: '#35D07F',
-    toolId: 2,
+    route: '/app/tweet',
   },
   {
     id: 3,
-    name: 'Bio',
-    description: 'Own your story.',
-    price: '0.02',
-    priceDisplay: '0.02 cUSD',
-    priceWei: '20000',
-    icon: '👤',
-    href: '/app/bio',
-    color: '#8B5CF6',
-    toolId: 3,
+    slug: 'reflect',
+    name: 'Reflect',
+    description: 'AI reads your recent entries and writes a personal reflection.',
+    price: '0.005',
+    priceWei: '5000000000000000',
+    icon: '🪞',
+    route: '/app/reflect',
   },
   {
     id: 4,
-    name: 'Auditor',
-    description: 'Smart contract audit.',
-    price: '0.10',
-    priceDisplay: '0.10 cUSD',
-    priceWei: '100000',
-    icon: '🛡️',
-    href: '/app/auditor',
-    color: '#F59E0B',
-    toolId: 4,
+    slug: 'pattern',
+    name: 'Pattern',
+    description: 'Discover emotional patterns across all your journal entries.',
+    price: '0.005',
+    priceWei: '5000000000000000',
+    icon: '🔍',
+    route: '/app/pattern',
+  },
+  {
+    id: 5,
+    slug: 'letter',
+    name: 'Letter',
+    description: 'Write a letter and send it. AI polish optional.',
+    price: '0.01',
+    priceWei: '10000000000000000',
+    icon: '✉️',
+    route: '/app/letter',
+    hasFreeMode: true,
   },
 ];
