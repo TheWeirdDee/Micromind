@@ -86,7 +86,7 @@ function TweetPageInner() {
           <h2 className="text-2xl font-serif">Tweet Gen</h2>
         </div>
         <span className="text-[10px] font-mono text-accent-green px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/20">
-          0.01 cUSD
+          0.005 cUSD
         </span>
       </header>
 

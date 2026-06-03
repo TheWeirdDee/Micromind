@@ -120,8 +120,8 @@ export default function AppHome() {
         className="grid grid-cols-2 gap-4"
       >
         {TOOLS.map((tool, i) => (
-          <Link key={tool.name} href={tool.href}>
-            <motion.div 
+          <Link key={tool.name} href={tool.route}>
+            <motion.div
               variants={{
                 hidden: { opacity: 0, y: 20 },
                 show: { opacity: 1, y: 0 }
@@ -129,17 +129,14 @@ export default function AppHome() {
               whileTap={{ scale: 0.98 }}
               className="bg-surface border border-border p-5 rounded-2xl flex flex-col gap-4 group hover:border-text-muted transition-colors"
             >
-              <div 
-                className="p-2.5 rounded-xl w-fit border border-border group-hover:border-accent-gold/40 transition-colors"
-                style={{ backgroundColor: `${tool.color}10`, borderColor: `${tool.color}30` }}
-              >
+              <div className="p-2.5 rounded-xl w-fit border border-border bg-surface-2 group-hover:border-accent-gold/40 transition-colors">
                 <span className="text-xl">{tool.icon}</span>
               </div>
               <div>
                 <h3 className="font-serif text-xl mb-1">{tool.name}</h3>
                 <p className="text-[10px] font-mono text-text-muted mb-3 uppercase tracking-wider">{tool.description}</p>
                 <span className="text-[10px] font-mono text-accent-green px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/20">
-                  {tool.priceDisplay}
+                  {tool.hasFreeMode ? `Free + ${tool.price} cUSD` : `${tool.price} cUSD`}
                 </span>
               </div>
             </motion.div>

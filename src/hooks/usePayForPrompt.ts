@@ -38,8 +38,14 @@ export function usePayForPrompt() {
       return;
     }
 
-    const tool = TOOLS[toolId];
+    const tool = TOOLS.find(t => t.id === toolId);
     const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+
+    if (!tool) {
+      setError('Unknown tool');
+      setStep('error');
+      return;
+    }
 
     if (!agentUrl) {
       setError('Agent URL not configured');
@@ -159,7 +165,7 @@ export function usePayForPrompt() {
             toolName,
             prompt,
             response: directRes.response,
-            cost: tool.priceDisplay,
+            cost: `${tool.price} cUSD`,
             timestamp: Date.now()
           });
           setResponse(directRes.response);
@@ -184,7 +190,7 @@ export function usePayForPrompt() {
               toolName,
               prompt,
               response: data.response,
-              cost: tool.priceDisplay,
+              cost: `${tool.price} cUSD`,
               timestamp: Date.now()
             });
             setResponse(data.response);

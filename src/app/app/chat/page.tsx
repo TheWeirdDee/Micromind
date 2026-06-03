@@ -38,7 +38,7 @@ function ChatPageInner() {
     if (historyId) {
       const history = getHistory();
       const item = history.find(h => h.txHash === historyId);
-      if (item && item.toolId === 0) {
+      if (item && item.toolId === 1) {
         setMessages([
           { role: 'user', content: item.prompt },
           { role: 'assistant', content: item.response }
@@ -84,8 +84,8 @@ function ChatPageInner() {
         ...messages.slice(-5),
         { role: 'user', content: userPrompt }
       ];
-      setLastSubmission({ toolId: 0, toolName: 'Chat', prompt: userPrompt, chatHistory: historyContext });
-      const aiResponse = await payAndGenerate(0, 'Chat', userPrompt, historyContext);
+      setLastSubmission({ toolId: 1, toolName: 'Chat', prompt: userPrompt, chatHistory: historyContext });
+      const aiResponse = await payAndGenerate(1, 'Chat', userPrompt, historyContext);
       if (aiResponse) {
         setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
       }
@@ -135,7 +135,7 @@ function ChatPageInner() {
         <div>
           <h1 className="text-3xl font-serif">AI Chat</h1>
           <p className="text-text-muted font-mono text-xs uppercase tracking-widest mt-1">
-            0.01 cUSD per prompt
+            0.005 cUSD per prompt
           </p>
         </div>
         <div className="flex gap-2">
