@@ -11,6 +11,8 @@ import { twMerge } from 'tailwind-merge';
 import { useSearchParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { getHistory } from '@/lib/storage';
+import { useWallet } from '@/context/WalletContext';
+import { updateStreak } from '@/lib/journal';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -26,12 +28,15 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 import { Suspense } from 'react';
 
 function ChatPageInner() {
+  const { address, celoBalance } = useWallet();
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string; chatHistory?: any[] }>(null);
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
+
+  const hasNoCelo = Number(celoBalance) < 0.0005;
 
   useEffect(() => {
     const historyId = searchParams.get('id');
@@ -88,12 +93,13 @@ function ChatPageInner() {
       const aiResponse = await payAndGenerate(1, 'Chat', userPrompt, historyContext);
       if (aiResponse) {
         setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+        updateStreak(address);
       }
     } catch (err) {
       console.error(err);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Error: Transaction failed. Make sure you have enough cUSD in your wallet.' 
+        content: 'Error: Transaction failed. Make sure you have enough cUSD and CELO in your wallet.' 
       }]);
     }
   };
@@ -241,6 +247,12 @@ function ChatPageInner() {
         </AnimatePresence>
       </div>
 
+      {hasNoCelo && (
+        <div className="mb-4 p-4 rounded-xl bg-red-950/30 border border-red-900/60 text-xs text-red-200 font-mono leading-relaxed">
+          ⚠️ You need a small amount of CELO for gas fees (~0.001 CELO per prompt). Get CELO via MiniPay or any Celo exchange before using AI tools.
+        </div>
+      )}
+
       <form 
         onSubmit={handleSubmit}
         className="relative"
@@ -249,13 +261,13 @@ function ChatPageInner() {
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Type your message..."
-          disabled={loading}
+          placeholder={hasNoCelo ? "Please get CELO to chat..." : "Type your message..."}
+          disabled={loading || hasNoCelo}
           className="w-full bg-surface border border-border rounded-2xl px-6 py-4 pr-16 text-sm focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
         />
         <button
           type="submit"
-          disabled={!prompt.trim() || loading}
+          disabled={!prompt.trim() || loading || hasNoCelo}
           className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-accent text-bg flex items-center justify-center hover:bg-white transition-colors disabled:opacity-50 disabled:hover:bg-accent"
         >
           {loading ? (
