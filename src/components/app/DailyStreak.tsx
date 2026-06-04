@@ -49,8 +49,7 @@ export function DailyStreak() {
     return `${year}-${month}-${day}`;
   };
 
-  // Load streak state from localStorage on mount
-  useEffect(() => {
+  const refreshStreak = useCallback(() => {
     const stored = localStorage.getItem(streakKey);
     if (stored) {
       try {
@@ -87,13 +86,41 @@ export function DailyStreak() {
           if (storedSpark) {
             setSparkMessage(storedSpark);
             setShowSpark(true);
+          } else {
+            const randomIndex = Math.floor(Math.random() * SPARKS.length);
+            const quote = SPARKS[randomIndex];
+            localStorage.setItem(sparkKey, quote);
+            setSparkMessage(quote);
+            setShowSpark(true);
           }
+        } else {
+          setShowSpark(false);
         }
       } catch (e) {
         console.error('Failed to parse streak data', e);
       }
+    } else {
+      setStreak({
+        streakCount: 0,
+        lastCheckInDate: '',
+        history: []
+      });
+      setIsClaimedToday(false);
+      setShowSpark(false);
     }
   }, [streakKey, sparkKey]);
+
+  // Load streak state from localStorage on mount and listen to updates
+  useEffect(() => {
+    refreshStreak();
+    
+    window.addEventListener('streak_updated', refreshStreak);
+    window.addEventListener('journal_updated', refreshStreak);
+    return () => {
+      window.removeEventListener('streak_updated', refreshStreak);
+      window.removeEventListener('journal_updated', refreshStreak);
+    };
+  }, [refreshStreak]);
 
   const handleCheckIn = useCallback(() => {
     setLoading(true);
@@ -193,7 +220,7 @@ export function DailyStreak() {
         <div>
           <h3 className="font-serif text-lg tracking-tight mb-1">Daily Mind Streak</h3>
           <p className="text-[10px] font-mono text-text-muted uppercase tracking-wider">
-            Check-in daily to unlock AI focus sparks
+            Write in your journal or reflect daily to build your streak
           </p>
         </div>
         <div className="flex items-center gap-1.5 bg-accent-gold/10 border border-accent-gold/20 px-2.5 py-1 rounded-full text-accent-gold shrink-0">
@@ -228,7 +255,7 @@ export function DailyStreak() {
         ) : (
           <div className="flex items-center justify-center gap-1.5 py-2.5 text-accent-green font-mono text-[10px] tracking-widest uppercase border border-accent-green/20 bg-accent-green/5 rounded-xl">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>DAILY ENERGY CLAIMED</span>
+            <span>MIND STREAK ACTIVE TODAY</span>
           </div>
         )}
       </div>
