@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Flame, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWallet } from '@/context/WalletContext';
+import { updateStreak } from '@/lib/journal';
 
 interface StreakData {
   streakCount: number;
@@ -50,34 +51,17 @@ export function DailyStreak() {
   };
 
   const refreshStreak = useCallback(() => {
+    // Recalculate streak dynamically first
+    updateStreak(address);
+
     const stored = localStorage.getItem(streakKey);
     if (stored) {
       try {
         const data: StreakData = JSON.parse(stored);
         const today = getLocalDateString();
-        
-        // Calculate if streak is broken
-        // If last check-in was before yesterday, reset streak count to 0 (but keep history)
-        const yesterdayDate = new Date();
-        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-        const yesterday = getLocalDateString(yesterdayDate);
-
-        let currentStreak = data.streakCount;
-        let currentHistory = data.history;
-        if (data.lastCheckInDate && data.lastCheckInDate !== today && data.lastCheckInDate !== yesterday) {
-          currentStreak = 0;
-          currentHistory = [];
-        }
-
         const claimed = data.lastCheckInDate === today;
         
-        const updatedData = {
-          ...data,
-          streakCount: currentStreak,
-          history: currentHistory
-        };
-
-        setStreak(updatedData);
+        setStreak(data);
         setIsClaimedToday(claimed);
         
         // If checked in today, retrieve today's quote from storage or pre-fill
@@ -108,7 +92,7 @@ export function DailyStreak() {
       setIsClaimedToday(false);
       setShowSpark(false);
     }
-  }, [streakKey, sparkKey]);
+  }, [address, streakKey, sparkKey]);
 
   // Load streak state from localStorage on mount and listen to updates
   useEffect(() => {
