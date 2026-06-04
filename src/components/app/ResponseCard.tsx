@@ -21,7 +21,7 @@ export function ResponseCard({ response, txHash }: ResponseCardProps) {
   };
 
   const handleShare = () => {
-    const text = `Check out what I generated with @MicroMind_AI! 🧠✨\n\n"${response.slice(0, 100)}..."`;
+    const text = `Check out what I generated with @MicroMind_AI!\n\n"${response.slice(0, 100)}..."`;
     const url = 'https://micromind-three.vercel.app';
     shareToMiniPay(text, url);
   };
