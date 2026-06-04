@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, FileText, X, User, Loader2, BookOpen, Lock } from 'lucide-react';
+import { MessageSquare, Loader2, BookOpen, Lock, Bird, Sparkles, Search, Mail, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 import { QRCodeSVG } from 'qrcode.react';
@@ -169,7 +169,17 @@ export default function AppHome() {
                   <div>
                     <div className="flex justify-between items-start mb-4">
                       <div className="p-2.5 rounded-xl w-fit border border-border bg-surface-2 group-hover:border-accent-gold/40 transition-colors">
-                        <span className="text-xl">{tool.icon}</span>
+                        {(() => {
+                          const TOOL_ICONS: Record<string, any> = {
+                            chat: MessageSquare,
+                            tweet: Bird,
+                            reflect: Sparkles,
+                            pattern: Search,
+                            letter: Mail,
+                          };
+                          const Icon = TOOL_ICONS[tool.slug] || HelpCircle;
+                          return <Icon className="w-5 h-5 text-accent" />;
+                        })()}
                       </div>
                       {isLocked && (
                         <span className="flex items-center gap-1 font-mono text-[8px] text-accent-gold bg-accent-gold/10 border border-accent-gold/20 px-2 py-0.5 rounded-full uppercase tracking-widest">

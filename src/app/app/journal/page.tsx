@@ -2,23 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Trash2, BookOpen, PenTool, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Trash2, BookOpen, PenTool, AlertCircle, Smile, Laugh, Meh, Angry, Frown } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
-import { getEntries, saveEntry, deleteEntry, updateStreak, type JournalEntry } from '@/lib/journal';
+import { getEntries, saveEntry, deleteEntry, updateStreak, MOOD_ICONS, type JournalEntry } from '@/lib/journal';
 
 const MOODS = [
-  { emoji: '😊', label: 'Happy' },
-  { emoji: '🤩', label: 'Excited' },
-  { emoji: '😐', label: 'Neutral' },
-  { emoji: '😤', label: 'Angry' },
-  { emoji: '😔', label: 'Sad' },
+  { mood: 'happy', icon: Smile, label: 'Happy' },
+  { mood: 'excited', icon: Laugh, label: 'Excited' },
+  { mood: 'neutral', icon: Meh, label: 'Neutral' },
+  { mood: 'angry', icon: Angry, label: 'Angry' },
+  { mood: 'sad', icon: Frown, label: 'Sad' },
 ];
 
 export default function JournalPage() {
   const { address } = useWallet();
   const [content, setContent] = useState('');
-  const [selectedMood, setSelectedMood] = useState('😊');
+  const [selectedMood, setSelectedMood] = useState('happy');
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [expandedEntries, setExpandedEntries] = useState<Record<string, boolean>>({});
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -40,7 +40,7 @@ export default function JournalPage() {
     updateStreak(address);
 
     setContent('');
-    setSelectedMood('😊');
+    setSelectedMood('happy');
     setEntries(getEntries());
     
     setShowSuccessToast(true);
@@ -92,17 +92,17 @@ export default function JournalPage() {
             <div className="flex gap-3 justify-between md:justify-start">
               {MOODS.map((m) => (
                 <button
-                  key={m.emoji}
+                  key={m.mood}
                   type="button"
-                  onClick={() => setSelectedMood(m.emoji)}
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl border transition-all ${
-                    selectedMood === m.emoji 
+                  onClick={() => setSelectedMood(m.mood)}
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all ${
+                    selectedMood === m.mood 
                       ? 'bg-accent/10 border-accent scale-110 shadow-lg shadow-accent/5' 
                       : 'bg-surface-2 border-border hover:bg-surface-2/80'
                   }`}
                   title={m.label}
                 >
-                  {m.emoji}
+                  <m.icon className={`w-5 h-5 ${selectedMood === m.mood ? 'text-accent' : 'text-text-muted'}`} />
                 </button>
               ))}
             </div>
@@ -135,13 +135,13 @@ export default function JournalPage() {
       <AnimatePresence>
         {showSuccessToast && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed bottom-24 left-6 right-6 z-50 bg-accent text-bg px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 font-mono text-xs uppercase tracking-wider justify-center"
+            initial={{ opacity: 0, y: 20, x: 20 }}
+            animate={{ opacity: 1, y: 0, x: 0 }}
+            exit={{ opacity: 0, y: 20, x: 20 }}
+            className="fixed bottom-24 right-6 z-50 bg-accent text-bg px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest max-w-xs"
           >
-            <PenTool className="w-4 h-4" />
-            <span>Journal Entry Saved! Streak Updated.</span>
+            <PenTool className="w-4 h-4 shrink-0" />
+            <span>Entry Saved!</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -162,7 +162,10 @@ export default function JournalPage() {
                 >
                   <div className="flex justify-between items-center mb-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{entry.mood}</span>
+                      {(() => {
+                        const Icon = MOOD_ICONS[entry.mood] || Smile;
+                        return <Icon className="w-4 h-4 text-accent" />;
+                      })()}
                       <span className="text-xs font-mono text-text-muted">
                         {entry.date}
                       </span>
