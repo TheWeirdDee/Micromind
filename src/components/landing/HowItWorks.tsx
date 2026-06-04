@@ -5,18 +5,18 @@ import { motion } from 'framer-motion';
 const steps = [
   {
     num: '01',
-    title: 'Connect',
-    desc: 'Open in MiniPay. Your wallet connects automatically.',
+    title: 'Write freely',
+    desc: 'Your journal lives on your device. No account. No cloud. Just words.',
   },
   {
     num: '02',
-    title: 'Choose',
-    desc: 'Pick your AI tool. See the exact cost upfront.',
+    title: 'Reflect with AI',
+    desc: 'Connect your wallet when you want insight. Pay a few cents in cUSD. Get a deeply personal AI response.',
   },
   {
     num: '03',
-    title: 'Pay & Get',
-    desc: 'Confirm in MiniPay. AI responds instantly.',
+    title: 'Grow over time',
+    desc: 'Patterns emerge. Reflections accumulate. Your journal becomes a record of who you are.',
   },
 ];
 

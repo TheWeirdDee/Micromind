@@ -34,24 +34,23 @@ export function Hero() {
           variants={item}
           className="text-[clamp(2.2rem,8vw,3.2rem)] md:text-[clamp(3rem,6vw,5rem)] font-serif mb-6 leading-[1.05] tracking-tight text-text-primary"
         >
-          AI Tools That Cost <br />
-          <span className="italic text-accent">What You Actually Use.</span>
+          Your thoughts <br />
+          <span className="italic text-accent">deserve a home.</span>
         </motion.h1>
         
         <motion.p 
           variants={item}
           className="text-text-primary/70 font-mono text-base md:text-lg max-w-xl mx-auto mb-10 leading-relaxed"
         >
-          Pay in cUSD. Get AI. No monthly fees. No lock-in. <br className="hidden md:block" />
-          Built for the next generation of Celo users.
+          MicroMind is a private journal with AI that helps you reflect, find patterns in your emotions, and express yourself — powered by Celo.
         </motion.p>
         
         <motion.div variants={item} className="flex justify-center">
           <Link 
-            href="/app" 
+            href="/app/journal" 
             className="pill-button bg-accent text-bg hover:bg-white text-xl px-12 py-5 group shadow-2xl shadow-accent/10"
           >
-            Start for 0.01 cUSD 
+            Start Journaling Free 
             <span className="transition-transform duration-300 group-hover:rotate-45">→</span>
           </Link>
         </motion.div>

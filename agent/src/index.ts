@@ -5,6 +5,7 @@ import Groq from 'groq-sdk';
 import { createPublicClient, http, decodeEventLog } from 'viem';
 import { celo, celoAlfajores } from 'viem/chains';
 import { MICROMIND_ABI } from './lib/contract';
+import { Resend } from 'resend';
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ const IS_TESTNET = process.env.IS_TESTNET === 'true';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS as `0x${string}`;
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const publicClient = createPublicClient({
   chain: celo,
@@ -59,36 +61,74 @@ async function getData(key: string): Promise<string | null> {
   return memoryStore.get(key) ?? null;
 }
 
-// Tool IDs: 1=Chat, 2=Tweet (new contract, deployed Day 7)
-// Key 0 kept as Chat fallback for old contract events until new contract deploys.
+// Tool IDs: 1=Chat, 2=Tweet, 3=Reflect, 4=Pattern, 5=Letter (AI Polish)
 const SYSTEM_PROMPTS: Record<number, string> = {
   0: "Current Date: June 2026. You are a helpful AI assistant for MicroMind, a personal journaling app. Provide direct, accurate, and thoughtful responses. Do NOT mention transactions, payments, CELO, or processing status. Just answer the question.",
   1: "Current Date: June 2026. You are a helpful AI assistant for MicroMind, a personal journaling app. Provide direct, accurate, and thoughtful responses. Do NOT mention transactions, payments, CELO, or processing status. Just answer the question.",
   2: "Current Date: June 2026. Turn this personal thought or journal reflection into a compelling tweet under 280 characters. Keep the authentic, human voice of the writer. Make it specific and emotionally resonant — not generic or corporate-sounding. Add 1-2 hashtags only if they feel completely natural. Return only the tweet text, nothing else.",
+  3: "You are a compassionate journal companion. The user has shared their recent journal entries below. Write a warm, insightful weekly reflection (150-200 words) that summarizes their emotional journey, highlights any growth moments or recurring themes, and ends with one encouraging, actionable thought. Be personal and gentle. Do not be clinical or list-heavy — write as a trusted friend would.",
+  4: "You are an empathetic AI analyst. Analyze these journal entries and identify exactly 3 emotional patterns or recurring themes in the user's life. For each pattern, provide:\n1. A short, memorable name (2-4 words, e.g. \"The Sunday Spiral\")\n2. A 1-2 sentence description of what you noticed\n3. One gentle, actionable insight (start with \"Try:\")\nBe warm and non-clinical. Frame patterns as observations, not diagnoses. Format your response clearly with each pattern separated.",
+  5: "You are a warm and eloquent writing assistant. Rewrite this letter to make it more heartfelt, emotionally resonant, and beautifully expressed — while keeping the original meaning and the authentic voice of the writer completely intact. Do not add information, events, or relationships that were not in the original. Do not change the tone from loving to formal or vice versa — enhance what is already there. Return only the rewritten letter text, nothing else.",
 };
+
+async function sendEmail(to: string, senderName: string, content: string, isPolished: boolean) {
+  if (!resend) {
+    console.warn('[EMAIL] Resend not configured. Skipping email send.');
+    return;
+  }
+
+  const subject = `A letter for you, from ${senderName}`;
+  const text = isPolished 
+    ? `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app\n✨ This letter was enhanced with AI`
+    : `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app`;
+
+  await resend.emails.send({
+    from: 'MicroMind Letters <onboarding@resend.dev>',
+    to,
+    subject,
+    text
+  });
+  console.log(`[EMAIL] Sent email successfully to ${to}`);
+}
 
 async function callAI(toolId: number, prompt: string): Promise<string> {
   try {
     console.log(`[AI] Generating for tool ${toolId}...`);
     
+    let finalPrompt = prompt;
+    let recipientEmail = '';
+    let senderName = '';
+
+    // If it is the Letter tool, the prompt is a JSON string containing content, email, and name
+    if (toolId === 5) {
+      try {
+        const parsed = JSON.parse(prompt);
+        finalPrompt = parsed.content || '';
+        recipientEmail = parsed.recipientEmail || '';
+        senderName = parsed.senderName || '';
+      } catch (e) {
+        console.log('[AI] Failed to parse JSON prompt for Letter tool, using raw prompt');
+      }
+    }
+
     let messages: any[] = [
       { role: "system", content: SYSTEM_PROMPTS[toolId] ?? SYSTEM_PROMPTS[0] }
     ];
 
     // Check if prompt is a JSON array of messages (chat history)
     try {
-      if (prompt.trim().startsWith('[') && prompt.trim().endsWith(']')) {
-        const history = JSON.parse(prompt);
+      if (finalPrompt.trim().startsWith('[') && finalPrompt.trim().endsWith(']')) {
+        const history = JSON.parse(finalPrompt);
         if (Array.isArray(history)) {
           messages = [...messages, ...history];
         } else {
-          messages.push({ role: "user", content: prompt });
+          messages.push({ role: "user", content: finalPrompt });
         }
       } else {
-        messages.push({ role: "user", content: prompt });
+        messages.push({ role: "user", content: finalPrompt });
       }
     } catch {
-      messages.push({ role: "user", content: prompt });
+      messages.push({ role: "user", content: finalPrompt });
     }
 
     const completion = await groq.chat.completions.create({
@@ -100,6 +140,15 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
     
     const result = completion.choices[0]?.message?.content ?? "No response generated.";
     console.log(`[AI] Success! Response length: ${result.length}`);
+
+    // If it is the Letter tool, send email in background
+    if (toolId === 5 && recipientEmail) {
+      console.log(`[EMAIL] Sending polished letter to ${recipientEmail}...`);
+      sendEmail(recipientEmail, senderName, result, true).catch(err => {
+        console.error('[EMAIL] Failed to send polished letter email:', err);
+      });
+    }
+
     return result;
   } catch (error: any) {
     console.error('[AI] Groq Error:', error.message);
@@ -120,6 +169,23 @@ app.get('/api/health', (req, res) => {
     agent8004Id: process.env.AGENT_8004_ID || null,
     selfAgentId: process.env.SELF_AGENT_ID || null,
   });
+});
+
+app.post('/api/letter/send', async (req, res) => {
+  const { content, recipientEmail, senderName } = req.body;
+  console.log('[LETTER] Free send request received for recipient:', recipientEmail);
+
+  if (!content || !recipientEmail || !senderName) {
+    return res.status(400).json({ error: 'Missing fields' });
+  }
+
+  try {
+    await sendEmail(recipientEmail, senderName, content, false);
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error('[LETTER] Free send failed:', e);
+    res.status(500).json({ error: e.message || 'Email delivery failed' });
+  }
 });
 
 app.post('/api/prompt/submit', async (req, res) => {
