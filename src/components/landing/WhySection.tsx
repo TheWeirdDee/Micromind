@@ -18,9 +18,10 @@ export function WhySection() {
         
         <div className="flex flex-col gap-12">
           {[
-            "No subscription. No credit card. Just cUSD.",
-            "Fully onchain. Every prompt is a transaction.",
-            "Built for MiniPay's 14M+ users."
+            "Private by design — entries never leave your device.",
+            "No subscription — pay only for AI, only when you want it.",
+            "Verifiable — every AI response backed by a Celo transaction.",
+            "Made for mobile — works seamlessly with MiniPay."
           ].map((point, i) => (
             <motion.div 
               key={i}

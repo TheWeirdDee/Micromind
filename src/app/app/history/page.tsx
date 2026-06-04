@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { History, ExternalLink, MessageSquare, FileText, X, User } from 'lucide-react';
+import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, HelpCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { getHistory, type HistoryItem } from '@/lib/storage';
+import { getEntries, type JournalEntry } from '@/lib/journal';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -13,107 +14,191 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const ICONS = {
-  0: MessageSquare,
-  1: FileText,
-  2: X,
-  3: User,
+  1: MessageSquare, // Chat
+  2: PenTool,       // Tweet
+  3: BookOpen,      // Reflect
+  4: Search,        // Pattern
+  5: Mail,          // Letter
 };
 
 export default function HistoryPage() {
+  const [activeTab, setActiveTab] = useState<'journal' | 'prompts'>('journal');
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
 
   useEffect(() => {
-    setHistory(getHistory());
+    const hist = getHistory();
+    const jEnts = getEntries();
+    setHistory(hist);
+    setEntries(jEnts);
+
+    const newestPromptTime = hist[0]?.timestamp || 0;
+    const newestEntryTime = jEnts[0]?.timestamp || 0;
+    if (newestPromptTime > newestEntryTime) {
+      setActiveTab('prompts');
+    } else {
+      setActiveTab('journal');
+    }
   }, []);
 
-  const totalSpent = history.reduce((acc, curr) => acc + parseFloat(curr.cost), 0).toFixed(2);
+  const totalSpent = history.reduce((acc, curr) => acc + parseFloat(curr.cost), 0).toFixed(3);
 
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-10"
+      className="space-y-8 pb-24"
     >
-      <header className="flex justify-between items-end">
-        <div>
-          <h2 className="text-4xl font-serif tracking-tight">Your History</h2>
-          <p className="text-text-muted font-mono text-sm mt-2">All your onchain thoughts.</p>
-        </div>
+      <header>
+        <h2 className="text-4xl font-serif tracking-tight">Your History</h2>
+        <p className="text-text-muted font-mono text-sm mt-2">All your thoughts and AI sessions.</p>
       </header>
 
-      <div className="bg-surface border border-border rounded-2xl p-6 flex justify-between items-center">
-        <div>
-          <p className="font-mono text-[10px] tracking-widest uppercase text-text-muted mb-1">Total Spent</p>
-          <p className="text-2xl font-mono text-accent-green font-medium">{totalSpent} cUSD</p>
-        </div>
-        <div className="text-right">
-          <p className="font-mono text-[10px] tracking-widest uppercase text-text-muted mb-1">Total Prompts</p>
-          <p className="text-2xl font-mono text-text-primary font-medium">{history.length}</p>
-        </div>
+      {/* Tabs */}
+      <div className="flex border-b border-border">
+        <button
+          onClick={() => setActiveTab('journal')}
+          className={cn(
+            "flex-1 py-3.5 text-center font-mono text-[10px] uppercase tracking-widest border-b-2 transition-all",
+            activeTab === 'journal' 
+              ? "border-accent text-accent font-bold" 
+              : "border-transparent text-text-muted hover:text-text-primary"
+          )}
+        >
+          Journal Entries ({entries.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('prompts')}
+          className={cn(
+            "flex-1 py-3.5 text-center font-mono text-[10px] uppercase tracking-widest border-b-2 transition-all",
+            activeTab === 'prompts' 
+              ? "border-accent text-accent font-bold" 
+              : "border-transparent text-text-muted hover:text-text-primary"
+          )}
+        >
+          AI Prompts ({history.length})
+        </button>
       </div>
 
-      <div className="space-y-4">
-        {history.length === 0 ? (
-          <div className="text-center py-20 border border-dashed border-border rounded-2xl">
-            <History className="w-8 h-8 text-text-muted/20 mx-auto mb-4" />
-            <p className="text-text-muted font-mono text-sm mb-6">No prompts yet.</p>
-            <Link href="/app" className="pill-button pill-button-outline inline-flex">
-              Start your first one
-            </Link>
-          </div>
-        ) : (
-          history.map((item) => {
-            const Icon = ICONS[item.toolId as keyof typeof ICONS] || MessageSquare;
-            const toolRoutes: Record<number, string> = {
-              0: '/app/chat',
-              1: '/app/resume',
-              2: '/app/tweet',
-              3: '/app/bio'
-            };
-            const route = toolRoutes[item.toolId as number] || '/app/chat';
-            const fullRoute = `${route}?id=${item.txHash}`;
-
-            return (
+      {activeTab === 'journal' ? (
+        /* Journal Entries list */
+        <div className="space-y-4">
+          {entries.length === 0 ? (
+            <div className="text-center py-20 border border-dashed border-border rounded-2xl bg-surface/30">
+              <BookOpen className="w-8 h-8 text-text-muted/20 mx-auto mb-4" />
+              <p className="text-text-muted font-mono text-sm mb-6">Your journal is empty.</p>
+              <Link href="/app/journal" className="pill-button pill-button-outline inline-flex text-xs font-mono tracking-wider">
+                Write your first entry
+              </Link>
+            </div>
+          ) : (
+            entries.map((entry) => (
               <div 
-                key={item.id} 
-                onClick={() => window.location.href = fullRoute}
-                className="bg-surface-2 border border-border rounded-2xl p-6 space-y-4 group hover:border-text-muted/40 transition-colors block cursor-pointer"
+                key={entry.id} 
+                className="bg-surface border border-border rounded-2xl p-5 space-y-3"
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-surface rounded-lg border border-border">
-                      <Icon className="w-4 h-4 text-accent" />
-                    </div>
-                    <div>
-                      <h4 className="font-serif text-lg">{item.toolName}</h4>
-                      <p className="text-[10px] font-mono text-text-muted uppercase tracking-wider">
-                        {new Date(item.timestamp).toLocaleDateString()} · {item.cost}
-                      </p>
-                    </div>
-                  </div>
+                <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">
-                      View Response →
-                    </span>
-                    <a 
-                      href={`https://celoscan.io/tx/${item.txHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-2 hover:bg-surface rounded-full transition-colors text-text-muted hover:text-text-primary relative z-10"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
+                    <span className="text-xl">{entry.mood}</span>
+                    <span className="text-xs font-mono text-text-muted">{entry.date}</span>
                   </div>
+                  <Link href="/app/journal" className="text-[10px] font-mono text-accent hover:underline uppercase tracking-wider">
+                    Edit Entry ↗
+                  </Link>
                 </div>
-                <p className="text-sm font-mono text-text-muted line-clamp-2 px-2 italic">
-                  "{item.prompt}"
+                <p className="font-mono text-sm leading-relaxed text-text-primary whitespace-pre-wrap">
+                  {entry.content}
                 </p>
               </div>
-            );
-          })
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      ) : (
+        /* AI Prompts list */
+        <div className="space-y-4">
+          <div className="bg-surface border border-border rounded-2xl p-5 flex justify-between items-center">
+            <div>
+              <p className="font-mono text-[10px] tracking-widest uppercase text-text-muted mb-1">Total Spent</p>
+              <p className="text-2xl font-mono text-accent-green font-medium">{totalSpent} cUSD</p>
+            </div>
+            <div className="text-right">
+              <p className="font-mono text-[10px] tracking-widest uppercase text-text-muted mb-1">Total Prompts</p>
+              <p className="text-2xl font-mono text-text-primary font-medium">{history.length}</p>
+            </div>
+          </div>
+
+          {history.length === 0 ? (
+            <div className="text-center py-20 border border-dashed border-border rounded-2xl bg-surface/30">
+              <History className="w-8 h-8 text-text-muted/20 mx-auto mb-4" />
+              <p className="text-text-muted font-mono text-sm mb-6">No paid prompts yet.</p>
+              <Link href="/app" className="pill-button pill-button-outline inline-flex text-xs font-mono tracking-wider">
+                Start a session
+              </Link>
+            </div>
+          ) : (
+            history.map((item) => {
+              const Icon = ICONS[item.toolId as keyof typeof ICONS] || MessageSquare;
+              const toolRoutes: Record<number, string> = {
+                1: '/app/chat',
+                2: '/app/tweet',
+                3: '/app/reflect',
+                4: '/app/pattern',
+                5: '/app/letter'
+              };
+              const route = toolRoutes[item.toolId as number] || '/app/chat';
+              const fullRoute = `${route}?id=${item.txHash}`;
+
+              let displayPrompt = item.prompt;
+              // Clean JSON payload display for letters if applicable
+              if (item.toolId === 5) {
+                try {
+                  const parsed = JSON.parse(item.prompt);
+                  displayPrompt = parsed.content || item.prompt;
+                } catch {}
+              }
+
+              return (
+                <div 
+                  key={item.id} 
+                  onClick={() => window.location.href = fullRoute}
+                  className="bg-surface-2 border border-border rounded-2xl p-6 space-y-4 group hover:border-text-muted/40 transition-colors block cursor-pointer"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-surface rounded-lg border border-border">
+                        <Icon className="w-4 h-4 text-accent" />
+                      </div>
+                      <div>
+                        <h4 className="font-serif text-lg">{item.toolName}</h4>
+                        <p className="text-[10px] font-mono text-text-muted uppercase tracking-wider">
+                          {new Date(item.timestamp).toLocaleDateString()} · {item.cost}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">
+                        View Response →
+                      </span>
+                      <a 
+                        href={`https://celoscan.io/tx/${item.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="p-2 hover:bg-surface rounded-full transition-colors text-text-muted hover:text-text-primary relative z-10"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
+                  <p className="text-sm font-mono text-text-muted line-clamp-2 px-2 italic">
+                    "{displayPrompt}"
+                  </p>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }
