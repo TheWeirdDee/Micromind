@@ -143,7 +143,7 @@ export default function SendPage() {
 
         {error && (
           <p className="text-red-500 font-mono text-[10px] text-center">
-            ⚠ {error}
+            {error}
           </p>
         )}
 
