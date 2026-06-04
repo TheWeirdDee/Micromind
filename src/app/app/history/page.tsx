@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, HelpCircle } from 'lucide-react';
+import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, HelpCircle, Smile } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { getHistory, type HistoryItem } from '@/lib/storage';
-import { getEntries, type JournalEntry } from '@/lib/journal';
+import { getEntries, MOOD_ICONS, type JournalEntry } from '@/lib/journal';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -99,7 +99,10 @@ export default function HistoryPage() {
               >
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">{entry.mood}</span>
+                    {(() => {
+                      const Icon = MOOD_ICONS[entry.mood] || Smile;
+                      return <Icon className="w-4 h-4 text-accent" />;
+                    })()}
                     <span className="text-xs font-mono text-text-muted">{entry.date}</span>
                   </div>
                   <Link href="/app/journal" className="text-[10px] font-mono text-accent hover:underline uppercase tracking-wider">
