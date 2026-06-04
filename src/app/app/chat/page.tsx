@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User as UserIcon, Loader2, History as HistoryIcon, X } from 'lucide-react';
+import { Send, Bot, User as UserIcon, Loader2, History as HistoryIcon, X, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { TOOLS } from '@/constants/tools';
@@ -248,8 +248,9 @@ function ChatPageInner() {
       </div>
 
       {hasNoCelo && (
-        <div className="mb-4 p-4 rounded-xl bg-red-950/30 border border-red-900/60 text-xs text-red-200 font-mono leading-relaxed">
-          ⚠️ You need a small amount of CELO for gas fees (~0.001 CELO per prompt). Get CELO via MiniPay or any Celo exchange before using AI tools.
+        <div className="mb-4 p-4 rounded-xl bg-red-950/30 border border-red-900/60 text-xs text-red-200 font-mono leading-relaxed flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+          <span>You need a small amount of CELO for gas fees (~0.001 CELO per prompt). Get CELO via MiniPay or any Celo exchange before using AI tools.</span>
         </div>
       )}
 

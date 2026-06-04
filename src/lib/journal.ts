@@ -1,12 +1,27 @@
+import { Smile, Laugh, Meh, Angry, Frown } from 'lucide-react';
+
 const JOURNAL_KEY = "mm_journal";
 
 export interface JournalEntry {
   id: string;
   date: string;         // e.g. "June 3, 2026"
   content: string;
-  mood: string;         // emoji string: "😊" | "😐" | "😔" | "😤" | "🤩"
+  mood: string;         // e.g. "happy" | "excited" | "neutral" | "angry" | "sad"
   timestamp: number;    // Date.now()
 }
+
+export const MOOD_ICONS: Record<string, any> = {
+  happy: Smile,
+  excited: Laugh,
+  neutral: Meh,
+  angry: Angry,
+  sad: Frown,
+  '😊': Smile,
+  '🤩': Laugh,
+  '😐': Meh,
+  '😤': Angry,
+  '😔': Frown,
+};
 
 export function getEntries(): JournalEntry[] {
   if (typeof window === "undefined") return [];
@@ -66,55 +81,91 @@ export function getRecentEntries(n: number): JournalEntry[] {
 export function updateStreak(walletAddress: string | null): void {
   if (typeof window === 'undefined') return;
   const streakKey = walletAddress ? `micromind_streak_data_${walletAddress}` : 'micromind_streak_data';
-  const getLocalDateString = (date: Date = new Date()) => {
+  const getLocalDateString = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
 
-  const today = getLocalDateString();
-  const yesterdayDate = new Date();
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterday = getLocalDateString(yesterdayDate);
+  const todayStr = getLocalDateString(new Date());
 
-  const stored = localStorage.getItem(streakKey);
-  let streak = {
-    streakCount: 0,
-    lastCheckInDate: '',
-    history: [] as string[]
+  // 1. Get all dates from journal entries
+  const journalEntries = getEntries();
+  const journalDates = journalEntries.map(e => getLocalDateString(new Date(e.timestamp)));
+
+  // 2. Get all dates from prompt history
+  let historyDates: string[] = [];
+  const storedHistory = localStorage.getItem('micromind_history');
+  if (storedHistory) {
+    try {
+      const historyItems = JSON.parse(storedHistory);
+      if (Array.isArray(historyItems)) {
+        historyDates = historyItems.map((item: any) => getLocalDateString(new Date(item.timestamp)));
+      }
+    } catch (e) {
+      console.error('Failed to parse prompt history for streak', e);
+    }
+  }
+
+  // 3. Get all dates from manual checkins if any
+  let manualDates: string[] = [];
+  const storedStreak = localStorage.getItem(streakKey);
+  let lastCheckInDate = '';
+  if (storedStreak) {
+    try {
+      const data = JSON.parse(storedStreak);
+      if (data && Array.isArray(data.history)) {
+        manualDates = data.history;
+      }
+      if (data && data.lastCheckInDate) {
+        lastCheckInDate = data.lastCheckInDate;
+      }
+    } catch (e) {
+      console.error('Failed to parse manual streak checkins', e);
+    }
+  }
+
+  // 4. Combine and get unique dates sorted descending
+  const allDatesSet = new Set([...journalDates, ...historyDates, ...manualDates]);
+  const sortedDates = Array.from(allDatesSet).sort((a, b) => b.localeCompare(a));
+
+  // 5. Calculate streak count
+  let streakCount = 0;
+  
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = getLocalDateString(yesterday);
+
+  const hasToday = allDatesSet.has(todayStr);
+  const hasYesterday = allDatesSet.has(yesterdayStr);
+
+  if (hasToday || hasYesterday) {
+    let currentCheckDate = hasToday ? new Date() : yesterday;
+    
+    while (true) {
+      const checkStr = getLocalDateString(currentCheckDate);
+      if (allDatesSet.has(checkStr)) {
+        streakCount++;
+        currentCheckDate.setDate(currentCheckDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+  }
+
+  const calculatedLastCheckInDate = sortedDates[0] || lastCheckInDate;
+
+  const result = {
+    streakCount,
+    lastCheckInDate: calculatedLastCheckInDate,
+    history: sortedDates,
   };
 
-  if (stored) {
-    try {
-      streak = JSON.parse(stored);
-    } catch (e) {
-      console.error('Failed to parse streak data', e);
-    }
-  }
-
-  // If last check-in was before yesterday, reset streak count to 0 (but keep history or clear if broken)
-  if (streak.lastCheckInDate && streak.lastCheckInDate !== today && streak.lastCheckInDate !== yesterday) {
-    streak.streakCount = 0;
-    streak.history = [];
-  }
-
-  // Update streak if not already checked in today
-  if (streak.lastCheckInDate !== today) {
-    if (streak.lastCheckInDate === yesterday) {
-      streak.streakCount += 1;
-    } else {
-      streak.streakCount = 1;
-      streak.history = [];
-    }
-    streak.lastCheckInDate = today;
-    if (!streak.history.includes(today)) {
-      streak.history.push(today);
-    }
-    localStorage.setItem(streakKey, JSON.stringify(streak));
-    
-    // Dispatch custom event to let components (like DailyStreak) know it has updated
-    window.dispatchEvent(new Event("streak_updated"));
-  }
+  localStorage.setItem(streakKey, JSON.stringify(result));
+  
+  // Dispatch custom event to let components (like DailyStreak) know it has updated
+  window.dispatchEvent(new Event("streak_updated"));
 }
+
 
