@@ -31,15 +31,24 @@ export function Navbar() {
           <Logo className="h-[20px] w-auto group-hover:scale-105 transition-transform duration-300" />
         </Link>
 
-        <div className="hidden md:flex absolute left-1/2 -translate-x-1/2">
-          <span className="font-mono text-[11px] tracking-[0.3em] uppercase text-accent-gold whitespace-nowrap">
-            PAY · PER · PROMPT · NO SUBSCRIPTIONS
-          </span>
+        <div className="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+          <a href="#" className="font-mono text-[10px] tracking-widest uppercase text-text-primary/70 hover:text-accent transition-colors">
+            Home
+          </a>
+          <a href="#about" className="font-mono text-[10px] tracking-widest uppercase text-text-primary/70 hover:text-accent transition-colors">
+            About
+          </a>
+          <a href="#features" className="font-mono text-[10px] tracking-widest uppercase text-text-primary/70 hover:text-accent transition-colors">
+            Features
+          </a>
+          <a href="#companions" className="font-mono text-[10px] tracking-widest uppercase text-text-primary/70 hover:text-accent transition-colors">
+            Companions
+          </a>
         </div>
         
         <Link 
           href="/app" 
-          className="pill-button pill-button-outline group"
+          className="pill-button pill-button-outline group text-xs py-2 px-5"
         >
           Open App 
           <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
