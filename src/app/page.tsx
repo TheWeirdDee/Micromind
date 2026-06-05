@@ -3,6 +3,7 @@ import { Hero } from "@/components/landing/Hero";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { ToolsGrid } from "@/components/landing/ToolsGrid";
 import { WhySection } from "@/components/landing/WhySection";
+import { AICompanions } from "@/components/landing/AICompanions";
 import { Footer } from "@/components/landing/Footer";
 
 export default function Home() {
@@ -13,6 +14,7 @@ export default function Home() {
       <HowItWorks />
       <ToolsGrid />
       <WhySection />
+      <AICompanions />
       <Footer />
     </div>
   );
