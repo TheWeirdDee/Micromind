@@ -12,11 +12,13 @@ import { getHistory } from '@/lib/storage';
 import { AgentWarning } from '@/components/app/AgentWarning';
 import { useWallet } from '@/context/WalletContext';
 import { getLastEntry, updateStreak, type JournalEntry } from '@/lib/journal';
+import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 
 import { Suspense } from 'react';
 
 function TweetPageInner() {
-  const { address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance } = useWallet();
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [topic, setTopic] = useState('');
   const [response, setResponse] = useState<string | null>(null);
   const [lastEntry, setLastEntry] = useState<JournalEntry | null>(null);
@@ -25,7 +27,7 @@ function TweetPageInner() {
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
 
-  const hasNoCelo = Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
 
   useEffect(() => {
     setLastEntry(getLastEntry());
@@ -42,6 +44,11 @@ function TweetPageInner() {
   }, [searchParams]);
 
   const handleGenerate = async () => {
+    if (!isConnected || !address) {
+      setShowWalletModal(true);
+      return;
+    }
+
     try {
       setLastSubmission({ toolId: 2, toolName: 'Tweet', prompt: topic });
 
@@ -58,6 +65,12 @@ function TweetPageInner() {
 
   const handleRetry = async () => {
     if (!lastSubmission || loading) return;
+
+    if (!isConnected || !address) {
+      setShowWalletModal(true);
+      return;
+    }
+
     try {
       const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
       if (aiResponse) setResponse(aiResponse);
@@ -154,6 +167,7 @@ function TweetPageInner() {
       </div>
 
       {response && <ResponseCard response={response} />}
+      <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </motion.div>
   );
 }
