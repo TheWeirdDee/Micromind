@@ -50,7 +50,7 @@ export function Navbar() {
           href="/app" 
           className="pill-button pill-button-outline group text-xs py-2 px-5"
         >
-          Open App 
+          Explore App 
           <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
         </Link>
       </div>
