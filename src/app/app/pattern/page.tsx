@@ -11,12 +11,14 @@ import { ResponseCard } from '@/components/app/ResponseCard';
 import { AgentWarning } from '@/components/app/AgentWarning';
 import { getEntries, updateStreak, type JournalEntry } from '@/lib/journal';
 import { getHistory } from '@/lib/storage';
+import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 import ReactMarkdown from 'react-markdown';
 
 import { Suspense } from 'react';
 
 function PatternPageInner() {
-  const { address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance } = useWallet();
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [response, setResponse] = useState<string | null>(null);
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string }>(null);
@@ -24,7 +26,7 @@ function PatternPageInner() {
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
 
-  const hasNoCelo = Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
 
   useEffect(() => {
     setEntries(getEntries());
@@ -41,6 +43,12 @@ function PatternPageInner() {
 
   const handleGenerate = async () => {
     if (entries.length < 5) return;
+
+    if (!isConnected || !address) {
+      setShowWalletModal(true);
+      return;
+    }
+
     try {
       const formattedPrompt = entries
         .map(e => `Date: ${e.date} | Mood: ${e.mood}\nEntry: ${e.content}`)
@@ -61,6 +69,12 @@ function PatternPageInner() {
 
   const handleRetry = async () => {
     if (!lastSubmission || loading) return;
+
+    if (!isConnected || !address) {
+      setShowWalletModal(true);
+      return;
+    }
+
     try {
       const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
       if (aiResponse) setResponse(aiResponse);
@@ -210,6 +224,7 @@ function PatternPageInner() {
           {renderPatternCards(response)}
         </div>
       )}
+      <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </motion.div>
   );
 }
