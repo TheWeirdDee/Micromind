@@ -43,65 +43,6 @@ export default function AppHome() {
     }
   }, []);
 
-  // If not connected, show connect screen
-  if (!isConnected || !address) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-8">
-        <h2 className="text-3xl font-serif mb-8 text-text-primary">Welcome to MicroMind.</h2>
-        
-        {/* Hide connect button inside MiniPay */}
-        {!isMiniPay ? (
-          <div className="space-y-6 w-full max-w-sm">
-            <button 
-              onClick={() => connect()}
-              className="w-full pill-button pill-button-primary text-sm tracking-widest"
-            >
-              Connect Wallet
-            </button>
-
-            <div className="flex items-center gap-4 text-text-muted opacity-30">
-              <div className="h-[1px] flex-1 bg-border" />
-              <span className="text-[10px] font-mono uppercase tracking-widest">— or open directly in MiniPay —</span>
-              <div className="h-[1px] flex-1 bg-border" />
-            </div>
-
-            <div className="bg-surface border border-border p-8 rounded-[2rem] flex flex-col items-center">
-              <div className="bg-white p-3 rounded-2xl mb-6">
-                <QRCodeSVG 
-                  value={appUrl} 
-                  size={200}
-                  level="H"
-                />
-              </div>
-              
-              <p className="text-text-muted font-mono text-[10px] uppercase tracking-widest leading-relaxed mb-6">
-                Scan with your phone camera, <br /> then open in MiniPay
-              </p>
-
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(appUrl);
-                  alert('App link copied to clipboard!');
-                }}
-                className="text-[10px] font-mono text-accent uppercase tracking-widest border border-accent/20 px-4 py-2 rounded-full hover:bg-accent/5 transition-colors"
-              >
-                Copy App Link
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center">
-            <Loader2 className="w-8 h-8 text-accent animate-spin mb-4" />
-            <p className="text-text-muted font-mono text-sm max-w-[280px]">
-              MiniPay detected. <br />
-              Connecting automatically...
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   // Only show app content when connected
   return (
     <div className="space-y-8 animate-fade-up pb-24">
