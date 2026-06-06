@@ -55,10 +55,10 @@ export function Hero() {
               className="flex flex-wrap gap-4 pt-2"
             >
               <Link 
-                href="/app/journal" 
+                href="/app" 
                 className="pill-button bg-accent text-bg hover:bg-white text-sm px-8 py-4 group shadow-xl shadow-accent/5 font-mono"
               >
-                Start Writing Free 
+                Explore App 
                 <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
               </Link>
               <a 
