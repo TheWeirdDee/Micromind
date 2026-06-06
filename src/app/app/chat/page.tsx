@@ -13,6 +13,7 @@ import ReactMarkdown from 'react-markdown';
 import { getHistory } from '@/lib/storage';
 import { useWallet } from '@/context/WalletContext';
 import { updateStreak } from '@/lib/journal';
+import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -28,7 +29,8 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 import { Suspense } from 'react';
 
 function ChatPageInner() {
-  const { address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance } = useWallet();
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string; chatHistory?: any[] }>(null);
@@ -36,7 +38,7 @@ function ChatPageInner() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
 
-  const hasNoCelo = Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
 
   useEffect(() => {
     const historyId = searchParams.get('id');
@@ -79,6 +81,11 @@ function ChatPageInner() {
     e.preventDefault();
     if (!prompt.trim() || loading) return;
 
+    if (!isConnected || !address) {
+      setShowWalletModal(true);
+      return;
+    }
+
     const userPrompt = prompt;
     setPrompt('');
     setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
@@ -106,6 +113,12 @@ function ChatPageInner() {
 
   const handleRetry = async () => {
     if (!lastSubmission || loading) return;
+
+    if (!isConnected || !address) {
+      setShowWalletModal(true);
+      return;
+    }
+
     try {
       setMessages(prev => [...prev, { role: 'user', content: lastSubmission.prompt }] );
       const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt, lastSubmission.chatHistory);
@@ -278,6 +291,7 @@ function ChatPageInner() {
           )}
         </button>
       </form>
+      <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </motion.div>
   );
 }
