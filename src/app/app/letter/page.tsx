@@ -11,11 +11,13 @@ import { ResponseCard } from '@/components/app/ResponseCard';
 import { AgentWarning } from '@/components/app/AgentWarning';
 import { getHistory } from '@/lib/storage';
 import { updateStreak } from '@/lib/journal';
+import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 
 import { Suspense } from 'react';
 
 function LetterPageInner() {
-  const { address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance } = useWallet();
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState('');
   const [senderName, setSenderName] = useState('');
   const [content, setContent] = useState('');
@@ -27,7 +29,7 @@ function LetterPageInner() {
   const { payAndGenerate, loading: paidLoading, step: paidStep } = usePayForPrompt();
   const searchParams = useSearchParams();
 
-  const hasNoCelo = Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
   const isFormValid = recipientEmail.includes('@') && senderName.trim().length > 0 && content.trim().length >= 20;
 
   useEffect(() => {
@@ -86,6 +88,11 @@ function LetterPageInner() {
     if (!isFormValid || freeSending || paidLoading) return;
     setPolishedResponse(null);
 
+    if (!isConnected || !address) {
+      setShowWalletModal(true);
+      return;
+    }
+
     try {
       const payload = JSON.stringify({
         content: content.trim(),
@@ -109,6 +116,12 @@ function LetterPageInner() {
 
   const handleRetry = async () => {
     if (!lastSubmission || paidLoading) return;
+
+    if (!isConnected || !address) {
+      setShowWalletModal(true);
+      return;
+    }
+
     try {
       const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
       if (aiResponse) setPolishedResponse(aiResponse);
@@ -280,6 +293,7 @@ function LetterPageInner() {
           <ResponseCard response={polishedResponse} />
         </div>
       )}
+      <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </motion.div>
   );
 }
