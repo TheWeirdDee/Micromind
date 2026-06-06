@@ -61,10 +61,10 @@ export function HowItWorks() {
 
             <div className="pt-4">
               <Link 
-                href="/app/journal" 
+                href="/app" 
                 className="pill-button pill-button-outline px-8 py-3.5 inline-flex text-xs font-mono tracking-wider"
               >
-                Start Journaling Free
+                Explore App
               </Link>
             </div>
           </motion.div>
