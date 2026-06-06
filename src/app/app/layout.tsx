@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/app/AppHeader";
 import { BottomNav } from "@/components/app/BottomNav";
+import { AppContentWrapper } from "@/components/app/AppContentWrapper";
 
 export default function AppLayout({
   children,
@@ -11,7 +12,9 @@ export default function AppLayout({
       <AppHeader />
       <div className="flex-1 max-w-[430px] mx-auto w-full pt-16 pb-32">
         <div className="px-6 pt-8">
-          {children}
+          <AppContentWrapper>
+            {children}
+          </AppContentWrapper>
         </div>
       </div>
       <BottomNav />
