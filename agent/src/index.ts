@@ -19,7 +19,7 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 
 const publicClient = createPublicClient({
   chain: celo,
-  transport: http('https://forno.celo.org')
+  transport: http('https://rpc.ankr.com/celo')
 });
 
 let useRedis = false;
@@ -185,6 +185,49 @@ app.post('/api/letter/send', async (req, res) => {
   } catch (e: any) {
     console.error('[LETTER] Free send failed:', e);
     res.status(500).json({ error: e.message || 'Email delivery failed' });
+  }
+});
+
+app.post('/api/letter/polish', async (req, res) => {
+  const { content, recipientEmail, senderName, txHash } = req.body;
+  console.log('[POLISH] Request for recipient:', recipientEmail);
+
+  if (!content || !senderName) {
+    return res.status(400).json({ error: 'Missing required fields: content, senderName' });
+  }
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 1024,
+      temperature: 0.7,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPTS[5] },
+        { role: 'user', content },
+      ],
+    });
+
+    const polished = completion.choices[0]?.message?.content ?? '';
+    console.log('[POLISH] AI done, length:', polished.length);
+
+    let sent = false;
+    if (recipientEmail) {
+      try {
+        await sendEmail(recipientEmail, senderName, polished, true);
+        sent = true;
+      } catch (e: any) {
+        console.error('[POLISH] Email send failed:', e.message);
+      }
+    }
+
+    if (txHash) {
+      await storeData(`resp:${txHash}`, polished, 86400);
+    }
+
+    res.json({ polishedContent: polished, sent });
+  } catch (e: any) {
+    console.error('[POLISH] Error:', e.message);
+    res.status(500).json({ error: e.message || 'Polish failed' });
   }
 });
 
