@@ -87,7 +87,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.35 }}
-              className="flex-1 flex flex-col min-h-0 overflow-y-auto"
+              className="flex-1 flex flex-col min-h-0"
             >
               <div className="flex flex-col justify-center flex-1 space-y-8 py-4">
                 <div className="text-center space-y-3">
@@ -145,18 +145,6 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     Continue →
                   </button>
 
-                  <div className="text-center pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setName('Mindful Writer');
-                        setStep(2);
-                      }}
-                      className="text-[10px] font-mono uppercase tracking-widest text-text-muted hover:text-accent transition-colors underline underline-offset-4"
-                    >
-                      Skip Setup (Instant Start)
-                    </button>
-                  </div>
                 </form>
               </div>
             </motion.div>
@@ -182,7 +170,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 </p>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-3 px-1 py-2 min-h-0">
+              <div className="flex-1 overflow-y-auto scrollbar-hide space-y-3 px-1 py-2 min-h-0">
                 {GOALS.map((goal) => {
                   const isSelected = goals.includes(goal);
                   return (
