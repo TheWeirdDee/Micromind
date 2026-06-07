@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, HelpCircle, Smile } from 'lucide-react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, Smile, Flame, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { getHistory, type HistoryItem } from '@/lib/storage';
 import { getEntries, MOOD_ICONS, type JournalEntry } from '@/lib/journal';
+import { useWallet } from '@/context/WalletContext';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -14,17 +16,20 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const ICONS = {
-  1: MessageSquare, // Chat
-  2: PenTool,       // Tweet
-  3: BookOpen,      // Reflect
-  4: Search,        // Pattern
-  5: Mail,          // Letter
+  1: MessageSquare,
+  2: PenTool,
+  3: BookOpen,
+  4: Search,
+  5: Mail,
 };
 
-export default function HistoryPage() {
+function HistoryPageInner() {
+  const { address } = useWallet();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'journal' | 'prompts'>('journal');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [streakCount, setStreakCount] = useState(0);
 
   useEffect(() => {
     const hist = getHistory();
@@ -32,26 +37,52 @@ export default function HistoryPage() {
     setHistory(hist);
     setEntries(jEnts);
 
-    const newestPromptTime = hist[0]?.timestamp || 0;
-    const newestEntryTime = jEnts[0]?.timestamp || 0;
-    if (newestPromptTime > newestEntryTime) {
-      setActiveTab('prompts');
-    } else {
-      setActiveTab('journal');
+    // Streak
+    const streakKey = address ? `micromind_streak_data_${address}` : 'micromind_streak_data';
+    const stored = localStorage.getItem(streakKey);
+    if (stored) {
+      try { setStreakCount(JSON.parse(stored).streakCount || 0); } catch {}
     }
-  }, []);
+
+    // URL param overrides auto-select
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'journal' || tabParam === 'prompts') {
+      setActiveTab(tabParam);
+    } else {
+      const newestPromptTime = hist[0]?.timestamp || 0;
+      const newestEntryTime = jEnts[0]?.timestamp || 0;
+      setActiveTab(newestPromptTime > newestEntryTime ? 'prompts' : 'journal');
+    }
+  }, [address, searchParams]);
 
   const totalSpent = history.reduce((acc, curr) => acc + parseFloat(curr.cost), 0).toFixed(3);
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-8 pb-24"
+      className="space-y-6 pb-24"
     >
-      <header>
-        <h2 className="text-4xl font-serif tracking-tight">Your History</h2>
-        <p className="text-text-muted font-mono text-sm mt-2">All your thoughts and AI sessions.</p>
+      <header className="space-y-4">
+        <div>
+          <h2 className="text-4xl font-serif tracking-tight">Your History</h2>
+          <p className="text-text-muted font-mono text-sm mt-2">All your thoughts and AI sessions.</p>
+        </div>
+        {/* Stats mini-bar */}
+        <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] text-text-muted bg-surface border border-border px-3 py-1.5 rounded-full">
+            <Flame className="w-3 h-3 text-accent-gold" />
+            <span>{streakCount}d streak</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-mono text-[10px] text-text-muted bg-surface border border-border px-3 py-1.5 rounded-full">
+            <BookOpen className="w-3 h-3 text-accent" />
+            <span>{entries.length} journal entries</span>
+          </div>
+          <div className="flex items-center gap-1.5 font-mono text-[10px] text-text-muted bg-surface border border-border px-3 py-1.5 rounded-full">
+            <Sparkles className="w-3 h-3 text-accent" />
+            <span>{history.length} AI prompts · {totalSpent} cUSD</span>
+          </div>
+        </div>
       </header>
 
       {/* Tabs */}
@@ -60,8 +91,8 @@ export default function HistoryPage() {
           onClick={() => setActiveTab('journal')}
           className={cn(
             "flex-1 py-3.5 text-center font-mono text-[10px] uppercase tracking-widest border-b-2 transition-all",
-            activeTab === 'journal' 
-              ? "border-accent text-accent font-bold" 
+            activeTab === 'journal'
+              ? "border-accent text-accent font-bold"
               : "border-transparent text-text-muted hover:text-text-primary"
           )}
         >
@@ -71,8 +102,8 @@ export default function HistoryPage() {
           onClick={() => setActiveTab('prompts')}
           className={cn(
             "flex-1 py-3.5 text-center font-mono text-[10px] uppercase tracking-widest border-b-2 transition-all",
-            activeTab === 'prompts' 
-              ? "border-accent text-accent font-bold" 
+            activeTab === 'prompts'
+              ? "border-accent text-accent font-bold"
               : "border-transparent text-text-muted hover:text-text-primary"
           )}
         >
@@ -81,7 +112,6 @@ export default function HistoryPage() {
       </div>
 
       {activeTab === 'journal' ? (
-        /* Journal Entries list */
         <div className="space-y-4">
           {entries.length === 0 ? (
             <div className="text-center py-20 border border-dashed border-border rounded-2xl bg-surface/30">
@@ -93,8 +123,8 @@ export default function HistoryPage() {
             </div>
           ) : (
             entries.map((entry) => (
-              <div 
-                key={entry.id} 
+              <div
+                key={entry.id}
                 className="bg-surface border border-border rounded-2xl p-5 space-y-3"
               >
                 <div className="flex justify-between items-center">
@@ -117,19 +147,7 @@ export default function HistoryPage() {
           )}
         </div>
       ) : (
-        /* AI Prompts list */
         <div className="space-y-4">
-          <div className="bg-surface border border-border rounded-2xl p-5 flex justify-between items-center">
-            <div>
-              <p className="font-mono text-[10px] tracking-widest uppercase text-text-muted mb-1">Total Spent</p>
-              <p className="text-2xl font-mono text-accent-green font-medium">{totalSpent} cUSD</p>
-            </div>
-            <div className="text-right">
-              <p className="font-mono text-[10px] tracking-widest uppercase text-text-muted mb-1">Total Prompts</p>
-              <p className="text-2xl font-mono text-text-primary font-medium">{history.length}</p>
-            </div>
-          </div>
-
           {history.length === 0 ? (
             <div className="text-center py-20 border border-dashed border-border rounded-2xl bg-surface/30">
               <History className="w-8 h-8 text-text-muted/20 mx-auto mb-4" />
@@ -152,7 +170,6 @@ export default function HistoryPage() {
               const fullRoute = `${route}?id=${item.txHash}`;
 
               let displayPrompt = item.prompt;
-              // Clean JSON payload display for letters if applicable
               if (item.toolId === 5) {
                 try {
                   const parsed = JSON.parse(item.prompt);
@@ -161,8 +178,8 @@ export default function HistoryPage() {
               }
 
               return (
-                <div 
-                  key={item.id} 
+                <div
+                  key={item.id}
                   onClick={() => window.location.href = fullRoute}
                   className="bg-surface-2 border border-border rounded-2xl p-6 space-y-4 group hover:border-text-muted/40 transition-colors block cursor-pointer"
                 >
@@ -182,7 +199,7 @@ export default function HistoryPage() {
                       <span className="text-[10px] font-mono text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">
                         View Response →
                       </span>
-                      <a 
+                      <a
                         href={`https://celoscan.io/tx/${item.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -203,5 +220,17 @@ export default function HistoryPage() {
         </div>
       )}
     </motion.div>
+  );
+}
+
+export default function HistoryPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-full flex items-center justify-center animate-pulse font-mono text-accent uppercase tracking-widest text-xs">
+        Loading history...
+      </div>
+    }>
+      <HistoryPageInner />
+    </Suspense>
   );
 }
