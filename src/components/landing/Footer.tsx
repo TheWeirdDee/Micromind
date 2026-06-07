@@ -13,7 +13,7 @@ export function Footer() {
           <div className="lg:col-span-5 space-y-4">
             <span className="font-serif text-2xl text-text-primary tracking-tight">MicroMind</span>
             <p className="font-mono text-xs text-text-muted leading-relaxed max-w-sm">
-              Your thoughts deserve a safe, private home. Local-first journaling enhanced by pay-per-prompt AI on Celo. No monthly subscription commitments, ever.
+              Your thoughts deserve a safe, private home. Local-first journaling enhanced by pay-per-prompt AI on Celo. Write for free — pay only for the insights you want.
             </p>
           </div>
 
@@ -23,6 +23,12 @@ export function Footer() {
             <ul className="space-y-2.5 font-mono text-[11px] text-text-muted">
               <li>
                 <Link href="/app/journal" className="hover:text-accent transition-colors">Journal (Free)</Link>
+              </li>
+              <li>
+                <Link href="/app/chat" className="hover:text-accent transition-colors">AI Chat</Link>
+              </li>
+              <li>
+                <Link href="/app/tweet" className="hover:text-accent transition-colors">Tweet Polish</Link>
               </li>
               <li>
                 <Link href="/app/reflect" className="hover:text-accent transition-colors">AI Reflect</Link>
