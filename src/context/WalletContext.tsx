@@ -218,18 +218,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       if (!accounts?.[0]) return;
 
-      // Switch to Celo Mainnet
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: CHAIN_ID_HEX }]
-        });
-      } catch (switchError: any) {
-        if (switchError.code === 4902) {
+      // Switch to Celo Mainnet (skip if running in MiniPay as it only supports Celo)
+      const isMiniPayDetected = window.ethereum?.isMiniPay === true;
+      if (!isMiniPayDetected) {
+        try {
           await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [CELO_MAINNET_PARAMS]
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: CHAIN_ID_HEX }]
           });
+        } catch (switchError: any) {
+          if (switchError.code === 4902) {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [CELO_MAINNET_PARAMS]
+            });
+          }
         }
       }
 

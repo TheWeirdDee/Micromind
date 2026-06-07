@@ -19,7 +19,7 @@ export type PaymentStep =
   | 'error';
 
 export function usePayForPrompt() {
-  const { address, walletClient, publicClient } = useWallet();
+  const { address, walletClient, publicClient, isMiniPay } = useWallet();
   const [step, setStep] = useState<PaymentStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -107,6 +107,7 @@ export function usePayForPrompt() {
         account: address as `0x${string}`,
         gasPrice,
         nonce: approveNonce,
+        feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
 
       await publicClient.waitForTransactionReceipt({
@@ -130,6 +131,7 @@ export function usePayForPrompt() {
         account: address as `0x${string}`,
         gasPrice,
         nonce: payNonce,
+        feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
 
       setStep('confirming');
