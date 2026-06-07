@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Flame, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 import { updateStreak } from '@/lib/journal';
 
@@ -207,15 +208,20 @@ export function DailyStreak() {
             Write in your journal or reflect daily to build your streak
           </p>
         </div>
-        <div className="flex items-center gap-1.5 bg-accent-gold/10 border border-accent-gold/20 px-2.5 py-1 rounded-full text-accent-gold shrink-0">
+        <Link
+          href="/app/history?tab=journal"
+          className="flex items-center gap-1.5 bg-accent-gold/10 border border-accent-gold/20 px-2.5 py-1 rounded-full text-accent-gold shrink-0 hover:bg-accent-gold/20 transition-colors"
+        >
           <Flame className="w-4 h-4 fill-current" />
           <span className="font-mono text-xs font-bold">{streak.streakCount}d</span>
-        </div>
+        </Link>
       </div>
 
-      <div className="flex justify-between items-center bg-surface-2 border border-border/60 rounded-xl px-4 py-3.5 mb-5 relative z-10">
-        {renderCalendarDots()}
-      </div>
+      <Link href="/app/history?tab=journal" className="block">
+        <div className="flex justify-between items-center bg-surface-2 border border-border/60 rounded-xl px-4 py-3.5 mb-5 relative z-10 hover:border-accent/30 transition-colors">
+          {renderCalendarDots()}
+        </div>
+      </Link>
 
       <div className="relative z-10">
         {!isClaimedToday ? (
