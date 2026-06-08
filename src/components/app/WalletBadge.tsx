@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { useWallet } from '@/context/WalletContext';
+import { ConnectWalletModal } from './ConnectWalletModal';
 import { Copy, Check } from 'lucide-react';
 
 export function WalletBadge() {
-  const { address, cusdBalance, isConnected, connect } = useWallet();
+  const { address, cusdBalance, isConnected } = useWallet();
   const [copied, setCopied] = useState(false);
+  const [showConnect, setShowConnect] = useState(false);
 
   const handleCopyAddress = () => {
     if (address) {
@@ -18,12 +20,15 @@ export function WalletBadge() {
 
   if (!isConnected) {
     return (
-      <button 
-        onClick={() => connect()}
-        className="text-[10px] font-mono tracking-widest uppercase bg-accent text-bg px-4 py-2 rounded-full hover:bg-white transition-colors"
-      >
-        Connect Wallet
-      </button>
+      <>
+        <button 
+          onClick={() => setShowConnect(true)}
+          className="text-[10px] font-mono tracking-widest uppercase bg-accent text-bg px-4 py-2 rounded-full hover:bg-white transition-colors"
+        >
+          Connect Wallet
+        </button>
+        <ConnectWalletModal isOpen={showConnect} onClose={() => setShowConnect(false)} />
+      </>
     );
   }
 
