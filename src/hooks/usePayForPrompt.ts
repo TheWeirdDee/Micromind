@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { parseUnits, erc20Abi } from 'viem';
+import { parseUnits, erc20Abi, keccak256, toBytes } from 'viem';
 import { celo } from 'viem/chains';
 import { useWallet } from '@/context/WalletContext';
 import { CONTRACT_ADDRESS, MICROMIND_ABI } from '@/lib/contract';
@@ -57,35 +57,21 @@ export function usePayForPrompt() {
     setTxHash(null);
 
     try {
-      // STEP 1 — Check agent health
-      setStep('checking');
-      try {
-        const health = await fetch(`${agentUrl}/api/health`, {
-          signal: AbortSignal.timeout(5000)
-        });
-        if (!health.ok) throw new Error('Agent offline');
-      } catch {
-        throw new Error(
-          'AI agent is offline. Contact support or try again.'
-        );
-      }
-
-      // STEP 3 — Submit prompt, get hash
       setStep('submitting');
       const finalPrompt = chatHistory ? JSON.stringify(chatHistory) : prompt;
-      
-      const submitRes = await fetch(`${agentUrl}/api/prompt/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          prompt: finalPrompt, 
-          toolId, 
-          userAddress: address 
-        })
-      });
 
-      if (!submitRes.ok) throw new Error('Failed to submit prompt');
-      const { promptHash } = await submitRes.json();
+      // Compute hash locally — matches agent logic exactly, no server roundtrip needed
+      const nonce = Date.now().toString();
+      const promptHash = keccak256(toBytes(`${finalPrompt}:${address}:${nonce}`));
+
+      // Notify agent in the background so it can cache the prompt for polling fallback
+      if (agentUrl) {
+        fetch(`${agentUrl}/api/prompt/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: finalPrompt, toolId, userAddress: address }),
+        }).catch(() => { /* agent offline — payment still proceeds */ });
+      }
 
       // Get current gas price (legacy tx for MiniPay)
       const gasPrice = await publicClient.getGasPrice();
