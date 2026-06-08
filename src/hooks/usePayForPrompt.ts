@@ -131,66 +131,81 @@ export function usePayForPrompt() {
       // STEP 5 — Get AI response
       setStep('generating');
 
-      // Try direct processing first (faster)
-      try {
-        const directRes = await fetch(`${agentUrl}/api/process-direct`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            txHash: payTx,
-            prompt: finalPrompt,
-            toolId,
-            userAddress: address
-          })
-        }).then(r => r.json());
-
-        if (directRes.status === 'ready') {
-          saveToHistory({
-            id: Math.random().toString(36).substring(7),
-            txHash: payTx,
-            toolId,
-            toolName,
-            prompt,
-            response: directRes.response,
-            cost: `${tool.price} cUSD`,
-            timestamp: Date.now()
-          });
-          setResponse(directRes.response);
-          setStep('complete');
-          return directRes.response;
-        }
-      } catch { /* fallback to polling */ }
-
-      // Poll for response
-      for (let i = 0; i < 60; i++) {
-        await new Promise(r => setTimeout(r, 2000));
+      if (agentUrl) {
+        // Try direct processing first (faster)
         try {
-          const data = await fetch(
-            `${agentUrl}/api/response/${payTx}`
-          ).then(r => r.json());
+          const directRes = await fetch(`${agentUrl}/api/process-direct`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              txHash: payTx,
+              prompt: finalPrompt,
+              toolId,
+              userAddress: address
+            }),
+            signal: AbortSignal.timeout(30_000)
+          }).then(r => r.json());
 
-          if (data.status === 'ready') {
+          if (directRes.status === 'ready') {
             saveToHistory({
               id: Math.random().toString(36).substring(7),
               txHash: payTx,
               toolId,
               toolName,
               prompt,
-              response: data.response,
+              response: directRes.response,
               cost: `${tool.price} cUSD`,
               timestamp: Date.now()
             });
-            setResponse(data.response);
+            setResponse(directRes.response);
             setStep('complete');
-            return data.response;
+            return directRes.response;
           }
-        } catch { /* continue polling */ }
+        } catch { /* fallback to polling */ }
+
+        // Poll for response
+        for (let i = 0; i < 60; i++) {
+          await new Promise(r => setTimeout(r, 2000));
+          try {
+            const data = await fetch(
+              `${agentUrl}/api/response/${payTx}`,
+              { signal: AbortSignal.timeout(5000) }
+            ).then(r => r.json());
+
+            if (data.status === 'ready') {
+              saveToHistory({
+                id: Math.random().toString(36).substring(7),
+                txHash: payTx,
+                toolId,
+                toolName,
+                prompt,
+                response: data.response,
+                cost: `${tool.price} cUSD`,
+                timestamp: Date.now()
+              });
+              setResponse(data.response);
+              setStep('complete');
+              return data.response;
+            }
+          } catch { /* continue polling */ }
+        }
       }
 
-      throw new Error(
-        `Response timed out. Payment confirmed. ` +
-        `Check: https://celoscan.io/tx/${payTx}`
-      );
+      // Agent offline or timed out — payment still went through
+      const fallbackMsg = `Payment confirmed (tx: ${payTx.slice(0, 10)}…). AI agent is offline — your response will appear once it's back online. Check celoscan.io/tx/${payTx}`;
+      saveToHistory({
+        id: Math.random().toString(36).substring(7),
+        txHash: payTx,
+        toolId,
+        toolName,
+        prompt,
+        response: fallbackMsg,
+        cost: `${tool.price} cUSD`,
+        timestamp: Date.now()
+      });
+      setResponse(fallbackMsg);
+      setStep('complete');
+      return fallbackMsg;
 
     } catch (e: any) {
       console.error('Payment Error:', e);
