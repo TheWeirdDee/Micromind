@@ -233,19 +233,19 @@ export function DailyStreak() {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>CONNECTING MIND...</span>
+                <span>Checking in...</span>
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4" />
-                <span>CLAIM DAILY SPARK</span>
+                <span>Check in for today</span>
               </>
             )}
           </button>
         ) : (
           <div className="flex items-center justify-center gap-1.5 py-2.5 text-accent-green font-mono text-[10px] tracking-widest uppercase border border-accent-green/20 bg-accent-green/5 rounded-xl">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>MIND STREAK ACTIVE TODAY</span>
+            <span>Streak active today</span>
           </div>
         )}
       </div>
