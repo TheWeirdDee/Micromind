@@ -56,8 +56,8 @@ export default function AppHome() {
         <div className="space-y-8">
           <div className="space-y-4">
             <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">Journal dashboard</p>
-            <h2 className="text-5xl font-serif tracking-tight">A calmer place for your daily writing.</h2>
-            <p className="text-text-muted leading-relaxed max-w-none">
+            <h2 className="text-4xl md:text-5xl font-serif tracking-tight">A calmer place for your daily writing.</h2>
+            <p className="text-text-muted leading-relaxed max-w-none md:max-w-3xl">
               Capture your thoughts, keep your streak alive, and access your private writing tools in a cleaner, more mindful layout.
             </p>
           </div>
@@ -96,7 +96,7 @@ export default function AppHome() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Recent activity</p>
-                <h3 className="text-3xl font-serif mt-2">Latest prompt & reflection</h3>
+                <h3 className="text-2xl md:text-3xl font-serif mt-2">Latest prompt & reflection</h3>
               </div>
               {recentPrompt && (
                 <Link href="/app/history" className="inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.35em] text-accent hover:text-accent-gold transition-colors">
@@ -126,7 +126,7 @@ export default function AppHome() {
               )}
             </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {TOOLS.slice(0, 4).map((tool) => {
                 const isReflectLocked = tool.slug === 'reflect' && entriesCount < 2;
                 const isPatternLocked = tool.slug === 'pattern' && entriesCount < 5;
@@ -134,12 +134,12 @@ export default function AppHome() {
                 const lockRequirement = isReflectLocked ? '2 entries required' : '5 entries required';
 
                 return (
-                  <Link key={tool.name} href={tool.route} className="block">
+                  <Link key={tool.name} href={tool.route} className="block w-full min-w-0">
                     <div className="rounded-3xl border border-border bg-surface p-4 transition hover:border-accent/30 h-full">
                       <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <h4 className="font-serif text-base">{tool.name}</h4>
-                          <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted mt-1">{isLocked ? lockRequirement : tool.description}</p>
+                        <div className="min-w-0">
+                          <h4 className="font-serif text-base truncate">{tool.name}</h4>
+                          <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted mt-1 leading-5">{isLocked ? lockRequirement : tool.description}</p>
                         </div>
                         <div className="rounded-2xl bg-bg/90 p-3">
                           {(() => {
@@ -163,14 +163,14 @@ export default function AppHome() {
           </section>
         </div>
 
-        <aside className="space-y-6">
+        <aside className="space-y-6 lg:max-w-[340px] xl:max-w-[360px]">
           <div className="rounded-[2rem] border border-border bg-surface-2 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
             <div className="mb-5">
               <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Today</p>
               <p className="text-2xl font-serif mt-2">{todayLabel}</p>
             </div>
 
-            <div className="grid gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-3xl bg-bg/60 border border-border p-4">
                 <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Entries</p>
                 <p className="text-3xl font-serif mt-2">{entriesCount}</p>
