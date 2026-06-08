@@ -30,7 +30,7 @@ interface WalletContextType {
   celoBalance: string;
   walletClient: any;
   publicClient: any;
-  connect: () => Promise<void>;
+  connect: (provider?: any) => Promise<void>;
   disconnect: () => void;
   fetchBalances: (addr: string) => Promise<void>;
 }
@@ -81,7 +81,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     try { localStorage.removeItem('micromind_address'); } catch {}
     try { localStorage.removeItem('micromind_connected'); } catch {}
-    try { localStorage.setItem('micromind_disconnected', 'true'); } catch {}
 
     window.location.replace('/app');
   }, []);
@@ -119,12 +118,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const checkAndConnect = async () => {
       attempts++;
       
-      const isExplicitlyDisconnected = localStorage.getItem('micromind_disconnected') === 'true';
-      if (isExplicitlyDisconnected) {
-        if (attempts > 5) clearInterval(checkInterval);
-        return;
-      }
-
       if (window.ethereum) {
         const isMiniPayDetected = window.ethereum.isMiniPay === true;
         
