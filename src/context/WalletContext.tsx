@@ -195,40 +195,48 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
   }, [fetchBalances, disconnect]);
 
-  const connect = useCallback(async () => {
-    if (!window.ethereum) {
+  const connect = useCallback(async (provider?: any) => {
+    const win = window as any;
+    let ethereum = provider || win.ethereum;
+
+    if (!ethereum) {
       alert('Please install MetaMask or open in MiniPay');
       return;
     }
 
+    if (!provider && ethereum?.providers && Array.isArray(ethereum.providers)) {
+      const metaMaskProvider = ethereum.providers.find((item: any) => item.isMetaMask);
+      ethereum = metaMaskProvider || ethereum.providers[0] || ethereum;
+    }
+
     try {
-      // Force MetaMask to show account selection (optional, may fail in some wallets)
-      try {
-        await window.ethereum.request({
-          method: 'wallet_requestPermissions',
-          params: [{ eth_accounts: {} }]
-        });
-      } catch (err) {
-        console.log('Permissions request skipped or failed:', err);
+      if (ethereum.isMetaMask) {
+        try {
+          await ethereum.request({
+            method: 'wallet_requestPermissions',
+            params: [{ eth_accounts: {} }]
+          });
+        } catch (err) {
+          console.log('Permissions request skipped or failed:', err);
+        }
       }
 
-      const accounts: string[] = await window.ethereum.request({
+      const accounts: string[] = await ethereum.request({
         method: 'eth_requestAccounts'
       });
 
       if (!accounts?.[0]) return;
 
-      // Switch to Celo Mainnet (skip if running in MiniPay as it only supports Celo)
-      const isMiniPayDetected = window.ethereum?.isMiniPay === true;
+      const isMiniPayDetected = ethereum?.isMiniPay === true;
       if (!isMiniPayDetected) {
         try {
-          await window.ethereum.request({
+          await ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: CHAIN_ID_HEX }]
           });
         } catch (switchError: any) {
           if (switchError.code === 4902) {
-            await window.ethereum.request({
+            await ethereum.request({
               method: 'wallet_addEthereumChain',
               params: [CELO_MAINNET_PARAMS]
             });
@@ -239,12 +247,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const addr = accounts[0];
       const client = createWalletClient({
         chain: celo,
-        transport: custom(window.ethereum)
+        transport: custom(ethereum)
       });
 
       setAddress(addr);
       setIsConnected(true);
-      setIsMiniPay(window.ethereum?.isMiniPay === true);
+      setIsMiniPay(isMiniPayDetected);
       setWalletClient(client);
 
       try { localStorage.setItem('micromind_address', addr); } catch {}
@@ -253,9 +261,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       await fetchBalances(addr);
 
-      // Suggest USDC token to MetaMask
       try {
-        await window.ethereum.request({
+        await ethereum.request({
           method: 'wallet_watchAsset',
           params: {
             type: 'ERC20',
