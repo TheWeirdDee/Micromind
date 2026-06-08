@@ -125,40 +125,8 @@ export default function AppHome() {
                 <div className="text-center text-sm text-text-muted">No activity yet. Start journaling and your recent prompts will appear here.</div>
               )}
             </div>
-          </section>
-        </div>
 
-        <aside className="space-y-6">
-          <div className="rounded-[2rem] border border-border bg-surface-2 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
-            <div className="mb-5">
-              <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Today</p>
-              <p className="text-2xl font-serif mt-2">{todayLabel}</p>
-            </div>
-
-            <div className="grid gap-3">
-              <div className="rounded-3xl bg-bg/60 border border-border p-4">
-                <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Entries</p>
-                <p className="text-3xl font-serif mt-2">{entriesCount}</p>
-              </div>
-              <div className="rounded-3xl bg-bg/60 border border-border p-4">
-                <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Last saved</p>
-                <p className="mt-2 font-mono text-sm text-text-primary">{lastEntry?.date ?? 'No entry yet'}</p>
-              </div>
-            </div>
-          </div>
-
-          <DailyStreak />
-
-          <div className="rounded-[2rem] border border-border bg-surface-2 p-6 shadow-[0_12px_40px_rgba(0,0,0,0.16)]">
-            <div className="flex items-start justify-between gap-3 mb-5">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Writing tools</p>
-                <h3 className="text-xl font-serif mt-2">Private journal companions</h3>
-              </div>
-              <span className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">Local-first</span>
-            </div>
-
-            <div className="grid gap-4">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {TOOLS.slice(0, 4).map((tool) => {
                 const isReflectLocked = tool.slug === 'reflect' && entriesCount < 2;
                 const isPatternLocked = tool.slug === 'pattern' && entriesCount < 5;
@@ -167,7 +135,7 @@ export default function AppHome() {
 
                 return (
                   <Link key={tool.name} href={tool.route} className="block">
-                    <div className="rounded-3xl border border-border bg-surface p-4 transition hover:border-accent/30">
+                    <div className="rounded-3xl border border-border bg-surface p-4 transition hover:border-accent/30 h-full">
                       <div className="flex items-center justify-between gap-4">
                         <div>
                           <h4 className="font-serif text-base">{tool.name}</h4>
@@ -192,7 +160,29 @@ export default function AppHome() {
                 );
               })}
             </div>
+          </section>
+        </div>
+
+        <aside className="space-y-6">
+          <div className="rounded-[2rem] border border-border bg-surface-2 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
+            <div className="mb-5">
+              <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Today</p>
+              <p className="text-2xl font-serif mt-2">{todayLabel}</p>
+            </div>
+
+            <div className="grid gap-3">
+              <div className="rounded-3xl bg-bg/60 border border-border p-4">
+                <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Entries</p>
+                <p className="text-3xl font-serif mt-2">{entriesCount}</p>
+              </div>
+              <div className="rounded-3xl bg-bg/60 border border-border p-4">
+                <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Last saved</p>
+                <p className="mt-2 font-mono text-sm text-text-primary">{lastEntry?.date ?? 'No entry yet'}</p>
+              </div>
+            </div>
           </div>
+
+          <DailyStreak />
         </aside>
       </div>
     </div>
