@@ -3,7 +3,7 @@ import { parseUnits, erc20Abi, keccak256, toBytes } from 'viem';
 import { celo } from 'viem/chains';
 import { useWallet } from '@/context/WalletContext';
 import { CONTRACT_ADDRESS, MICROMIND_ABI } from '@/lib/contract';
-import { cUSD_ADDRESS, PAYMENT_TOKEN_DECIMALS } from '@/constants/chains';
+import { cUSD_ADDRESS, PAYMENT_TOKEN_DECIMALS, CELO_MAINNET_PARAMS, CHAIN_ID_HEX } from '@/constants/chains';
 import { TOOLS } from '@/constants/tools';
 import { saveToHistory } from '@/lib/storage';
 
@@ -57,6 +57,23 @@ export function usePayForPrompt() {
     setTxHash(null);
 
     try {
+      // Ensure wallet is on Celo before any transaction
+      setStep('checking');
+      try {
+        await walletClient.switchChain({ id: 42220 });
+      } catch (switchErr: any) {
+        if (switchErr.code === 4902 || switchErr.code === -32603) {
+          try {
+            await walletClient.request({
+              method: 'wallet_addEthereumChain',
+              params: [CELO_MAINNET_PARAMS],
+            });
+          } catch { /* ignore if already added */ }
+        } else if (switchErr.code !== 4001) {
+          throw new Error('Please switch your wallet to the Celo network and try again.');
+        }
+      }
+
       setStep('submitting');
       const finalPrompt = chatHistory ? JSON.stringify(chatHistory) : prompt;
 
