@@ -19,6 +19,17 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
   const { isConnected, connect } = useWallet();
   const [walletOptions, setWalletOptions] = useState<WalletOption[]>([]);
 
+  const getProviderName = (provider: any) => {
+    if (!provider) return 'Injected Wallet';
+    if (provider.isMetaMask) return 'MetaMask';
+    if (provider.isCoinbaseWallet) return 'Coinbase Wallet';
+    if (provider.isFrame) return 'Frame';
+    if (provider.isTrust) return 'Trust Wallet';
+    if (provider.isZerion) return 'Zerion';
+    if (provider.isWalletLink) return 'WalletLink';
+    return 'Injected Wallet';
+  };
+
   // Auto-close when wallet connects successfully
   useEffect(() => {
     if (isConnected && isOpen) {
@@ -30,18 +41,15 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
     if (typeof window === 'undefined') return;
     const win = window as any;
     const providers = win.ethereum?.providers;
-    if (providers && Array.isArray(providers) && providers.length > 1) {
-      const options: WalletOption[] = providers.map((provider: any) => {
-        let name = 'Injected Wallet';
-        if (provider.isMetaMask) name = 'MetaMask';
-        else if (provider.isCoinbaseWallet) name = 'Coinbase Wallet';
-        else if (provider.isFrame) name = 'Frame';
-        else if (provider.isTrust) name = 'Trust Wallet';
-        else if (provider.isZerion) name = 'Zerion';
-        else if (provider.isWalletLink) name = 'WalletLink';
-        return { name, provider };
-      });
+
+    if (providers && Array.isArray(providers) && providers.length > 0) {
+      const options: WalletOption[] = providers.map((provider: any) => ({
+        name: getProviderName(provider),
+        provider
+      }));
       setWalletOptions(options);
+    } else if (win.ethereum) {
+      setWalletOptions([{ name: getProviderName(win.ethereum), provider: win.ethereum }]);
     } else {
       setWalletOptions([]);
     }
@@ -89,18 +97,18 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
               <h3 className="text-2xl font-serif text-text-primary leading-tight">
                 Connect Wallet
               </h3>
-              <p className="font-mono text-xs text-text-muted leading-relaxed">
+              <p className="font-mono text-xs text-text-muted leading-relaxed max-w-[30rem] mx-auto">
                 To unlock paid AI features, you need to connect your wallet. Payments are processed in cUSD via tiny micro-transactions on the Celo network.
               </p>
 
               {/* Gas Info Alert */}
-              <div className="p-3 bg-accent-gold/5 border border-accent-gold/20 rounded-2xl flex items-start gap-2.5 text-[10px] text-accent-gold font-mono text-left leading-relaxed">
+              <div className="p-3 bg-accent-gold/5 border border-accent-gold/20 rounded-2xl flex flex-col items-center gap-2 text-[10px] text-accent-gold font-mono text-center leading-relaxed max-w-[28rem] mx-auto">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                 <span>You will also need a minuscule amount of CELO (~0.001 CELO) in your wallet to cover transaction gas fees.</span>
               </div>
             </div>
 
-            {walletOptions.length > 1 ? (
+            {walletOptions.length > 0 ? (
               <div className="space-y-3">
                 <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted font-mono text-left">Choose your wallet</p>
                 {walletOptions.map((option) => (
