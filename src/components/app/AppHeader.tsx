@@ -17,7 +17,7 @@ export function AppHeader() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 bg-bg/80 backdrop-blur-md border-b border-border">
-      <div className="max-w-[430px] mx-auto h-16 px-4 flex justify-between items-center gap-2">
+      <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
         <Link 
           href="/" 
           className="shrink-0 transition-opacity hover:opacity-80"
