@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, X, AlertCircle } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
@@ -10,8 +10,14 @@ interface ConnectWalletModalProps {
   onClose: () => void;
 }
 
+interface WalletOption {
+  name: string;
+  provider: any;
+}
+
 export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps) {
   const { isConnected, connect } = useWallet();
+  const [walletOptions, setWalletOptions] = useState<WalletOption[]>([]);
 
   // Auto-close when wallet connects successfully
   useEffect(() => {
@@ -19,6 +25,27 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
       onClose();
     }
   }, [isConnected, isOpen, onClose]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const win = window as any;
+    const providers = win.ethereum?.providers;
+    if (providers && Array.isArray(providers) && providers.length > 1) {
+      const options: WalletOption[] = providers.map((provider: any) => {
+        let name = 'Injected Wallet';
+        if (provider.isMetaMask) name = 'MetaMask';
+        else if (provider.isCoinbaseWallet) name = 'Coinbase Wallet';
+        else if (provider.isFrame) name = 'Frame';
+        else if (provider.isTrust) name = 'Trust Wallet';
+        else if (provider.isZerion) name = 'Zerion';
+        else if (provider.isWalletLink) name = 'WalletLink';
+        return { name, provider };
+      });
+      setWalletOptions(options);
+    } else {
+      setWalletOptions([]);
+    }
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
@@ -73,13 +100,28 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
               </div>
             </div>
 
-            {/* Connect Button */}
-            <button
-              onClick={() => connect()}
-              className="pill-button pill-button-primary w-full py-4 text-xs font-mono uppercase tracking-widest font-bold shadow-xl shadow-accent/5 focus:outline-none"
-            >
-              Connect Celo Wallet
-            </button>
+            {walletOptions.length > 1 ? (
+              <div className="space-y-3">
+                <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted font-mono text-left">Choose your wallet</p>
+                {walletOptions.map((option) => (
+                  <button
+                    key={option.name}
+                    onClick={() => connect(option.provider)}
+                    className="w-full rounded-2xl border border-border bg-surface-2 px-4 py-4 text-left text-sm font-mono transition hover:border-accent"
+                  >
+                    <span className="block font-semibold text-text-primary">{option.name}</span>
+                    <span className="text-[10px] text-text-muted">Use this wallet provider for Celo payments</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button
+                onClick={() => connect()}
+                className="pill-button pill-button-primary w-full py-4 text-xs font-mono uppercase tracking-widest font-bold shadow-xl shadow-accent/5 focus:outline-none"
+              >
+                Connect Celo Wallet
+              </button>
+            )}
           </motion.div>
         </div>
       )}
