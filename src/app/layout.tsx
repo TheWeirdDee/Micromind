@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Playfair_Display, DM_Mono } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
-import { DebugIndicator } from "@/components/app/DebugIndicator";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -81,7 +80,6 @@ export default function RootLayout({
         className={`${playfair.variable} ${dmMono.variable} antialiased selection:bg-accent selection:text-bg`}
       >
         <WalletProvider>
-          <DebugIndicator />
           <div className="grain-overlay" />
           <main className="min-h-screen">
             {children}
