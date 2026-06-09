@@ -1,47 +1,95 @@
-# MicroMind — AI-Powered Builder Tools on Celo
+# MicroMind — Private Journal with AI on Celo
 
-MicroMind is a minimalist, mobile-first AI agent suite built for the Celo MiniPay ecosystem. It provides high-speed, on-chain tools for creators and developers, including AI Chat, Resume Generation, Tweet Crafting, Bio Optimization, and Smart Contract Auditing.
+MicroMind is a mobile-first journaling app where your thoughts stay private on your device, and AI helps you understand them — for a few cents at a time, paid in cUSD on Celo.
 
-## 🚀 Key Features
-- **MiniPay Optimized**: Silent auto-detection and seamless payments.
-- **On-Chain Payments**: Pay-per-prompt using cUSD on Celo Mainnet.
-- **AI Agent Suite**: Powered by Llama-3.3-70b (via Groq) for high-fidelity responses.
-- **Non-Custodial**: Full control of your assets via MetaMask or MiniPay.
+No subscription. No cloud account required. Write freely for free. Pay only when you want AI insight. Every interaction is verifiable onchain.
 
-## 🛠 Tech Stack
-- **Frontend**: Next.js 15+, Tailwind CSS 4, Framer Motion.
-- **Smart Contracts**: Solidity, Hardhat, Viem.
-- **Backend**: Node.js, Express, Groq SDK, Upstash Redis.
-- **Network**: Celo Mainnet / Alfajores Testnet.
+**Built for MiniPay users** in Nigeria, Kenya, Ghana, and beyond.
 
-## 📦 How to Run Locally
+---
 
-### 1. Prerequisites
-- Node.js 18+
-- [Foundry](https://getfoundry.sh) (for wallet generation)
+## Features
 
-### 2. Environment Setup
-Create `.env.local` in root and `.env` in `agent/` and `contracts/` following the `.env.example` files provided in each directory.
+| Feature | Price | Description |
+|---------|-------|-------------|
+| Journal | Free | Write entries, track mood, organize into folders |
+| Reflect | 0.005 cUSD | AI reads your recent entries and writes a personal weekly reflection |
+| Pattern | 0.005 cUSD | AI surfaces 3 emotional patterns across all your entries |
+| Letter | Free / 0.01 cUSD | Write a letter and send it to any email — AI polish optional |
+| Tweet | 0.005 cUSD | Turn a journal entry or thought into a tweet |
+| Chat | 0.005 cUSD | General AI assistant |
 
-### 3. Installation
-```bash
-npm install
-cd agent && npm install
-cd ../contracts && npm install
+### Journal Highlights
+- Entries stored locally in `localStorage` — never sent to a server
+- Mood tracking per entry (Happy, Excited, Neutral, Angry, Sad)
+- Folder system — create and name folders to organize entries
+- Edit entries inline, assign to folders, move between folders
+- Reflect and Pattern tools can be scoped to a specific folder
+- Daily streak tracker — writing an entry counts toward your streak
+
+### Wallet Support
+- **MiniPay**: auto-detected and auto-connected — zero friction
+- **MetaMask**: manual connect, auto-switches to Celo Mainnet
+- Multi-provider conflict resolution — prefers MetaMask over other injected wallets (e.g. Zerion)
+
+---
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, Tailwind CSS, Framer Motion, Viem
+- **Backend**: Node.js, Express, Groq SDK (Llama-3.3-70b), Upstash Redis
+- **Email**: Resend
+- **Smart Contracts**: Solidity, Hardhat, deployed on Celo Mainnet
+- **Network**: Celo Mainnet (`chainId: 42220`)
+
+---
+
+## Smart Contract
+
+**MicroMindPayment (cUSD)** — `0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c`
+
+Tool IDs  
+```
+1 = Chat      
+2 = Tweet     
+3 = Reflect   
+4 = Pattern   
+5 = Letter    
 ```
 
-### 4. Run Everything
-```bash
-npm run dev:all
-```
+---
 
-## 📜 Smart Contract
-- **Celo Mainnet**: `0x24a00b7d167d4f2908bED91F706989faFDf958E6`
+## AI Agent
 
-## 🤖 AI Agent Compliance
 - **8004 Agent ID**: `9054`
 - **Self Agent ID**: `0x0aa829dd2c57c7c94635951d3d3c85379a150dbdc05a59323b0a489179c89ca0`
 
 ---
+
+## Run Locally
+
+### Prerequisites
+- Node.js 18+
+
+### Setup
+
+```bash
+# 1. Install dependencies
+npm install
+cd agent && npm install && cd ..
+cd contracts && npm install && cd ..
+
+# 2. Environment files
+# Root: copy .env.example → .env.local, fill in values
+# agent/: copy .env.example → .env, fill in GROQ_API_KEY, CONTRACT_ADDRESS, RESEND_API_KEY
+# contracts/: copy .env.example → .env, fill in PRIVATE_KEY
+
+# 3. Run everything
+npm run dev:all
+```
+
+Frontend runs on `http://localhost:3000`, agent on `http://localhost:8080`.
+
+---
+
 Built for the **Celo Proof of Ship** competition.
-Deadline: May 25, 2025.
