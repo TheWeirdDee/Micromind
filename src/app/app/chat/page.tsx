@@ -147,7 +147,7 @@ function ChatPageInner() {
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col h-[calc(100vh-180px)]"
+      className="flex flex-col h-[calc(100vh-180px)] max-w-2xl mx-auto w-full"
     >
       <AgentWarning />
       <div className="flex items-center justify-between mb-8">
