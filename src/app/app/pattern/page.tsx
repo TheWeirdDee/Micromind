@@ -9,7 +9,7 @@ import { useWallet } from '@/context/WalletContext';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { ResponseCard } from '@/components/app/ResponseCard';
 import { AgentWarning } from '@/components/app/AgentWarning';
-import { getEntries, updateStreak, type JournalEntry } from '@/lib/journal';
+import { getEntries, getEntriesByFolder, getFolders, updateStreak, type JournalEntry } from '@/lib/journal';
 import { getHistory } from '@/lib/storage';
 import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 import ReactMarkdown from 'react-markdown';
@@ -28,9 +28,14 @@ function PatternPageInner() {
 
   const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
 
+  const folderParam = searchParams.get('folder');
+  const folderName  = folderParam
+    ? getFolders().find(f => f.id === folderParam)?.name
+    : null;
+
   useEffect(() => {
-    setEntries(getEntries());
-    
+    setEntries(folderParam ? getEntriesByFolder(folderParam) : getEntries());
+
     const historyId = searchParams.get('id');
     if (historyId) {
       const history = getHistory();
@@ -149,10 +154,18 @@ function PatternPageInner() {
       {/* Header */}
       <header className="flex justify-between items-center">
         <div className="flex items-center gap-4">
-          <Link href="/app" className="p-2 hover:bg-surface-2 rounded-full transition-colors">
+          <Link href="/app/journal" className="p-2 hover:bg-surface-2 rounded-full transition-colors">
             <ChevronLeft className="w-5 h-5 text-text-muted" />
           </Link>
-          <h2 className="text-2xl font-serif">Emotional Patterns</h2>
+          <div>
+            <h2 className="text-2xl font-serif">Emotional Patterns</h2>
+            {folderName && (
+              <p className="text-xs font-mono text-accent/70 mt-0.5">
+                Folder: {folderName}
+                <Link href="/app/pattern" className="ml-2 text-text-muted/60 hover:text-text-muted underline">clear</Link>
+              </p>
+            )}
+          </div>
         </div>
         <span className="text-[10px] font-mono text-accent-green px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/20">
           0.005 cUSD
