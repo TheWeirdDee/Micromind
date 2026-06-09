@@ -37,6 +37,23 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | null>(null);
 
+// Prefer MetaMask over Zerion/other injected wallets when multiple providers are present.
+// MiniPay always wins. Returns null if nothing is available.
+function getPreferredProvider(): any {
+  if (typeof window === 'undefined') return null;
+  const eth = (window as any).ethereum;
+  if (!eth) return null;
+  if (eth.isMiniPay) return eth;
+  if (eth.providers && Array.isArray(eth.providers)) {
+    return (
+      eth.providers.find((p: any) => p.isMetaMask) ||
+      eth.providers[0] ||
+      eth
+    );
+  }
+  return eth;
+}
+
 export const publicClient = createPublicClient({
   chain: celo,
   transport: http('https://forno.celo.org')
@@ -96,14 +113,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setIsConnected(true);
       fetchBalances(storedAddress);
       
-      // Initialize wallet client early if ethereum is available
-      if (window.ethereum) {
+      // Initialize wallet client early using the preferred provider
+      const provider = getPreferredProvider();
+      if (provider) {
         const client = createWalletClient({
           chain: celo,
-          transport: custom(window.ethereum)
+          transport: custom(provider)
         });
         setWalletClient(client);
-        if (window.ethereum.isMiniPay) setIsMiniPay(true);
+        if (provider.isMiniPay) setIsMiniPay(true);
       }
     }
   }, [fetchBalances]);
@@ -117,19 +135,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const checkAndConnect = async () => {
       attempts++;
-      
-      if (window.ethereum) {
-        const isMiniPayDetected = window.ethereum.isMiniPay === true;
-        
+
+      const ethereum = getPreferredProvider();
+      if (ethereum) {
+        const isMiniPayDetected = ethereum.isMiniPay === true;
+
         try {
           const method = isMiniPayDetected ? 'eth_requestAccounts' : 'eth_accounts';
-          const accounts = await window.ethereum.request({ method });
-          
+          const accounts = await ethereum.request({ method });
+
           if (accounts && accounts.length > 0) {
             const addr = accounts[0];
             const client = createWalletClient({
               chain: celo,
-              transport: custom(window.ethereum)
+              transport: custom(ethereum)
             });
             if (isMiniPayDetected) setIsMiniPay(true);
             setAddress(addr);
@@ -160,9 +179,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(checkInterval);
   }, [fetchBalances]);
 
-  // Listen for account/chain changes
+  // Listen for account/chain changes on the preferred provider
   useEffect(() => {
-    if (!window.ethereum) return;
+    const ethereum = getPreferredProvider();
+    if (!ethereum) return;
 
     const onAccountsChanged = (accounts: string[]) => {
       if (accounts.length === 0) {
@@ -175,16 +195,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const onChainChanged = () => window.location.reload();
 
-    window.ethereum.on('accountsChanged', onAccountsChanged);
-    window.ethereum.on('chainChanged', onChainChanged);
+    ethereum.on('accountsChanged', onAccountsChanged);
+    ethereum.on('chainChanged', onChainChanged);
 
     return () => {
-      window.ethereum?.removeListener(
-        'accountsChanged', onAccountsChanged
-      );
-      window.ethereum?.removeListener(
-        'chainChanged', onChainChanged
-      );
+      ethereum.removeListener?.('accountsChanged', onAccountsChanged);
+      ethereum.removeListener?.('chainChanged', onChainChanged);
     };
   }, [fetchBalances, disconnect]);
 
