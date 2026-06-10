@@ -20,7 +20,7 @@ export function HowItWorks() {
           >
             <div className="relative aspect-[16/10] rounded-[2rem] overflow-hidden border border-border shadow-2xl">
               <img 
-                src="/images/journal_workspace.png" 
+                src="/images/journal_workspace.jpg" 
                 alt="Mindful Workspace" 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
