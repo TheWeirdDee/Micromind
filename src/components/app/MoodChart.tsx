@@ -50,8 +50,6 @@ export function MoodChart() {
     setTrend(trend7);
   }, []);
 
-  if (total === 0) return null;
-
   const topConfig = MOOD_CONFIG.find(m => m.mood === topMood);
 
   return (
@@ -59,7 +57,7 @@ export function MoodChart() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted font-mono">Mood Insights</p>
-          <p className="text-lg font-serif mt-1">Across {total} entries</p>
+          <p className="text-lg font-serif mt-1">{total > 0 ? `Across ${total} entries` : 'No entries yet'}</p>
         </div>
         {topConfig && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-border">
@@ -69,45 +67,62 @@ export function MoodChart() {
         )}
       </div>
 
-      {/* Mood distribution bars */}
-      <div className="space-y-2.5">
-        {MOOD_CONFIG.filter(m => counts[m.mood]).map(m => {
-          const pct = Math.round((counts[m.mood] / total) * 100);
-          return (
+      {total === 0 ? (
+        <div className="space-y-2.5">
+          {MOOD_CONFIG.map(m => (
             <div key={m.mood} className="flex items-center gap-3">
-              <m.icon className={`w-3.5 h-3.5 shrink-0 ${m.text}`} />
+              <m.icon className="w-3.5 h-3.5 shrink-0 text-border" />
               <div className="flex-1 h-2 bg-surface rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${m.color} transition-all duration-700`}
-                  style={{ width: `${pct}%` }}
-                />
+                <div className="h-full rounded-full bg-border/30 w-0" />
               </div>
-              <span className="text-[11px] font-mono text-text-muted/70 w-8 text-right">{pct}%</span>
+              <span className="text-[11px] font-mono text-border w-8 text-right">—</span>
             </div>
-          );
-        })}
-      </div>
-
-      {/* 7-day trend dots */}
-      <div>
-        <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted font-mono mb-2">Last 7 days</p>
-        <div className="flex items-end gap-1 justify-between">
-          {trend.map((mood, i) => {
-            const cfg = MOOD_CONFIG.find(m => m.mood === mood);
-            return (
-              <div key={i} className="flex flex-col items-center gap-1 flex-1">
-                <div
-                  className={`w-full rounded-full transition-all ${
-                    mood && cfg ? `${cfg.color} h-5` : 'bg-border h-1.5'
-                  }`}
-                  title={mood ?? 'No entry'}
-                />
-                <span className="text-[9px] font-mono text-text-muted/40">{LAST_7_DAYS[i]}</span>
-              </div>
-            );
-          })}
+          ))}
+          <p className="text-[10px] font-mono text-text-muted/50 text-center pt-1">Write entries to see mood trends</p>
         </div>
-      </div>
+      ) : (
+        <>
+          {/* Mood distribution bars */}
+          <div className="space-y-2.5">
+            {MOOD_CONFIG.filter(m => counts[m.mood]).map(m => {
+              const pct = Math.round((counts[m.mood] / total) * 100);
+              return (
+                <div key={m.mood} className="flex items-center gap-3">
+                  <m.icon className={`w-3.5 h-3.5 shrink-0 ${m.text}`} />
+                  <div className="flex-1 h-2 bg-surface rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${m.color} transition-all duration-700`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-[11px] font-mono text-text-muted/70 w-8 text-right">{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 7-day trend dots */}
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted font-mono mb-2">Last 7 days</p>
+            <div className="flex items-end gap-1 justify-between">
+              {trend.map((mood, i) => {
+                const cfg = MOOD_CONFIG.find(m => m.mood === mood);
+                return (
+                  <div key={i} className="flex flex-col items-center gap-1 flex-1">
+                    <div
+                      className={`w-full rounded-full transition-all ${
+                        mood && cfg ? `${cfg.color} h-5` : 'bg-border h-1.5'
+                      }`}
+                      title={mood ?? 'No entry'}
+                    />
+                    <span className="text-[9px] font-mono text-text-muted/40">{LAST_7_DAYS[i]}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
