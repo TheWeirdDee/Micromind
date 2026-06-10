@@ -171,6 +171,33 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Email a reflection/pattern result to the user
+app.post('/api/reflection/email', async (req, res) => {
+  const { email, name, content, type } = req.body; // type: 'reflection' | 'pattern'
+  if (!email || !content) return res.status(400).json({ error: 'Missing email or content' });
+
+  if (!resend) return res.status(503).json({ error: 'Email not configured' });
+
+  const subject = type === 'pattern'
+    ? 'Your Emotional Patterns — MicroMind'
+    : 'Your Weekly Reflection — MicroMind';
+
+  const greeting = name ? `Hi ${name},` : 'Hi,';
+
+  try {
+    await resend.emails.send({
+      from: 'MicroMind <onboarding@resend.dev>',
+      to: email,
+      subject,
+      text: `${greeting}\n\nHere's your MicroMind insight:\n\n${content}\n\n---\nGenerated privately on MicroMind · micromind.app`,
+    });
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error('[REFLECTION EMAIL]', e.message);
+    res.status(500).json({ error: 'Email delivery failed' });
+  }
+});
+
 app.post('/api/letter/send', async (req, res) => {
   const { content, recipientEmail, senderName } = req.body;
   console.log('[LETTER] Free send request received for recipient:', recipientEmail);
