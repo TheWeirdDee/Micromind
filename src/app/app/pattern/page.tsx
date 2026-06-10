@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronLeft, Loader2, BookOpen, Search, HelpCircle, AlertTriangle, Mail, CheckCircle } from 'lucide-react';
+import { ChevronLeft, Loader2, BookOpen, Search, HelpCircle, AlertTriangle, Mail, CheckCircle, Share2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -27,6 +27,7 @@ function PatternPageInner() {
   const [emailSent, setEmailSent] = useState(false);
   const [emailAddress, setEmailAddress] = useState('');
   const [showEmailInput, setShowEmailInput] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
@@ -111,6 +112,16 @@ function PatternPageInner() {
     } finally {
       setEmailSending(false);
     }
+  };
+
+  const handleShare = () => {
+    if (!response) return;
+    const payload = btoa(JSON.stringify({ content: response, type: 'pattern' }));
+    const url = `${window.location.origin}/share/${encodeURIComponent(payload)}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2500);
+    });
   };
 
   const handleRetry = async () => {
@@ -314,6 +325,14 @@ function PatternPageInner() {
               </button>
             )}
           </div>
+
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-2 text-xs font-mono text-text-muted hover:text-accent transition-colors px-3 py-2 rounded-xl hover:bg-surface border border-transparent hover:border-border w-fit"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            {shareCopied ? 'Link copied!' : 'Share patterns'}
+          </button>
         </div>
       )}
       <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
