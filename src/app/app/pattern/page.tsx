@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronLeft, Loader2, BookOpen, Search, HelpCircle, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Loader2, BookOpen, Search, HelpCircle, AlertTriangle, Mail, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -22,6 +22,11 @@ function PatternPageInner() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [response, setResponse] = useState<string | null>(null);
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string }>(null);
+
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailAddress, setEmailAddress] = useState('');
+  const [showEmailInput, setShowEmailInput] = useState(false);
 
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
@@ -69,6 +74,42 @@ function PatternPageInner() {
     } catch (err: any) {
       console.error(err);
       alert('Transaction failed. Make sure you have enough cUSD and CELO in your wallet.');
+    }
+  };
+
+  const handleEmailPattern = async (overrideEmail?: string) => {
+    const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+    if (!agentUrl || !response) return;
+
+    let email = overrideEmail;
+    if (!email) {
+      try {
+        const profile = JSON.parse(localStorage.getItem('mm_user_profile') || '{}');
+        email = profile.email;
+      } catch {}
+    }
+
+    if (!email) {
+      setShowEmailInput(true);
+      return;
+    }
+
+    let name = '';
+    try { name = JSON.parse(localStorage.getItem('mm_user_profile') || '{}').name || ''; } catch {}
+
+    setEmailSending(true);
+    try {
+      await fetch(`${agentUrl}/api/reflection/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name, content: response, type: 'pattern' }),
+      });
+      setEmailSent(true);
+      setShowEmailInput(false);
+    } catch (e) {
+      alert('Failed to send email. Please try again.');
+    } finally {
+      setEmailSending(false);
     }
   };
 
@@ -235,6 +276,44 @@ function PatternPageInner() {
         <div className="space-y-4">
           <h3 className="font-serif text-xl px-2">Identified Patterns</h3>
           {renderPatternCards(response)}
+
+          {/* Email button */}
+          <div className="flex flex-col gap-2 px-2 pt-1">
+            {emailSent ? (
+              <div className="flex items-center gap-2 text-xs font-mono text-accent-green px-4 py-2 rounded-xl bg-accent-green/10 border border-accent-green/20 w-fit">
+                <CheckCircle className="w-4 h-4" />
+                Patterns sent to your inbox
+              </div>
+            ) : showEmailInput ? (
+              <div className="flex gap-2 items-center">
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={emailAddress}
+                  onChange={e => setEmailAddress(e.target.value)}
+                  className="flex-1 bg-surface border border-border rounded-xl px-4 py-2 text-xs font-mono focus:outline-none focus:border-accent"
+                />
+                <button
+                  onClick={() => handleEmailPattern(emailAddress)}
+                  disabled={emailSending || !emailAddress}
+                  className="pill-button pill-button-primary px-4 py-2 text-xs disabled:opacity-40 flex items-center gap-1.5"
+                >
+                  {emailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                  Send
+                </button>
+                <button onClick={() => setShowEmailInput(false)} className="px-3 py-2 text-xs font-mono text-text-muted hover:text-text-primary">✕</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => handleEmailPattern()}
+                disabled={emailSending}
+                className="flex items-center gap-2 text-xs font-mono text-text-muted hover:text-accent transition-colors px-3 py-2 rounded-xl hover:bg-surface border border-transparent hover:border-border w-fit"
+              >
+                <Mail className="w-3.5 h-3.5" />
+                Email this to me
+              </button>
+            )}
+          </div>
         </div>
       )}
       <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
