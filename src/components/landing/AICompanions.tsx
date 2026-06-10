@@ -5,7 +5,7 @@ import { Heart, BrainCircuit, PenTool } from 'lucide-react';
 
 const companions = [
   {
-    image: '/images/persona_reflect.png',
+    image: '/images/persona_reflect.webp',
     name: 'Reflection Engine',
     role: 'Weekly AI Assistant',
     desc: 'Synthesizes your weekly thoughts into compassionate, structured summaries to highlight self-growth and emotional progress.',
@@ -13,7 +13,7 @@ const companions = [
     icon: Heart,
   },
   {
-    image: '/images/persona_pattern.png',
+    image: '/images/persona_pattern.webp',
     name: 'Pattern Analyst',
     role: 'Emotional Theme Engine',
     desc: 'Scans your long-term entry history to objectively surface 3 recurring themes and loops with gentle, actionable insights.',
@@ -21,7 +21,7 @@ const companions = [
     icon: BrainCircuit,
   },
   {
-    image: '/images/persona_writer.png',
+    image: '/images/persona_writer.webp',
     name: 'Writing Assistant',
     role: 'Letter Polishing & Delivery',
     desc: 'Refines raw letter drafts into warm, eloquent messages while preserving your original voice, ready to send via email.',
