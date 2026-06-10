@@ -9,6 +9,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 import { TOOLS } from '@/constants/tools';
 import { DailyStreak } from '@/components/app/DailyStreak';
+import { MoodChart } from '@/components/app/MoodChart';
 import { getHistory, type HistoryItem } from '@/lib/storage';
 import { getEntries, getLastEntry, type JournalEntry } from '@/lib/journal';
 
@@ -183,6 +184,7 @@ export default function AppHome() {
           </div>
 
           <DailyStreak />
+          <MoodChart />
         </aside>
       </div>
     </div>
