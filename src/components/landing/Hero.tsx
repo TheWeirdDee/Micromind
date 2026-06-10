@@ -77,7 +77,7 @@ export function Hero() {
           >
             <div className="relative w-full max-w-[380px] aspect-[4/5] rounded-[3rem] overflow-hidden border border-border shadow-2xl">
               <img 
-                src="/images/journal_hero.png" 
+                src="/images/journal_hero.jpg" 
                 alt="Mindful journaling" 
                 className="w-full h-full object-cover"
               />
