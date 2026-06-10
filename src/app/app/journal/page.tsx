@@ -5,8 +5,48 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, PenTool, Trash2, Pencil, Check, X, Plus,
   Smile, Laugh, Meh, Angry, Frown, ChevronRight,
-  FolderPlus, Folder as FolderIcon, MoreHorizontal, Sparkles,
+  FolderPlus, Folder as FolderIcon, MoreHorizontal, Sparkles, Lightbulb,
 } from 'lucide-react';
+
+const DAILY_PROMPTS = [
+  "What's one thing that went better than expected today?",
+  "Describe a moment this week when you felt fully present.",
+  "What are you carrying right now that you need to put down?",
+  "Who made you feel seen recently, and how?",
+  "What small thing brought you unexpected joy today?",
+  "What would you tell your past self from 6 months ago?",
+  "What's a belief you've been questioning lately?",
+  "Describe your energy today in three words — then explain why.",
+  "What's one thing you keep avoiding, and what would happen if you just did it?",
+  "Write about a place where you feel most like yourself.",
+  "What are you grateful for that you rarely say out loud?",
+  "What's the most honest thing you could say right now?",
+  "What do you need more of this week? Less of?",
+  "Write about a conversation that's been living in your head.",
+  "What does rest look like for you, and are you getting enough of it?",
+  "What's one fear you've overcome — and one you haven't yet?",
+  "If this week had a theme, what would it be?",
+  "What are you proud of that no one else knows about?",
+  "What's the difference between who you are and who you're becoming?",
+  "Write about something you changed your mind about recently.",
+  "What do you wish people understood about you without you having to explain?",
+  "Describe the last time you laughed until it hurt.",
+  "What habit are you building, and is it actually working?",
+  "What would a calmer version of yourself do differently today?",
+  "Write about a relationship that has quietly shaped you.",
+  "What are you chasing right now, and does it still feel worth it?",
+  "What does your body need that your mind keeps ignoring?",
+  "Write about a moment of unexpected kindness — given or received.",
+  "What are you learning about yourself this month?",
+  "If you could redo one decision from the last year, what and why?",
+];
+
+function getTodayPrompt(): string {
+  const dayOfYear = Math.floor(
+    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
+  );
+  return DAILY_PROMPTS[dayOfYear % DAILY_PROMPTS.length];
+}
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 import {
@@ -461,6 +501,28 @@ export default function JournalPage() {
               </Link>
             )}
           </div>
+
+          {/* Daily prompt card */}
+          {!showCompose && (
+            <button
+              onClick={() => {
+                setComposeContent(getTodayPrompt());
+                setShowCompose(true);
+              }}
+              className="w-full text-left bg-accent/5 border border-accent/20 hover:border-accent/40 rounded-2xl px-4 py-3.5 transition-all group"
+            >
+              <div className="flex items-start gap-3">
+                <Lightbulb className="w-4 h-4 text-accent shrink-0 mt-0.5 group-hover:text-accent" />
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-widest font-mono text-accent/70 mb-1">Today's prompt</p>
+                  <p className="text-sm text-text-primary/80 leading-snug">{getTodayPrompt()}</p>
+                </div>
+                <span className="text-[10px] font-mono text-accent/50 shrink-0 mt-0.5 group-hover:text-accent/80 transition-colors">
+                  Write →
+                </span>
+              </div>
+            </button>
+          )}
 
           {/* Compose form */}
           <AnimatePresence>
