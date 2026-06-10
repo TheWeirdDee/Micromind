@@ -88,7 +88,7 @@ export function WhySection() {
           >
             <div className="relative w-full max-w-[340px] aspect-[4/5] rounded-[5rem] overflow-hidden border border-border shadow-2xl">
               <img
-                src="/images/journal_reflection.png"
+                src="/images/journal_reflection.webp"
                 alt="Personal reflection"
                 className="w-full h-full object-cover"
               />
