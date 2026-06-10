@@ -96,10 +96,10 @@ export function usePayForPrompt() {
 
       // STEP 4 — Approve cUSD
       setStep('approving');
-      const approveNonce = await publicClient.getTransactionCount({
-        address: address as `0x${string}`,
-        blockTag: 'pending'
-      });
+      // MiniPay requires explicit nonce; MetaMask manages its own — don't override it
+      const approveNonce = isMiniPay
+        ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
+        : undefined;
 
       const approveTx = await walletClient.writeContract({
         address: cUSD_ADDRESS as `0x${string}`,
@@ -109,7 +109,7 @@ export function usePayForPrompt() {
         chain: celo,
         account: address as `0x${string}`,
         gasPrice,
-        nonce: approveNonce,
+        ...(approveNonce !== undefined ? { nonce: approveNonce } : {}),
         feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
 
@@ -120,10 +120,9 @@ export function usePayForPrompt() {
 
       // STEP 5 — Pay for prompt (cUSD)
       setStep('paying');
-      const payNonce = await publicClient.getTransactionCount({
-        address: address as `0x${string}`,
-        blockTag: 'pending'
-      });
+      const payNonce = isMiniPay
+        ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
+        : undefined;
 
       const payTx = await walletClient.writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
@@ -133,7 +132,7 @@ export function usePayForPrompt() {
         chain: celo,
         account: address as `0x${string}`,
         gasPrice,
-        nonce: payNonce,
+        ...(payNonce !== undefined ? { nonce: payNonce } : {}),
         feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
 
