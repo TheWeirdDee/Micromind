@@ -86,7 +86,7 @@ export function usePayForPrompt() {
         fetch(`${agentUrl}/api/prompt/submit`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: finalPrompt, toolId, userAddress: address }),
+          body: JSON.stringify({ prompt: finalPrompt, toolId, userAddress: address, nonce }),
         }).catch(() => { /* agent offline — payment still proceeds */ });
       }
 
@@ -202,6 +202,15 @@ export function usePayForPrompt() {
               setResponse(data.response);
               setStep('complete');
               return data.response;
+            }
+
+            if (data.status === 'prompt_not_found') {
+              console.log('[POLL] Agent reports prompt not found. Resubmitting...');
+              await fetch(`${agentUrl}/api/prompt/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: finalPrompt, toolId, userAddress: address, nonce }),
+              }).catch(() => { /* ignore error, retry on next poll */ });
             }
           } catch { /* continue polling */ }
         }
