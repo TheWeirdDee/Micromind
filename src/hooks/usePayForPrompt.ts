@@ -68,9 +68,12 @@ export function usePayForPrompt() {
               method: 'wallet_addEthereumChain',
               params: [CELO_MAINNET_PARAMS],
             });
-          } catch { /* ignore if already added */ }
-        } else if (switchErr.code !== 4001) {
-          throw new Error('Please switch your wallet to the Celo network and try again.');
+            await walletClient.switchChain({ id: 42220 });
+          } catch {
+            throw new Error('Failed to add Celo network to your wallet.');
+          }
+        } else {
+          throw new Error('Please switch your wallet to the Celo network to proceed.');
         }
       }
 
