@@ -2,6 +2,7 @@ import { Navbar } from "@/components/landing/Navbar";
 import { Hero } from "@/components/landing/Hero";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { ToolsGrid } from "@/components/landing/ToolsGrid";
+import { NewFeatures } from "@/components/landing/NewFeatures";
 import { WhySection } from "@/components/landing/WhySection";
 import { AICompanions } from "@/components/landing/AICompanions";
 import { Footer } from "@/components/landing/Footer";
@@ -13,6 +14,7 @@ export default function Home() {
       <Hero />
       <HowItWorks />
       <ToolsGrid />
+      <NewFeatures />
       <WhySection />
       <AICompanions />
       <Footer />
