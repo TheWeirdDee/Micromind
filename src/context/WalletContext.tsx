@@ -46,6 +46,7 @@ function getPreferredProvider(): any {
   if (eth.isMiniPay) return eth;
   if (eth.providers && Array.isArray(eth.providers)) {
     return (
+      eth.providers.find((p: any) => p.isMetaMask && !p.isZerion) ||
       eth.providers.find((p: any) => p.isMetaMask) ||
       eth.providers[0] ||
       eth
