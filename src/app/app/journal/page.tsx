@@ -6,6 +6,7 @@ import {
   BookOpen, PenTool, Trash2, Pencil, Check, X, Plus,
   Smile, Laugh, Meh, Angry, Frown, ChevronRight,
   FolderPlus, Folder as FolderIcon, MoreHorizontal, Sparkles, Lightbulb,
+  Copy,
 } from 'lucide-react';
 
 const DAILY_PROMPTS = [
@@ -64,6 +65,39 @@ const MOODS = [
   { mood: 'sad',     icon: Frown,  label: 'Sad'     },
 ];
 
+const MOOD_STYLES: Record<string, { border: string; bg: string; text: string; bgExpanded: string }> = {
+  happy: {
+    border: 'hover:border-accent/45 border-accent/15',
+    bg: 'bg-accent/2',
+    text: 'text-accent',
+    bgExpanded: 'bg-accent/5 border-accent/25'
+  },
+  excited: {
+    border: 'hover:border-accent-gold/45 border-accent-gold/15',
+    bg: 'bg-accent-gold/2',
+    text: 'text-accent-gold',
+    bgExpanded: 'bg-accent-gold/5 border-accent-gold/25'
+  },
+  neutral: {
+    border: 'hover:border-text-muted/30 border-border',
+    bg: 'bg-surface-2/30',
+    text: 'text-text-muted',
+    bgExpanded: 'bg-surface border-border'
+  },
+  sad: {
+    border: 'hover:border-blue-400/45 border-blue-400/15',
+    bg: 'bg-blue-400/2',
+    text: 'text-blue-400',
+    bgExpanded: 'bg-blue-400/5 border-blue-400/25'
+  },
+  angry: {
+    border: 'hover:border-red-400/45 border-red-400/15',
+    bg: 'bg-red-400/2',
+    text: 'text-red-400',
+    bgExpanded: 'bg-red-400/5 border-red-400/25'
+  }
+};
+
 export default function JournalPage() {
   const { address } = useWallet();
 
@@ -93,9 +127,16 @@ export default function JournalPage() {
   const [composeFolder, setComposeFolder]   = useState<string | undefined>(undefined);
 
   const [toast, setToast] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const newFolderInputRef = useRef<HTMLInputElement>(null);
   const composeRef        = useRef<HTMLTextAreaElement>(null);
+
+  const handleCopy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const refresh = () => {
     setFolders(getFolders());
@@ -199,19 +240,21 @@ export default function JournalPage() {
   }: { value: string; onChange: (m: string) => void }) => (
     <div className="flex gap-2">
       {MOODS.map(m => (
-        <button
+        <motion.button
           key={m.mood}
           type="button"
+          whileHover={{ scale: 1.15, rotate: value === m.mood ? 0 : [0, -5, 5, 0] }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => onChange(m.mood)}
           title={m.label}
           className={`w-9 h-9 rounded-2xl flex items-center justify-center border transition-all ${
             value === m.mood
-              ? 'bg-accent/15 border-accent'
-              : 'border-border hover:bg-surface-2'
+              ? 'bg-accent/15 border-accent shadow-sm shadow-accent/10'
+              : 'border-border hover:bg-surface-2 hover:border-text-muted/30'
           }`}
         >
-          <m.icon className={`w-4 h-4 ${value === m.mood ? 'text-accent' : 'text-text-muted'}`} />
-        </button>
+          <m.icon className={`w-4 h-4 transition-colors ${value === m.mood ? 'text-accent' : 'text-text-muted'}`} />
+        </motion.button>
       ))}
     </div>
   );
@@ -552,6 +595,14 @@ export default function JournalPage() {
                     className="w-full min-h-[120px] resize-none bg-surface-2 rounded-xl border border-border p-3 font-mono text-sm leading-relaxed text-text-primary outline-none focus:border-accent transition-colors"
                   />
 
+                  <div className="flex justify-between items-center text-[10px] font-mono text-text-muted/60 px-1 -mt-2">
+                    <span>{composeContent.length} chars</span>
+                    <span>
+                      {composeContent.trim() === '' ? 0 : composeContent.trim().split(/\s+/).length} words
+                      {composeContent.trim() !== '' && ` · ~${Math.max(1, Math.round(composeContent.trim().split(/\s+/).length / 200))} min read`}
+                    </span>
+                  </div>
+
                   <FolderPills value={composeFolder} onChange={v => setComposeFolder(v)} />
 
                   <div className="flex items-center gap-2">
@@ -589,14 +640,16 @@ export default function JournalPage() {
                   ? folders.find(f => f.id === entry.folderId)?.name
                   : null;
 
+                const style = MOOD_STYLES[entry.mood] || MOOD_STYLES.neutral;
+
                 return (
                   <motion.div
                     key={entry.id}
                     layout
                     className={`rounded-2xl border transition-all duration-200 ${
                       isExpanded
-                        ? 'bg-surface border-accent/30 shadow-lg shadow-black/10'
-                        : 'bg-surface-2/50 border-border hover:border-border/80 hover:bg-surface-2/80'
+                        ? `${style.bgExpanded} shadow-lg shadow-black/10`
+                        : `${style.bg} ${style.border}`
                     }`}
                   >
                     {/* Entry header */}
@@ -604,7 +657,7 @@ export default function JournalPage() {
                       className="flex items-start gap-3 p-4 cursor-pointer select-none"
                       onClick={() => toggleExpand(entry.id)}
                     >
-                      <MoodIcon className="w-4 h-4 text-accent mt-0.5 shrink-0" />
+                      <MoodIcon className={`w-4 h-4 ${style.text} mt-0.5 shrink-0`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-text-primary truncate leading-snug">
                           {title || <span className="text-text-muted/50 italic font-normal text-xs">Untitled</span>}
@@ -651,6 +704,14 @@ export default function JournalPage() {
                                   className="w-full min-h-[140px] resize-none bg-surface-2 rounded-xl border border-border p-3 font-mono text-sm leading-relaxed text-text-primary outline-none focus:border-accent transition-colors"
                                 />
 
+                                <div className="flex justify-between items-center text-[10px] font-mono text-text-muted/60 px-1 -mt-2">
+                                  <span>{editContent.length} chars</span>
+                                  <span>
+                                    {editContent.trim() === '' ? 0 : editContent.trim().split(/\s+/).length} words
+                                    {editContent.trim() !== '' && ` · ~${Math.max(1, Math.round(editContent.trim().split(/\s+/).length / 200))} min read`}
+                                  </span>
+                                </div>
+
                                 <FolderPills value={editFolder} onChange={v => setEditFolder(v)} />
 
                                 <div className="flex gap-2">
@@ -676,6 +737,22 @@ export default function JournalPage() {
                                   {entry.content}
                                 </p>
                                 <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleCopy(entry.id, entry.content)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors"
+                                  >
+                                    {copiedId === entry.id ? (
+                                      <>
+                                        <Check className="w-3 h-3 text-accent" />
+                                        <span className="text-accent">Copied</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="w-3 h-3" />
+                                        <span>Copy</span>
+                                      </>
+                                    )}
+                                  </button>
                                   <button
                                     onClick={() => startEdit(entry)}
                                     className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors"
