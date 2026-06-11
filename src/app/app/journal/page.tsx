@@ -619,7 +619,7 @@ export default function JournalPage() {
                     >
                       Cancel
                     </button>
-                    <span className="ml-auto text-[10px] text-text-muted/40 font-mono hidden sm:block">⌘↵ to save</span>
+                    <span className="ml-auto text-[10px] text-text-muted/70 font-mono hidden sm:block">⌘↵ to save</span>
                   </div>
                 </div>
               </motion.div>
@@ -783,7 +783,7 @@ export default function JournalPage() {
               <p className="font-serif text-text-primary/60 text-lg mb-1">
                 {activeFolderId ? 'This folder is empty' : 'No entries yet'}
               </p>
-              <p className="text-xs font-mono text-text-muted/40 max-w-[240px]">
+              <p className="text-xs font-mono text-text-muted/70 max-w-[240px]">
                 {activeFolderId
                   ? 'Write a new entry and assign it to this folder.'
                   : 'Tap New Entry to capture your first thought.'}
