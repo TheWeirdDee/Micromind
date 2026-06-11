@@ -138,7 +138,7 @@ export function MoodChart() {
                       }`}
                       title={mood ?? 'No entry'}
                     />
-                    <span className="text-[9px] font-mono text-text-muted/40">{LAST_7_DAYS[i]}</span>
+                    <span className="text-[9px] font-mono text-text-muted/70">{LAST_7_DAYS[i]}</span>
                   </div>
                 );
               })}
