@@ -10,8 +10,32 @@ import { QRCodeSVG } from 'qrcode.react';
 import { TOOLS } from '@/constants/tools';
 import { DailyStreak } from '@/components/app/DailyStreak';
 import { MoodChart } from '@/components/app/MoodChart';
+import { WordCloud } from '@/components/app/WordCloud';
 import { getHistory, type HistoryItem } from '@/lib/storage';
 import { getEntries, getLastEntry, type JournalEntry } from '@/lib/journal';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+} as const;
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: 'spring',
+      stiffness: 90,
+      damping: 14,
+    },
+  },
+} as const;
 
 export default function AppHome() {
   const { isConnected, address, isMiniPay, connect } = useWallet();
@@ -52,48 +76,55 @@ export default function AppHome() {
   });
 
   return (
-    <div className="space-y-8 animate-fade-up pb-24">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-8 pb-24"
+    >
       <div className="grid gap-8 lg:grid-cols-[2.2fr_1fr] items-start">
         <div className="space-y-8">
-          <div className="space-y-4">
+          <motion.div variants={itemVariants} className="space-y-4">
             <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">Journal dashboard</p>
             <h2 className="text-4xl md:text-5xl font-serif tracking-tight">A calmer place for your daily writing.</h2>
             <p className="text-text-muted leading-relaxed max-w-none md:max-w-3xl">
               Capture your thoughts, keep your streak alive, and access your private writing tools in a cleaner, more mindful layout.
             </p>
-          </div>
+          </motion.div>
 
-          <Link href="/app/journal">
-            <motion.div
-              whileTap={{ scale: 0.99 }}
-              className="relative overflow-hidden rounded-[2rem] border border-border bg-gradient-to-br from-accent/10 to-surface p-8 shadow-[0_24px_70px_rgba(0,0,0,0.25)] group"
-            >
-              <div className="absolute inset-0 halftone-bg opacity-6 pointer-events-none" />
-              <div className="relative z-10 flex flex-col gap-6">
-                <div className="space-y-3">
-                  <span className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">Core journal</span>
-                  <h3 className="text-3xl font-serif tracking-tight group-hover:text-accent transition-colors">Continue your journal</h3>
-                  <p className="text-sm text-text-muted leading-relaxed">
-                    Open your private journal to add a new entry, revisit old reflections, or simply write without judgment.
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1 max-w-3xl">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Recent entry</p>
-                    <p className="font-mono text-sm text-text-primary leading-relaxed">
-                      {lastEntry?.content ? `${lastEntry.content.slice(0, 115)}${lastEntry.content.length > 115 ? '…' : ''}` : 'No entry yet. Start with your first thought today.'}
+          <motion.div variants={itemVariants}>
+            <Link href="/app/journal">
+              <motion.div
+                whileTap={{ scale: 0.99 }}
+                className="relative overflow-hidden rounded-[2rem] border border-border bg-gradient-to-br from-accent/10 to-surface p-8 shadow-[0_24px_70px_rgba(0,0,0,0.25)] group"
+              >
+                <div className="absolute inset-0 halftone-bg opacity-6 pointer-events-none" />
+                <div className="relative z-10 flex flex-col gap-6">
+                  <div className="space-y-3">
+                    <span className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">Core journal</span>
+                    <h3 className="text-3xl font-serif tracking-tight group-hover:text-accent transition-colors">Continue your journal</h3>
+                    <p className="text-sm text-text-muted leading-relaxed">
+                      Open your private journal to add a new entry, revisit old reflections, or simply write without judgment.
                     </p>
                   </div>
-                  <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-accent text-bg shadow-lg shadow-accent/20">
-                    <BookOpen className="w-6 h-6" />
+
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1 max-w-3xl">
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Recent entry</p>
+                      <p className="font-mono text-sm text-text-primary leading-relaxed">
+                        {lastEntry?.content ? `${lastEntry.content.slice(0, 115)}${lastEntry.content.length > 115 ? '…' : ''}` : 'No entry yet. Start with your first thought today.'}
+                      </p>
+                    </div>
+                    <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-accent text-bg shadow-lg shadow-accent/20">
+                      <BookOpen className="w-6 h-6" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          </Link>
+              </motion.div>
+            </Link>
+          </motion.div>
 
-          <section className="rounded-[2rem] border border-border bg-surface-2 p-6 shadow-[0_12px_40px_rgba(0,0,0,0.16)]">
+          <motion.section variants={itemVariants} className="rounded-[2rem] border border-border bg-surface-2 p-6 shadow-[0_12px_40px_rgba(0,0,0,0.16)]">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Recent activity</p>
@@ -161,10 +192,10 @@ export default function AppHome() {
                 );
               })}
             </div>
-          </section>
+          </motion.section>
         </div>
 
-        <aside className="space-y-6 lg:max-w-[340px] xl:max-w-[360px]">
+        <motion.aside variants={itemVariants} className="space-y-6 lg:max-w-[340px] xl:max-w-[360px]">
           <div className="rounded-[2rem] border border-border bg-surface-2 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
             <div className="mb-5">
               <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Today</p>
@@ -185,8 +216,9 @@ export default function AppHome() {
 
           <DailyStreak />
           <MoodChart />
-        </aside>
+          <WordCloud />
+        </motion.aside>
       </div>
-    </div>
+    </motion.div>
   );
 }
