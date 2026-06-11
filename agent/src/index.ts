@@ -260,7 +260,7 @@ app.post('/api/letter/polish', async (req, res) => {
 
 app.post('/api/prompt/submit', async (req, res) => {
   console.log('[SUBMIT] Received:', req.body);
-  const { prompt, toolId, userAddress } = req.body;
+  const { prompt, toolId, userAddress, nonce: reqNonce } = req.body;
   
   if (!prompt || toolId === undefined || !userAddress) {
     console.log('[SUBMIT] Missing fields');
@@ -268,7 +268,7 @@ app.post('/api/prompt/submit', async (req, res) => {
   }
 
   const { keccak256, toBytes } = await import('viem');
-  const nonce = Date.now().toString();
+  const nonce = reqNonce || Date.now().toString();
   const promptHash = keccak256(
     toBytes(`${prompt}:${userAddress}:${nonce}`)
   );
@@ -318,7 +318,7 @@ app.get('/api/response/:txHash', async (req, res) => {
     const storedStr = await getData(`prompt:${promptHash}`);
     if (!storedStr) {
       console.log('[RESPONSE] Prompt source not found for hash:', promptHash);
-      return res.json({ status: 'pending' });
+      return res.json({ status: 'prompt_not_found', promptHash });
     }
 
     const { prompt } = JSON.parse(storedStr);
