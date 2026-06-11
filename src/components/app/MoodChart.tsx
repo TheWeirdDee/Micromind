@@ -23,6 +23,8 @@ export function MoodChart() {
   const [total, setTotal]     = useState(0);
   const [trend, setTrend]     = useState<(string | null)[]>([]);
   const [topMood, setTopMood] = useState<string | null>(null);
+  const [positivity, setPositivity] = useState(0);
+  const [stability, setStability] = useState(0);
 
   useEffect(() => {
     const entries = getEntries();
@@ -48,6 +50,27 @@ export function MoodChart() {
       trend7.push(dayEntries.length > 0 ? dayEntries[0].mood : null);
     }
     setTrend(trend7);
+
+    // Positivity ratio
+    const happyCount = c['happy'] || 0;
+    const excitedCount = c['excited'] || 0;
+    setPositivity(Math.round(((happyCount + excitedCount) / entries.length) * 100));
+
+    // Stability ratio (based on switches in daily mood)
+    let changes = 0;
+    let lastMood: string | null = null;
+    let activeDays = 0;
+    for (const m of trend7) {
+      if (m) {
+        activeDays++;
+        if (lastMood && m !== lastMood) {
+          changes++;
+        }
+        lastMood = m;
+      }
+    }
+    const stabilityPct = activeDays <= 1 ? 100 : Math.max(10, 100 - (changes * 20));
+    setStability(stabilityPct);
   }, []);
 
   const topConfig = MOOD_CONFIG.find(m => m.mood === topMood);
@@ -102,7 +125,7 @@ export function MoodChart() {
           </div>
 
           {/* 7-day trend dots */}
-          <div>
+          <div className="space-y-2">
             <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted font-mono mb-2">Last 7 days</p>
             <div className="flex items-end gap-1 justify-between">
               {trend.map((mood, i) => {
@@ -119,6 +142,18 @@ export function MoodChart() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Trends Summary Stats */}
+          <div className="pt-3 border-t border-border/40 grid grid-cols-2 gap-3 text-center">
+            <div className="rounded-2xl bg-bg/40 p-2 border border-border/30">
+              <p className="text-[9px] uppercase tracking-widest font-mono text-text-muted">Positivity</p>
+              <p className="text-sm font-serif font-semibold mt-0.5 text-accent">{positivity}%</p>
+            </div>
+            <div className="rounded-2xl bg-bg/40 p-2 border border-border/30">
+              <p className="text-[9px] uppercase tracking-widest font-mono text-text-muted">Stability</p>
+              <p className="text-sm font-serif font-semibold mt-0.5 text-accent-gold">{stability}%</p>
             </div>
           </div>
         </>
