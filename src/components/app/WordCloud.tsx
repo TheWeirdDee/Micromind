@@ -46,12 +46,12 @@ export function WordCloud() {
 
     // Colors to rotate through
     const colors = [
-      'text-accent',
-      'text-accent-gold',
-      'text-blue-400',
-      'text-red-400',
-      'text-emerald-400',
-      'text-purple-400',
+      'text-amber-200',
+      'text-blue-300',
+      'text-emerald-300',
+      'text-rose-300',
+      'text-purple-300',
+      'text-cyan-300',
     ];
 
     const topWords = Object.entries(freq)
