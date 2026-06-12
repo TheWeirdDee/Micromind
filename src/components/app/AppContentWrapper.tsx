@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { OnboardingWizard } from './OnboardingWizard';
+import { X, Bell } from 'lucide-react';
+import Link from 'next/link';
 
 interface AppContentWrapperProps {
   children: React.ReactNode;
@@ -9,13 +11,40 @@ interface AppContentWrapperProps {
 
 export function AppContentWrapper({ children }: AppContentWrapperProps) {
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const [showReminder, setShowReminder] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const completed = localStorage.getItem('mm_onboarding_completed') === 'true';
       setOnboardingCompleted(completed);
+
+      if (completed) {
+        const remindersEnabled = localStorage.getItem('mm_daily_reminder') === 'true';
+        if (remindersEnabled) {
+          const dismissedToday = localStorage.getItem('mm_reminder_dismissed') === new Date().toDateString();
+          if (!dismissedToday) {
+            try {
+              const entries = JSON.parse(localStorage.getItem('mm_journal') || '[]');
+              if (entries.length > 0) {
+                const newestTimestamp = Math.max(...entries.map((e: any) => e.timestamp || 0));
+                const hoursSinceLast = (Date.now() - newestTimestamp) / (1000 * 60 * 60);
+                if (hoursSinceLast > 24) {
+                  setShowReminder(true);
+                }
+              } else {
+                setShowReminder(true);
+              }
+            } catch (e) {}
+          }
+        }
+      }
     }
   }, []);
+
+  const dismissReminder = () => {
+    localStorage.setItem('mm_reminder_dismissed', new Date().toDateString());
+    setShowReminder(false);
+  };
 
   // Show a loading/pulse state while reading local storage to prevent any UI flashes
   if (onboardingCompleted === null) {
@@ -31,5 +60,40 @@ export function AppContentWrapper({ children }: AppContentWrapperProps) {
     return <OnboardingWizard onComplete={() => setOnboardingCompleted(true)} />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {showReminder && (
+        <div className="fixed bottom-24 right-4 left-4 sm:left-auto sm:w-80 bg-surface border border-accent/40 rounded-2xl p-4 shadow-xl shadow-accent/5 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className="flex gap-3">
+            <div className="p-2 bg-accent/10 rounded-xl h-fit">
+              <Bell className="w-4 h-4 text-accent" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-serif text-sm">Time to reflect?</h4>
+              <p className="text-xs text-text-muted font-mono mt-1">You haven't journaled yet today. Want to take 2 minutes?</p>
+              <div className="flex items-center gap-3 mt-3">
+                <Link
+                  href="/app/journal"
+                  onClick={dismissReminder}
+                  className="text-xs font-mono font-bold text-bg bg-accent px-3 py-1.5 rounded-lg"
+                >
+                  Write now
+                </Link>
+                <button
+                  onClick={dismissReminder}
+                  className="text-xs font-mono text-text-muted hover:text-text-primary transition-colors"
+                >
+                  Later
+                </button>
+              </div>
+            </div>
+            <button onClick={dismissReminder} className="h-fit p-1 text-text-muted hover:text-text-primary transition-colors">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
