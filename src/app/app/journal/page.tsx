@@ -125,6 +125,7 @@ export default function JournalPage() {
   const [composeContent, setComposeContent] = useState('');
   const [composeMood, setComposeMood]       = useState('happy');
   const [composeFolder, setComposeFolder]   = useState<string | undefined>(undefined);
+  const [hasDraft, setHasDraft]             = useState(false);
 
   const [toast, setToast] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -160,6 +161,26 @@ export default function JournalPage() {
   useEffect(() => {
     setComposeFolder(activeFolderId ?? undefined);
   }, [activeFolderId]);
+
+  useEffect(() => {
+    if (showCompose) {
+      if (composeContent.trim() !== '') {
+        const draft = { content: composeContent, mood: composeMood, folderId: composeFolder };
+        localStorage.setItem('mm_journal_draft', JSON.stringify(draft));
+      } else {
+        localStorage.removeItem('mm_journal_draft');
+      }
+    }
+  }, [composeContent, composeMood, composeFolder, showCompose]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const draft = localStorage.getItem('mm_journal_draft');
+      if (draft) {
+        setHasDraft(true);
+      }
+    }
+  }, []);
 
   const filteredEntries = activeFolderId === null
     ? entries
@@ -202,7 +223,28 @@ export default function JournalPage() {
     setComposeContent('');
     setComposeMood('happy');
     setShowCompose(false);
+    localStorage.removeItem('mm_journal_draft');
+    setHasDraft(false);
     showToast('Entry saved');
+  };
+
+  const restoreDraft = () => {
+    try {
+      const draftStr = localStorage.getItem('mm_journal_draft');
+      if (draftStr) {
+        const draft = JSON.parse(draftStr);
+        setComposeContent(draft.content || '');
+        setComposeMood(draft.mood || 'happy');
+        if (draft.folderId) setComposeFolder(draft.folderId);
+        setShowCompose(true);
+      }
+    } catch (e) {}
+    setHasDraft(false);
+  };
+
+  const discardDraft = () => {
+    localStorage.removeItem('mm_journal_draft');
+    setHasDraft(false);
   };
 
   const handleSaveEdit = () => {
@@ -545,6 +587,34 @@ export default function JournalPage() {
             )}
           </div>
 
+          {/* Draft banner */}
+          {hasDraft && !showCompose && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full flex flex-col sm:flex-row sm:items-center justify-between bg-accent-gold/10 border border-accent-gold/30 rounded-2xl p-4 gap-3"
+            >
+              <div className="flex items-center gap-3">
+                <PenTool className="w-4 h-4 text-accent-gold" />
+                <p className="text-sm font-mono text-text-primary">You have an unsaved draft.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={restoreDraft}
+                  className="px-4 py-2 bg-accent-gold/20 hover:bg-accent-gold/30 text-accent-gold rounded-xl text-xs font-mono transition-colors"
+                >
+                  Restore
+                </button>
+                <button
+                  onClick={discardDraft}
+                  className="px-4 py-2 hover:bg-surface-2 text-text-muted rounded-xl text-xs font-mono transition-colors"
+                >
+                  Discard
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {/* Daily prompt card */}
           {!showCompose && (
             <button
@@ -614,7 +684,12 @@ export default function JournalPage() {
                       <Check className="w-3.5 h-3.5" /> Save Entry
                     </button>
                     <button
-                      onClick={() => { setShowCompose(false); setComposeContent(''); }}
+                      onClick={() => { 
+                        setShowCompose(false); 
+                        setComposeContent(''); 
+                        localStorage.removeItem('mm_journal_draft');
+                        setHasDraft(false);
+                      }}
                       className="px-4 py-2.5 border border-border rounded-xl text-xs font-mono text-text-muted hover:bg-surface-2 transition-colors"
                     >
                       Cancel
