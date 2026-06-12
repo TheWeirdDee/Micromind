@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, Smile, Flame, Sparkles } from 'lucide-react';
+import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, Smile, Laugh, Meh, Angry, Frown, Flame, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { getHistory, type HistoryItem } from '@/lib/storage';
@@ -23,6 +23,14 @@ const ICONS = {
   5: Mail,
 };
 
+const MOODS = [
+  { mood: 'happy',   icon: Smile,  label: 'Happy'   },
+  { mood: 'excited', icon: Laugh,  label: 'Excited' },
+  { mood: 'neutral', icon: Meh,    label: 'Neutral' },
+  { mood: 'angry',   icon: Angry,  label: 'Angry'   },
+  { mood: 'sad',     icon: Frown,  label: 'Sad'     },
+];
+
 function HistoryPageInner() {
   const { address } = useWallet();
   const searchParams = useSearchParams();
@@ -30,6 +38,9 @@ function HistoryPageInner() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [streakCount, setStreakCount] = useState(0);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [moodFilter, setMoodFilter] = useState<string | null>(null);
 
   useEffect(() => {
     const hist = getHistory();
@@ -56,6 +67,23 @@ function HistoryPageInner() {
   }, [address, searchParams]);
 
   const totalSpent = history.reduce((acc, curr) => acc + parseFloat(curr.cost), 0).toFixed(3);
+
+  const filteredEntries = entries.filter(e => {
+    if (moodFilter && e.mood !== moodFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!e.content.toLowerCase().includes(q) && !e.date.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const filteredHistory = history.filter(h => {
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!h.prompt.toLowerCase().includes(q) && !h.toolName.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
 
   return (
     <motion.div
@@ -111,9 +139,56 @@ function HistoryPageInner() {
         </button>
       </div>
 
+      {/* Filters */}
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={activeTab === 'journal' ? "Search entries by content or date..." : "Search prompts..."}
+            className="w-full bg-surface-2 border border-border rounded-xl px-11 py-3 text-sm font-mono focus:border-accent outline-none transition-colors"
+          />
+        </div>
+
+        {activeTab === 'journal' && (
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+            <button
+              onClick={() => setMoodFilter(null)}
+              className={cn(
+                "px-3.5 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-mono whitespace-nowrap border shrink-0 transition-all",
+                moodFilter === null
+                  ? "bg-surface-2 text-text-primary border-border"
+                  : "border-transparent text-text-muted hover:bg-surface/50 hover:text-text-primary"
+              )}
+            >
+              All
+            </button>
+            {MOODS.map(m => {
+              const isActive = moodFilter === m.mood;
+              return (
+                <button
+                  key={m.mood}
+                  onClick={() => setMoodFilter(isActive ? null : m.mood)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-mono whitespace-nowrap border shrink-0 transition-all",
+                    isActive
+                      ? "bg-accent/10 border-accent/30 text-accent"
+                      : "border-border text-text-muted hover:bg-surface-2"
+                  )}
+                >
+                  <m.icon className="w-3 h-3" /> {m.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {activeTab === 'journal' ? (
         <div className="space-y-4">
-          {entries.length === 0 ? (
+          {filteredEntries.length === 0 ? (
             <div className="text-center py-20 border border-dashed border-border rounded-2xl bg-surface/30">
               <BookOpen className="w-8 h-8 text-text-muted/20 mx-auto mb-4" />
               <p className="text-text-muted font-mono text-sm mb-6">Your journal is empty.</p>
@@ -122,7 +197,7 @@ function HistoryPageInner() {
               </Link>
             </div>
           ) : (
-            entries.map((entry) => (
+            filteredEntries.map((entry) => (
               <div
                 key={entry.id}
                 className="bg-surface border border-border rounded-2xl p-5 space-y-3"
@@ -148,7 +223,7 @@ function HistoryPageInner() {
         </div>
       ) : (
         <div className="space-y-4">
-          {history.length === 0 ? (
+          {filteredHistory.length === 0 ? (
             <div className="text-center py-20 border border-dashed border-border rounded-2xl bg-surface/30">
               <History className="w-8 h-8 text-text-muted/20 mx-auto mb-4" />
               <p className="text-text-muted font-mono text-sm mb-6">No paid prompts yet.</p>
@@ -157,7 +232,7 @@ function HistoryPageInner() {
               </Link>
             </div>
           ) : (
-            history.map((item) => {
+            filteredHistory.map((item) => {
               const Icon = ICONS[item.toolId as keyof typeof ICONS] || MessageSquare;
               const toolRoutes: Record<number, string> = {
                 1: '/app/chat',
