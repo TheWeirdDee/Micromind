@@ -10,6 +10,8 @@ export interface JournalEntry {
   mood: string;
   timestamp: number;
   folderId?: string;
+  image?: string;
+  tags?: string[];
 }
 
 export interface Folder {
@@ -74,7 +76,7 @@ export function saveEntry(entry: Omit<JournalEntry, 'id' | 'date' | 'timestamp'>
   return newEntry;
 }
 
-export function editEntry(id: string, updates: Partial<Pick<JournalEntry, 'content' | 'mood' | 'folderId'>>): void {
+export function editEntry(id: string, updates: Partial<Pick<JournalEntry, 'content' | 'mood' | 'folderId' | 'image' | 'tags'>>): void {
   const entries = getEntries().map(e => e.id === id ? { ...e, ...updates } : e);
   localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
   dispatch();
