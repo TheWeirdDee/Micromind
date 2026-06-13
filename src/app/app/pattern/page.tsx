@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronLeft, Loader2, BookOpen, Search, HelpCircle, AlertTriangle, Mail, CheckCircle, Share2 } from 'lucide-react';
+import { ChevronLeft, Loader2, BookOpen, Search, HelpCircle, AlertTriangle, Mail, CheckCircle, Share2, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -312,7 +312,7 @@ function PatternPageInner() {
                   {emailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
                   Send
                 </button>
-                <button onClick={() => setShowEmailInput(false)} className="px-3 py-2 text-xs font-mono text-text-muted hover:text-text-primary">✕</button>
+                <button onClick={() => setShowEmailInput(false)} className="px-3 py-2 text-xs font-mono text-text-muted hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>
               </div>
             ) : (
               <button
