@@ -6,7 +6,7 @@ import {
   BookOpen, PenTool, Trash2, Pencil, Check, X, Plus,
   Smile, Laugh, Meh, Angry, Frown, ChevronRight,
   FolderPlus, Folder as FolderIcon, MoreHorizontal, Sparkles, Lightbulb,
-  Copy,
+  Copy, ArrowRight, Command, CornerDownLeft,
 } from 'lucide-react';
 
 const DAILY_PROMPTS = [
@@ -630,8 +630,8 @@ export default function JournalPage() {
                   <p className="text-[10px] uppercase tracking-widest font-mono text-accent/70 mb-1">Today's prompt</p>
                   <p className="text-sm text-text-primary/80 leading-snug">{getTodayPrompt()}</p>
                 </div>
-                <span className="text-[10px] font-mono text-accent/50 shrink-0 mt-0.5 group-hover:text-accent/80 transition-colors">
-                  Write →
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono text-accent/50 shrink-0 mt-0.5 group-hover:text-accent/80 transition-colors">
+                  Write <ArrowRight className="w-3 h-3" />
                 </span>
               </div>
             </button>
@@ -694,7 +694,7 @@ export default function JournalPage() {
                     >
                       Cancel
                     </button>
-                    <span className="ml-auto text-[10px] text-text-muted/70 font-mono hidden sm:block">⌘↵ to save</span>
+                    <span className="ml-auto text-[10px] text-text-muted/70 font-mono hidden sm:inline-flex items-center gap-1"><Command className="w-3 h-3" /><CornerDownLeft className="w-3 h-3" /> to save</span>
                   </div>
                 </div>
               </motion.div>
