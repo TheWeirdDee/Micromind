@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, Smile, Laugh, Meh, Angry, Frown, Flame, Sparkles } from 'lucide-react';
+import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, Smile, Laugh, Meh, Angry, Frown, Flame, Sparkles, ArrowUpRight, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { getHistory, type HistoryItem } from '@/lib/storage';
@@ -211,7 +211,7 @@ function HistoryPageInner() {
                     <span className="text-xs font-mono text-text-muted">{entry.date}</span>
                   </div>
                   <Link href="/app/journal" className="text-[10px] font-mono text-accent hover:underline uppercase tracking-wider">
-                    Edit Entry ↗
+                    <span className="inline-flex items-center gap-1">Edit Entry <ArrowUpRight className="w-3 h-3" /></span>
                   </Link>
                 </div>
                 <p className="font-mono text-sm leading-relaxed text-text-primary whitespace-pre-wrap">
@@ -272,7 +272,7 @@ function HistoryPageInner() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-mono text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">
-                        View Response →
+                        <span className="inline-flex items-center gap-1">View Response <ArrowRight className="w-3 h-3" /></span>
                       </span>
                       <a
                         href={`https://celoscan.io/tx/${item.txHash}`}
