@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Logo } from '@/components/brand/Logo';
+import { ArrowRight } from 'lucide-react';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -50,8 +51,8 @@ export function Navbar() {
           href="/app" 
           className="pill-button pill-button-outline group text-xs py-2 px-5"
         >
-          Explore App 
-          <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+          Explore App
+          <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1" />
         </Link>
       </div>
     </nav>

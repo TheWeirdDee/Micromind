@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Sparkles, BookOpen, Lock } from 'lucide-react';
+import { Sparkles, BookOpen, Lock, ArrowRight } from 'lucide-react';
 
 export function Hero() {
   const container = {
@@ -58,8 +58,8 @@ export function Hero() {
                 href="/app" 
                 className="pill-button bg-accent text-bg hover:bg-white text-sm px-8 py-4 group shadow-xl shadow-accent/5 font-mono"
               >
-                Explore App 
-                <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+                Explore App
+                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
               <a 
                 href="#about" 
@@ -132,7 +132,7 @@ export function Hero() {
               href="#features" 
               className="font-mono text-[10px] text-accent-gold uppercase tracking-wider hover:underline"
             >
-              Explore AI Assist Tools →
+              <span className="inline-flex items-center gap-1">Explore AI Assist Tools <ArrowRight className="w-3 h-3" /></span>
             </Link>
           </div>
         </div>
