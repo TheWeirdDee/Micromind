@@ -32,7 +32,7 @@ export function useMiniPay() {
     } else {
       // Logic for deep linking into MiniPay if on mobile
       const appUrl = typeof window !== 'undefined' ? window.location.href : '';
-      const deepLink = `https://minipay.page.link/?link=${encodeURIComponent(appUrl)}&apn=org.celo.mobile.alfajores`;
+      const deepLink = `https://minipay.page.link/?link=${encodeURIComponent(appUrl)}&apn=com.opera.mini.native`;
       window.location.href = deepLink;
     }
   }, [isMiniPay]);
