@@ -228,7 +228,7 @@ export default function SettingsPage() {
                 onClick={saveProfile}
                 className="pill-button pill-button-primary w-full py-3 text-xs font-mono uppercase tracking-widest font-bold"
               >
-                {saved ? '✓ Saved' : 'Save Changes'}
+                {saved ? <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Saved</span> : 'Save Changes'}
               </button>
             </div>
           </section>
@@ -263,7 +263,7 @@ export default function SettingsPage() {
               onClick={saveProfile}
               className="pill-button pill-button-outline w-full py-3 text-xs font-mono uppercase tracking-widest"
             >
-              {saved ? '✓ Goals Saved' : 'Save Goals'}
+              {saved ? <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Goals Saved</span> : 'Save Goals'}
             </button>
           </section>
         </div>
