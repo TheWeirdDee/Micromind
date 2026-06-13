@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Loader2, BookOpen, Lock, Bird, Sparkles, Search, Mail, HelpCircle } from 'lucide-react';
+import { MessageSquare, Loader2, BookOpen, Lock, Bird, Sparkles, Search, Mail, HelpCircle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 import { QRCodeSVG } from 'qrcode.react';
@@ -133,7 +133,7 @@ export default function AppHome() {
               {recentPrompt && (
                 <Link href="/app/history" className="inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.35em] text-accent hover:text-accent-gold transition-colors">
                   View all
-                  <span aria-hidden="true">→</span>
+                  <ArrowRight aria-hidden="true" className="w-3 h-3" />
                 </Link>
               )}
             </div>
