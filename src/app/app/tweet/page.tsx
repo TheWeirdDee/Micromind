@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronLeft, Loader2, PenTool, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Loader2, PenTool, AlertTriangle, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -161,7 +161,7 @@ function TweetPageInner() {
               <span>{getStepMessage()}</span>
             </div>
           ) : (
-            <>Generate Tweet <span className="group-hover:translate-x-1 transition-transform">→</span></>
+            <>Generate Tweet <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
           )}
         </button>
       </div>
