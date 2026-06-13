@@ -26,11 +26,15 @@ export const MOOD_ICONS: Record<string, any> = {
   neutral: Meh,
   angry: Angry,
   sad: Frown,
-  '😊': Smile,
-  '🤩': Laugh,
-  '😐': Meh,
-  '😤': Angry,
-  '😔': Frown,
+};
+
+// Legacy entries stored mood as an emoji — map those to the current word keys.
+const LEGACY_MOOD_MAP: Record<string, string> = {
+  '😊': 'happy',
+  '🤩': 'excited',
+  '😐': 'neutral',
+  '😤': 'angry',
+  '😔': 'sad',
 };
 
 function newId(): string {
@@ -51,6 +55,15 @@ export function getEntries(): JournalEntry[] {
   if (!raw) return [];
   try {
     const entries: JournalEntry[] = JSON.parse(raw);
+    let migrated = false;
+    for (const e of entries) {
+      const mapped = LEGACY_MOOD_MAP[e.mood];
+      if (mapped) {
+        e.mood = mapped;
+        migrated = true;
+      }
+    }
+    if (migrated) localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
     return entries.sort((a, b) => b.timestamp - a.timestamp);
   } catch {
     return [];
