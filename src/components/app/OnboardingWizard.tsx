@@ -142,7 +142,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     type="submit"
                     className="pill-button pill-button-primary w-full py-4 text-xs font-mono uppercase tracking-widest font-bold mt-2"
                   >
-                    Continue →
+                    <span className="inline-flex items-center justify-center gap-1.5">Continue <ArrowRight className="w-3.5 h-3.5" /></span>
                   </button>
 
                 </form>
