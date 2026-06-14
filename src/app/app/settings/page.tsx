@@ -84,7 +84,6 @@ export default function SettingsPage() {
           return;
         }
 
-        // Merge entries
         const currentEntries = JSON.parse(localStorage.getItem('mm_journal') || '[]');
         const entryIds = new Set(currentEntries.map((entry: any) => entry.id));
         const mergedEntries = [...currentEntries];
