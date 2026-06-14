@@ -55,7 +55,6 @@ function HistoryPageInner() {
       try { setStreakCount(JSON.parse(stored).streakCount || 0); } catch {}
     }
 
-    // URL param overrides auto-select
     const tabParam = searchParams.get('tab');
     if (tabParam === 'journal' || tabParam === 'prompts') {
       setActiveTab(tabParam);
