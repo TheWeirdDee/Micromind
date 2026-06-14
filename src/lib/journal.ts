@@ -97,8 +97,6 @@ export function deleteEntry(id: string): void {
   dispatch();
 }
 
-// ── Folders ───────────────────────────────────────────────────────────────────
-
 export function getFolders(): Folder[] {
   if (typeof window === 'undefined') return [];
   const raw = localStorage.getItem(FOLDERS_KEY);
@@ -127,8 +125,6 @@ export function deleteFolder(id: string): void {
   localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
   dispatch();
 }
-
-// ── Utilities ─────────────────────────────────────────────────────────────────
 
 export function getLastEntry(): JournalEntry | null {
   return getEntries()[0] ?? null;
