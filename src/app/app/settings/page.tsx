@@ -294,8 +294,7 @@ export default function SettingsPage() {
                   />
                 </button>
               </div>
-
-              {/* Export Backup */}
+              
               <button
                 onClick={exportJournal}
                 className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group"
