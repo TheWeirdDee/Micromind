@@ -28,7 +28,6 @@ export const MOOD_ICONS: Record<string, any> = {
   sad: Frown,
 };
 
-// Legacy entries stored mood as an emoji — map those to the current word keys.
 const LEGACY_MOOD_MAP: Record<string, string> = {
   '😊': 'happy',
   '🤩': 'excited',
