@@ -45,9 +45,6 @@ function newId(): string {
 function dispatch() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('journal_updated'));
 }
-
-// ── Entries ───────────────────────────────────────────────────────────────────
-
 export function getEntries(): JournalEntry[] {
   if (typeof window === 'undefined') return [];
   const raw = localStorage.getItem(JOURNAL_KEY);
