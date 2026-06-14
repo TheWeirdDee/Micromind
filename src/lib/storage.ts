@@ -23,6 +23,5 @@ export function getHistory(): HistoryItem[] {
 }
 
 export function getHistoryByWallet(address: string): HistoryItem[] {
-  // Currently stored globally for simplicity, but could be filtered by wallet
   return getHistory();
 }
