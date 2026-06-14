@@ -28,7 +28,6 @@ export const MOOD_ICONS: Record<string, any> = {
   sad: Frown,
 };
 
-// Legacy entries stored mood as an emoji — map those to the current word keys.
 const LEGACY_MOOD_MAP: Record<string, string> = {
   '😊': 'happy',
   '🤩': 'excited',
@@ -47,7 +46,7 @@ function dispatch() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('journal_updated'));
 }
 
-// ── Entries ───────────────────────────────────────────────────────────────────
+// ── Entries 
 
 export function getEntries(): JournalEntry[] {
   if (typeof window === 'undefined') return [];
@@ -101,7 +100,7 @@ export function deleteEntry(id: string): void {
   dispatch();
 }
 
-// ── Folders ───────────────────────────────────────────────────────────────────
+// ── Folders   
 
 export function getFolders(): Folder[] {
   if (typeof window === 'undefined') return [];
@@ -132,7 +131,7 @@ export function deleteFolder(id: string): void {
   dispatch();
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
+// ── Utilities  
 
 export function getLastEntry(): JournalEntry | null {
   return getEntries()[0] ?? null;
