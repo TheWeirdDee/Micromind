@@ -97,8 +97,6 @@ export function deleteEntry(id: string): void {
   dispatch();
 }
 
-// ── Folders ───────────────────────────────────────────────────────────────────
-
 export function getFolders(): Folder[] {
   if (typeof window === 'undefined') return [];
   const raw = localStorage.getItem(FOLDERS_KEY);
