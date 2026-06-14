@@ -126,8 +126,6 @@ export function deleteFolder(id: string): void {
   dispatch();
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
-
 export function getLastEntry(): JournalEntry | null {
   return getEntries()[0] ?? null;
 }
