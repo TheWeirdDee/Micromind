@@ -156,7 +156,8 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
   }
 }
 
-app.use(express.json());
+// Limit request body to 50 KB to prevent payload-based DoS attacks
+app.use(express.json({ limit: '50kb' }));
 app.use(cors());
 
 app.get('/api/health', (req, res) => {
