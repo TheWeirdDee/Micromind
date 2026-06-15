@@ -97,6 +97,10 @@ export function usePayForPrompt() {
       const gasPrice = await publicClient.getGasPrice();
       const price = parseUnits(tool.price, PAYMENT_TOKEN_DECIMALS);
 
+      if (price <= 0n) {
+        throw new Error('Invalid payment amount: Price must be greater than zero.');
+      }
+
       // STEP 4 — Approve cUSD
       setStep('approving');
       // MiniPay requires explicit nonce; MetaMask manages its own — don't override it
