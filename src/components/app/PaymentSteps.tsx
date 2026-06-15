@@ -30,11 +30,11 @@ export function PaymentSteps({ steps }: { steps: StepProps[] }) {
             step.status === 'active' ? "border-accent-gold" : "border-border"
           )}>
             {step.status === 'complete' ? (
-              <Check className="w-3 h-3 text-bg" />
+              <Check className="w-3 h-3 text-bg" aria-label="Step complete" />
             ) : step.status === 'active' ? (
-              <Loader2 className="w-3 h-3 text-accent-gold animate-spin" />
+              <Loader2 className="w-3 h-3 text-accent-gold animate-spin" aria-label="Step in progress" />
             ) : (
-              <div className="w-1 h-1 rounded-full bg-border" />
+              <div className="w-1 h-1 rounded-full bg-border" aria-label="Step pending" />
             )}
           </div>
           <span className={cn(

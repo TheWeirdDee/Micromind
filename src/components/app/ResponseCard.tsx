@@ -27,7 +27,7 @@ export function ResponseCard({ response, txHash }: ResponseCardProps) {
   };
 
   return (
-    <div className="mt-8 animate-fade-up">
+    <div className="mt-8 animate-fade-up" aria-live="polite" aria-label="AI response">
       <div className="bg-surface-2 border-l-2 border-accent-green p-6 rounded-r-2xl border-y border-r border-border">
         <div className="font-mono text-sm leading-relaxed text-text-primary prose prose-invert prose-sm max-w-none 
           prose-p:mb-4 prose-headings:mb-4 prose-headings:font-serif prose-li:list-disc prose-li:ml-4">
