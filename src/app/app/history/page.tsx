@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, Smile, Laugh, Meh, Angry, Frown, Flame, Sparkles, ArrowUpRight, ArrowRight } from 'lucide-react';
+import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, Smile, Laugh, Meh, Angry, Frown, Flame, Sparkles, ArrowUpRight, ArrowRight, Copy, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { getHistory, type HistoryItem } from '@/lib/storage';
@@ -38,6 +38,14 @@ function HistoryPageInner() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [streakCount, setStreakCount] = useState(0);
+  const [copiedHash, setCopiedHash] = useState<string | null>(null);
+
+  const copyTxHash = (hash: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(hash);
+    setCopiedHash(hash);
+    setTimeout(() => setCopiedHash(null), 2000);
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [moodFilter, setMoodFilter] = useState<string | null>(null);
@@ -273,14 +281,23 @@ function HistoryPageInner() {
                       <span className="text-[10px] font-mono text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">
                         <span className="inline-flex items-center gap-1">View Response <ArrowRight className="w-3 h-3" /></span>
                       </span>
+                      <button
+                        onClick={(e) => copyTxHash(item.txHash, e)}
+                        className="p-2 hover:bg-surface rounded-full transition-colors text-text-muted hover:text-text-primary relative z-10"
+                        title="Copy transaction hash"
+                      >
+                        {copiedHash === item.txHash ? <Check className="w-4 h-4 text-accent-green" /> : <Copy className="w-4 h-4" />}
+                      </button>
                       <a
                         href={`https://celoscan.io/tx/${item.txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="p-2 hover:bg-surface rounded-full transition-colors text-text-muted hover:text-text-primary relative z-10"
+                        className="flex items-center gap-1 px-2 py-1 hover:bg-surface rounded-lg transition-colors text-text-muted hover:text-accent relative z-10 font-mono text-[10px]"
+                        title="View on Celoscan"
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        {item.txHash.slice(0, 6)}…{item.txHash.slice(-4)}
+                        <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
                   </div>

@@ -267,16 +267,17 @@ function ChatPageInner() {
         </div>
       )}
 
-      <form 
+      <form
         onSubmit={handleSubmit}
         className="relative"
       >
         <input
           type="text"
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => setPrompt(e.target.value.slice(0, 500))}
           placeholder={hasNoCelo ? "Please get CELO to chat..." : "Type your message..."}
           disabled={loading || hasNoCelo}
+          maxLength={500}
           className="w-full bg-surface border border-border rounded-2xl px-6 py-4 pr-16 text-sm focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
         />
         <button
@@ -291,6 +292,13 @@ function ChatPageInner() {
           )}
         </button>
       </form>
+      <div className="flex justify-end mt-1 pr-1">
+        <span className={`text-[10px] font-mono ${
+          prompt.length >= 480 ? 'text-red-400' : 'text-text-muted'
+        }`}>
+          {prompt.length}/500
+        </span>
+      </div>
       <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </motion.div>
   );

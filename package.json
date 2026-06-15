@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "type-check": "tsc --noEmit",
     "agent": "cd agent && npm run dev",
     "dev:all": "concurrently \"npm run dev\" \"npm run agent\" --names \"web,agent\" --prefix-colors \"cyan,yellow\""
   },

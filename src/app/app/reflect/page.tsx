@@ -188,6 +188,18 @@ function ReflectPageInner() {
       </header>
 
       {entries.length < 2 ? (
+        entries.length === 0 ? (
+          /* Skeleton while localStorage hydrates */
+          <div className="space-y-3 animate-pulse" aria-busy="true" aria-label="Loading journal entries">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-surface border border-border rounded-2xl p-5 space-y-3">
+                <div className="h-3 w-24 bg-white/10 rounded" />
+                <div className="h-3 w-full bg-white/10 rounded" />
+                <div className="h-3 w-3/4 bg-white/10 rounded" />
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="flex flex-col items-center justify-center text-center p-8 border border-dashed border-border rounded-2xl bg-surface p-8">
           <HelpCircle className="w-12 h-12 text-text-muted/40 mb-4 animate-bounce" />
           <h3 className="text-lg font-serif mb-2 text-text-primary">More entries needed</h3>
@@ -198,6 +210,7 @@ function ReflectPageInner() {
             Go to Journal
           </Link>
         </div>
+        )
       ) : (
         <div className="space-y-6">
           {/* Celo Gas Warning */}

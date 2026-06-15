@@ -141,7 +141,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
                     <button
                       key={option.name}
                       onClick={() => connect(option.provider)}
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:border-accent hover:bg-accent/5 focus:outline-none flex items-center gap-3"
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition-all duration-200 hover:border-accent hover:bg-accent/5 active:scale-[0.98] focus:outline-none flex items-center gap-3"
                     >
                       {option.icon ? (
                         // eslint-disable-next-line @next/next/no-img-element
