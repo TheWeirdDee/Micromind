@@ -166,6 +166,12 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
 app.use(express.json({ limit: '50kb' }));
 app.use(cors());
 
+// Stamp every response with a unique request ID for log correlation
+app.use((_req, res, next) => {
+  res.setHeader('X-Request-Id', `mmr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  next();
+});
+
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
