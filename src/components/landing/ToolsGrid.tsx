@@ -90,10 +90,13 @@ export function ToolsGrid() {
               <div className="w-full">
                 {/* Top header row */}
                 <div className="flex justify-between items-center mb-6 w-full">
-                  <div className="p-2.5 bg-surface-2 rounded-xl border border-border group-hover:border-accent-gold/40 transition-colors">
-                    <tool.icon className="w-5 h-5 text-accent" />
+                  <div className="p-2.5 bg-surface-2 rounded-xl border border-border group-hover:border-accent-gold/40 transition-colors" title={tool.name}>
+                    <tool.icon className="w-5 h-5 text-accent" aria-hidden="true" />
                   </div>
-                  <span className="font-mono text-[9px] text-accent-green bg-accent-green/10 px-2.5 py-0.5 rounded-full border border-accent-green/20 uppercase tracking-wider">
+                  <span
+                    className="font-mono text-[9px] text-accent-green bg-accent-green/10 px-2.5 py-0.5 rounded-full border border-accent-green/20 uppercase tracking-wider"
+                    aria-label={`Price: ${tool.price}`}
+                  >
                     {tool.price}
                   </span>
                 </div>
