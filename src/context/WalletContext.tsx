@@ -12,7 +12,8 @@ import {
   createWalletClient,
   custom,
   http,
-  erc20Abi
+  erc20Abi,
+  getAddress
 } from 'viem';
 import { celo } from 'viem/chains';
 import {
@@ -110,9 +111,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const storedConnected = localStorage.getItem('micromind_connected');
     
     if (storedAddress && storedConnected === 'true') {
-      setAddress(storedAddress);
-      setIsConnected(true);
-      fetchBalances(storedAddress);
+      try {
+        const checksummed = getAddress(storedAddress);
+        setAddress(checksummed);
+        setIsConnected(true);
+        fetchBalances(checksummed);
+      } catch {
+        setAddress(storedAddress);
+        setIsConnected(true);
+        fetchBalances(storedAddress);
+      }
       
       // Initialize wallet client early using the preferred provider
       const provider = getPreferredProvider();
@@ -146,7 +154,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           const accounts = await ethereum.request({ method });
 
           if (accounts && accounts.length > 0) {
-            const addr = accounts[0];
+            const addr = getAddress(accounts[0]);
             const client = createWalletClient({
               chain: celo,
               transport: custom(ethereum)
@@ -189,8 +197,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (accounts.length === 0) {
         disconnect();
       } else {
-        setAddress(accounts[0]);
-        fetchBalances(accounts[0]);
+        try {
+          const checksummed = getAddress(accounts[0]);
+          setAddress(checksummed);
+          fetchBalances(checksummed);
+        } catch {
+          setAddress(accounts[0]);
+          fetchBalances(accounts[0]);
+        }
       }
     };
 
@@ -254,7 +268,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const addr = accounts[0];
+      const addr = getAddress(accounts[0]);
       const client = createWalletClient({
         chain: celo,
         transport: custom(ethereum)
