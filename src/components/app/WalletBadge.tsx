@@ -48,7 +48,10 @@ export function WalletBadge() {
         {copied ? <Check className="w-2.5 h-2.5 text-accent-green" /> : <Copy className="w-2.5 h-2.5 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />}
       </div>
       
-      <div className="text-[9px] font-mono px-2 py-0.5 rounded border flex-shrink-0 border-[#35D07F]/50 text-[#35D07F] bg-[#35D07F]/10 whitespace-nowrap">
+      <div
+        aria-label={`cUSD balance: ${Number(cusdBalance).toFixed(2)}`}
+        className="text-[9px] font-mono px-2 py-0.5 rounded border flex-shrink-0 border-[#35D07F]/50 text-[#35D07F] bg-[#35D07F]/10 whitespace-nowrap"
+      >
         {Number(cusdBalance).toFixed(2)} cUSD
       </div>
     </div>
