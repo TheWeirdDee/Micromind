@@ -14,6 +14,12 @@ const port = process.env.PORT || 3001;
 const IS_TESTNET = process.env.IS_TESTNET === 'true';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS as `0x${string}`;
 
+// Fail fast — without a valid contract address the agent cannot decode events
+if (!CONTRACT_ADDRESS || CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+  console.error('[STARTUP] FATAL: CONTRACT_ADDRESS env var is missing or zero address. Exiting.');
+  process.exit(1);
+}
+
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
