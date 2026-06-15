@@ -293,9 +293,11 @@ function HistoryPageInner() {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="p-2 hover:bg-surface rounded-full transition-colors text-text-muted hover:text-text-primary relative z-10"
+                        className="flex items-center gap-1 px-2 py-1 hover:bg-surface rounded-lg transition-colors text-text-muted hover:text-accent relative z-10 font-mono text-[10px]"
+                        title="View on Celoscan"
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        {item.txHash.slice(0, 6)}…{item.txHash.slice(-4)}
+                        <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
                   </div>
