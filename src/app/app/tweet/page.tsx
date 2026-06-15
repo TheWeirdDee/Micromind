@@ -148,6 +148,18 @@ function TweetPageInner() {
             placeholder="What should the tweet be about? Or import your last journal entry..."
             className="w-full bg-surface border border-border rounded-xl p-4 font-mono text-sm min-h-[120px] focus:border-accent outline-none transition-colors resize-none"
           />
+          <div className="flex justify-between items-center px-1 mt-1">
+            <span className={`text-[10px] font-mono ${
+              topic.length > 280 ? 'text-yellow-400' : 'text-transparent'
+            }`}>
+              ⚠ Exceeds 280 chars — tweet may be trimmed
+            </span>
+            <span className={`text-[10px] font-mono ${
+              topic.length > 280 ? 'text-yellow-400' : 'text-text-muted'
+            }`}>
+              {topic.length} chars
+            </span>
+          </div>
         </div>
 
         <button
