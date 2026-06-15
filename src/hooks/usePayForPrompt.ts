@@ -7,6 +7,15 @@ import { cUSD_ADDRESS, PAYMENT_TOKEN_DECIMALS, CELO_MAINNET_PARAMS, CHAIN_ID_HEX
 import { TOOLS } from '@/constants/tools';
 import { saveToHistory } from '@/lib/storage';
 
+/** Maximum characters of the prompt sent to the agent for hash computation. */
+const MAX_PROMPT_CHARS = 500;
+
+/** Milliseconds between each polling attempt for the AI response. */
+const POLL_INTERVAL_MS = 2_000;
+
+/** Maximum number of polling attempts before declaring a timeout. */
+const MAX_POLL_ATTEMPTS = 60;
+
 export type PaymentStep =
   | 'idle'
   | 'checking'
@@ -79,8 +88,8 @@ export function usePayForPrompt() {
 
       setStep('submitting');
       let finalPrompt = chatHistory ? JSON.stringify(chatHistory) : prompt;
-      if (finalPrompt.length > 500) {
-        finalPrompt = finalPrompt.slice(0, 500);
+      if (finalPrompt.length > MAX_PROMPT_CHARS) {
+        finalPrompt = finalPrompt.slice(0, MAX_PROMPT_CHARS);
       }
 
       // Compute hash locally — matches agent logic exactly, no server roundtrip needed
@@ -190,8 +199,8 @@ export function usePayForPrompt() {
         } catch { /* fallback to polling */ }
 
         // Poll for response
-        for (let i = 0; i < 60; i++) {
-          await new Promise(r => setTimeout(r, 2000));
+        for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
+          await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
           try {
             const data = await fetch(
               `${agentUrl}/api/response/${payTx}`,
