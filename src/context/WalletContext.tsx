@@ -23,16 +23,27 @@ import {
   CHAIN_ID_HEX
 } from '@/constants/chains';
 
+/** Shape of the global wallet context shared across the app. */
 interface WalletContextType {
+  /** Checksummed EIP-55 address of the connected wallet, or null if not connected. */
   address: string | null;
+  /** True when a wallet is connected and an address is available. */
   isConnected: boolean;
+  /** True when the app is running inside the Opera MiniPay wallet browser. */
   isMiniPay: boolean;
+  /** Human-readable cUSD balance of the connected address (2 decimal places). */
   cusdBalance: string;
+  /** Human-readable CELO balance of the connected address (4 decimal places). */
   celoBalance: string;
+  /** Viem WalletClient instance for signing and sending transactions. */
   walletClient: any;
+  /** Viem PublicClient instance for reading chain state (balances, receipts). */
   publicClient: any;
+  /** Prompts the user to connect a wallet. Accepts an optional injected provider. */
   connect: (provider?: any) => Promise<void>;
+  /** Clears wallet state and redirects to /app. */
   disconnect: () => void;
+  /** Fetches and updates cUSD + CELO balances for a given address. */
   fetchBalances: (addr: string) => Promise<void>;
 }
 
