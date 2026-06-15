@@ -1,5 +1,10 @@
+/** MicroMindPayment contract address on Celo Mainnet. */
 export const CONTRACT_ADDRESS =
   process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`;
+
+/** cUSD token address on Celo Mainnet. */
+export const CUSD_ADDRESS =
+  (process.env.NEXT_PUBLIC_CUSD_ADDRESS ?? '0x765DE816845861e75A25fCA122bb6898B8B1282a') as `0x${string}`;
 
 export const MICROMIND_ABI = [
   {
@@ -77,3 +82,6 @@ export const MICROMIND_ABI = [
     ]
   }
 ] as const;
+
+// Prevent accidental runtime mutation of the ABI
+Object.freeze(MICROMIND_ABI);
