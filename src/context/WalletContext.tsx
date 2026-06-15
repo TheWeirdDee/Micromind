@@ -185,7 +185,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     checkAndConnect();
     checkInterval = setInterval(checkAndConnect, 100);
 
-    return () => clearInterval(checkInterval);
+    // Also fire immediately when the DOM reaches interactive/complete state,
+    // catching late-injected window.ethereum on some Android webviews.
+    const onReadyStateChange = () => {
+      if (document.readyState === 'interactive' || document.readyState === 'complete') {
+        checkAndConnect();
+      }
+    };
+    document.addEventListener('readystatechange', onReadyStateChange);
+
+    return () => {
+      clearInterval(checkInterval);
+      document.removeEventListener('readystatechange', onReadyStateChange);
+    };
   }, [fetchBalances]);
 
   // Listen for account/chain changes on the preferred provider
