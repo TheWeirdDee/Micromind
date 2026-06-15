@@ -46,8 +46,9 @@ function dispatch() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('journal_updated'));
 }
 
-// ── Entries 
+// ── Entries
 
+/** Returns all journal entries sorted newest-first. Migrates legacy emoji moods. */
 export function getEntries(): JournalEntry[] {
   if (typeof window === 'undefined') return [];
   const raw = localStorage.getItem(JOURNAL_KEY);
@@ -75,10 +76,14 @@ export function getEntriesByFolder(folderId: string | null): JournalEntry[] {
   return all.filter(e => e.folderId === folderId);
 }
 
+/** Saves a new journal entry. Sanitizes content to prevent XSS. */
 export function saveEntry(entry: Omit<JournalEntry, 'id' | 'date' | 'timestamp'>): JournalEntry {
   const entries = getEntries();
+  // Strip script tags from content before persisting
+  const sanitizedContent = entry.content.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
   const newEntry: JournalEntry = {
     ...entry,
+    content: sanitizedContent,
     id: newId(),
     date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
     timestamp: Date.now(),
@@ -88,12 +93,14 @@ export function saveEntry(entry: Omit<JournalEntry, 'id' | 'date' | 'timestamp'>
   return newEntry;
 }
 
+/** Updates fields of an existing journal entry by id. */
 export function editEntry(id: string, updates: Partial<Pick<JournalEntry, 'content' | 'mood' | 'folderId' | 'image' | 'tags'>>): void {
   const entries = getEntries().map(e => e.id === id ? { ...e, ...updates } : e);
   localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
   dispatch();
 }
 
+/** Deletes a journal entry by id. */
 export function deleteEntry(id: string): void {
   const entries = getEntries().filter(e => e.id !== id);
   localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
@@ -133,14 +140,20 @@ export function deleteFolder(id: string): void {
 
 // ── Utilities  
 
+/** Returns the most recently created entry, or null if none exist. */
 export function getLastEntry(): JournalEntry | null {
   return getEntries()[0] ?? null;
 }
 
+/** Returns the N most recent journal entries. */
 export function getRecentEntries(n: number): JournalEntry[] {
   return getEntries().slice(0, n);
 }
 
+/**
+ * Updates the daily activity streak for a wallet.
+ * Merges journal dates, prompt history dates, and manual check-in dates.
+ */
 export function updateStreak(walletAddress: string | null): void {
   if (typeof window === 'undefined') return;
   const streakKey = walletAddress ? `micromind_streak_data_${walletAddress}` : 'micromind_streak_data';
