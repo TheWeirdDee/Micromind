@@ -337,9 +337,15 @@ app.get('/api/response/:txHash', async (req, res) => {
 app.post('/api/process-direct', async (req, res) => {
   const { txHash, prompt, toolId, userAddress } = req.body;
   console.log('[DIRECT] Processing:', { txHash, toolId });
-  
+
+  // Validate toolId — must be an integer between 1 and 5 (inclusive)
+  const parsedToolId = parseInt(toolId, 10);
+  if (!Number.isInteger(parsedToolId) || parsedToolId < 1 || parsedToolId > 5) {
+    return res.status(400).json({ error: 'Invalid toolId: must be an integer between 1 and 5' });
+  }
+
   try {
-    const response = await callAI(Number(toolId), prompt);
+    const response = await callAI(parsedToolId, prompt);
     
     await storeData(`resp:${txHash}`, response, 86400);
     console.log('[DIRECT] Success, response length:', response.length);
