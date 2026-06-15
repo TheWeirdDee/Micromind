@@ -37,6 +37,8 @@ export function WalletBadge() {
   return (
     <div 
       onClick={handleCopyAddress}
+      title={address ?? ''}
+      aria-label={`Wallet address: ${address}. Click to copy.`}
       className="flex items-center gap-2 bg-surface border border-border px-3 py-1.5 rounded-full cursor-pointer hover:bg-white/5 transition-colors group max-w-[200px] sm:max-w-none"
     >
       <div className="flex items-center gap-1.5 flex-shrink-0">
