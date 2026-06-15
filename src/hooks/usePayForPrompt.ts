@@ -113,9 +113,10 @@ export function usePayForPrompt() {
         throw new Error('Invalid payment amount: Price must be greater than zero.');
       }
 
-      // STEP 4 — Approve cUSD
+      // STEP 1 — Approve cUSD transfer
+      // We must approve the contract to pull `price` worth of cUSD from the user's wallet.
+      // MiniPay requires explicit nonce management; MetaMask handles nonces internally.
       setStep('approving');
-      // MiniPay requires explicit nonce; MetaMask manages its own — don't override it
       const approveNonce = isMiniPay
         ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
         : undefined;
@@ -137,7 +138,9 @@ export function usePayForPrompt() {
         confirmations: 1
       });
 
-      // STEP 5 — Pay for prompt (cUSD)
+      // STEP 2 — Submit payment to contract
+      // Calls payForPrompt(toolId, promptHash) on the smart contract.
+      // The contract emits a PromptPaid event that the agent listens for.
       setStep('paying');
       const payNonce = isMiniPay
         ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
@@ -155,6 +158,7 @@ export function usePayForPrompt() {
         feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
 
+      // STEP 3 — Wait for on-chain confirmation
       setStep('confirming');
       await publicClient.waitForTransactionReceipt({
         hash: payTx,
@@ -163,7 +167,9 @@ export function usePayForPrompt() {
 
       setTxHash(payTx);
 
-      // STEP 5 — Get AI response
+      // STEP 4 — Fetch AI response from agent
+      // Try direct /api/process-direct first (fastest path, ~5s).
+      // Falls back to polling /api/response/:txHash every POLL_INTERVAL_MS.
       setStep('generating');
 
       if (agentUrl) {
