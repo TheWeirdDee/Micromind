@@ -6,7 +6,7 @@ import { ConnectWalletModal } from './ConnectWalletModal';
 import { Copy, Check } from 'lucide-react';
 
 export function WalletBadge() {
-  const { address, cusdBalance, isConnected } = useWallet();
+  const { address, cusdBalance, celoBalance, isConnected } = useWallet();
   const [copied, setCopied] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
 
@@ -53,6 +53,12 @@ export function WalletBadge() {
         className="text-[9px] font-mono px-2 py-0.5 rounded border flex-shrink-0 border-[#35D07F]/50 text-[#35D07F] bg-[#35D07F]/10 whitespace-nowrap"
       >
         {Number(cusdBalance).toFixed(2)} cUSD
+      </div>
+      <div
+        aria-label={`CELO balance: ${Number(celoBalance).toFixed(4)}`}
+        className="text-[9px] font-mono px-2 py-0.5 rounded border flex-shrink-0 border-yellow-400/40 text-yellow-400 bg-yellow-400/10 whitespace-nowrap hidden sm:block"
+      >
+        {Number(celoBalance).toFixed(3)} CELO
       </div>
     </div>
   );
