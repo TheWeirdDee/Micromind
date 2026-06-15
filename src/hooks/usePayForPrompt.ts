@@ -78,7 +78,10 @@ export function usePayForPrompt() {
       }
 
       setStep('submitting');
-      const finalPrompt = chatHistory ? JSON.stringify(chatHistory) : prompt;
+      let finalPrompt = chatHistory ? JSON.stringify(chatHistory) : prompt;
+      if (finalPrompt.length > 500) {
+        finalPrompt = finalPrompt.slice(0, 500);
+      }
 
       // Compute hash locally — matches agent logic exactly, no server roundtrip needed
       const nonce = Date.now().toString();
