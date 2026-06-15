@@ -78,6 +78,9 @@ export function Footer() {
               <li>
                 <a href="https://celoscan.io/address/0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">Smart Contract</a>
               </li>
+              <li>
+                <a href="https://github.com/TheWeirdDee/Micromind" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">GitHub Repo</a>
+              </li>
             </ul>
           </div>
 
