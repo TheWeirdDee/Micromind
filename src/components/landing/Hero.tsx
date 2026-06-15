@@ -45,6 +45,13 @@ export function Hero() {
             
             <motion.p 
               variants={item}
+              className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent-gold"
+            >
+              5 AI tools &middot; 1 wallet &middot; pay per prompt
+            </motion.p>
+            
+            <motion.p 
+              variants={item}
               className="text-text-primary/80 font-mono text-sm md:text-base max-w-xl leading-relaxed"
             >
               A private, on-device journal for clear thinking, emotional awareness, and self-reflection. Write freely for free, and unlock pay-per-prompt AI insights only when you choose.
