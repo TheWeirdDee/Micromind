@@ -28,13 +28,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: "MicroMind | Pay-per-thought AI",
     description: "AI Tools That Cost What You Actually Use. No subscriptions. Just CELO.",
-    url: "https://micromind.vercel.app",
+    url: "https://micromind-three.vercel.app",
     siteName: "MicroMind",
     images: [
       {
         url: "/logo.svg",
-        width: 800,
-        height: 600,
+        width: 1200,
+        height: 630,
+        alt: "MicroMind — AI journaling on Celo",
       },
     ],
     locale: "en_US",
@@ -43,8 +44,10 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "MicroMind | AI That Costs What You Use",
-    description: "Premium AI tools on Celo. No subscriptions, just CELO.",
+    description: "Premium AI journaling tools on Celo. Pay per prompt with cUSD. No subscriptions.",
     images: ["/logo.svg"],
+    creator: "@MicroMind_AI",
+    site: "@MicroMind_AI",
   },
   manifest: "/manifest.json",
   appleWebApp: {
