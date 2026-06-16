@@ -1,16 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Copy, ExternalLink, Check, Share2 } from 'lucide-react';
+import { Copy, ExternalLink, Check, Share2, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useMiniPay } from '@/hooks/useMiniPay';
 
 interface ResponseCardProps {
   response: string;
   txHash?: string;
+  /** Re-runs the same prompt for a fresh generation. Omit to hide the Regenerate button. */
+  onRegenerate?: () => void;
+  regenerating?: boolean;
 }
 
-export function ResponseCard({ response, txHash }: ResponseCardProps) {
+export function ResponseCard({ response, txHash, onRegenerate, regenerating }: ResponseCardProps) {
   const [copied, setCopied] = useState(false);
   const { shareToMiniPay } = useMiniPay();
 
@@ -53,13 +56,24 @@ export function ResponseCard({ response, txHash }: ResponseCardProps) {
               )}
             </button>
 
-            <button 
+            <button
               onClick={handleShare}
               className="flex items-center gap-2 text-[10px] font-mono tracking-widest uppercase text-text-muted hover:text-accent transition-colors"
             >
               <Share2 className="w-3 h-3" />
               <span>Share on X</span>
             </button>
+
+            {onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                disabled={regenerating}
+                className="flex items-center gap-2 text-[10px] font-mono tracking-widest uppercase text-text-muted hover:text-accent transition-colors disabled:opacity-40"
+              >
+                <RefreshCw className={`w-3 h-3 ${regenerating ? 'animate-spin' : ''}`} />
+                <span>Regenerate</span>
+              </button>
+            )}
           </div>
           
           {txHash && (
