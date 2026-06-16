@@ -232,9 +232,10 @@ export function DailyStreak() {
         </div>
         <Link
           href="/app/history?tab=journal"
+          title="Current streak"
           className="flex items-center gap-1.5 bg-accent-gold/10 border border-accent-gold/20 px-2.5 py-1 rounded-full text-accent-gold shrink-0 hover:bg-accent-gold/20 transition-colors"
         >
-          <Flame className="w-4 h-4 fill-current" title="Current streak" />
+          <Flame className="w-4 h-4 fill-current" />
           <span className="font-mono text-xs font-bold">{streak.streakCount}d</span>
         </Link>
       </div>
