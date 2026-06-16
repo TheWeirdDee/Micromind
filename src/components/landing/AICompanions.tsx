@@ -1,7 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Heart, BrainCircuit, PenTool } from 'lucide-react';
+import Link from 'next/link';
+import { Heart, BrainCircuit, PenTool, ArrowRight } from 'lucide-react';
 
 const companions = [
   {
@@ -11,6 +12,7 @@ const companions = [
     desc: 'Synthesizes your weekly thoughts into compassionate, structured summaries to highlight self-growth and emotional progress.',
     focus: 'Empathy, Growth Summaries, Encouragement',
     icon: Heart,
+    route: '/app/reflect',
   },
   {
     image: '/images/persona_pattern.webp',
@@ -19,6 +21,7 @@ const companions = [
     desc: 'Scans your long-term entry history to objectively surface 3 recurring themes and loops with gentle, actionable insights.',
     focus: 'Behavioral Themes, Actionable Insights, Objectivity',
     icon: BrainCircuit,
+    route: '/app/pattern',
   },
   {
     image: '/images/persona_writer.webp',
@@ -27,6 +30,7 @@ const companions = [
     desc: 'Refines raw letter drafts into warm, eloquent messages while preserving your original voice, ready to send via email.',
     focus: 'Heartfelt Expression, Tone Adjustments, Email Delivery',
     icon: PenTool,
+    route: '/app/letter',
   },
 ];
 
@@ -93,6 +97,13 @@ export function AICompanions() {
                     {c.focus}
                   </p>
                 </div>
+
+                <Link
+                  href={c.route}
+                  className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-accent hover:text-accent-gold transition-colors"
+                >
+                  Try this tool <ArrowRight className="w-3 h-3" />
+                </Link>
               </div>
             </motion.div>
           ))}

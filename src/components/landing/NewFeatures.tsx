@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Cloud, TrendingUp, Cpu, Sparkles } from 'lucide-react';
+import { Cloud, TrendingUp, Cpu, Sparkles, Mic } from 'lucide-react';
 
 const MOCK_WORDS = [
   { text: 'love', size: 'text-3xl md:text-4xl font-bold', color: 'text-amber-200' },
@@ -68,6 +68,23 @@ export function NewFeatures() {
                 <h3 className="text-xl font-serif">Writing Velocity & Counters</h3>
                 <p className="text-sm text-text-muted leading-relaxed">
                   Subtle characters, words, and estimated reading time indicators embedded directly inside your editor to support your writing flow.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-dashed border-border bg-bg/50 p-6 flex gap-4 opacity-80 hover:border-accent/30 transition-all">
+              <div className="rounded-xl bg-accent/10 p-3 h-fit text-accent">
+                <Mic className="w-6 h-6" />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-serif">Voice Journaling</h3>
+                  <span className="text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-accent-gold/10 border border-accent-gold/30 text-accent-gold">
+                    Coming Soon
+                  </span>
+                </div>
+                <p className="text-sm text-text-muted leading-relaxed">
+                  Speak your thoughts and have them transcribed straight into a journal entry, fully on-device.
                 </p>
               </div>
             </div>
