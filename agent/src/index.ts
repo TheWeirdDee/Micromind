@@ -172,6 +172,19 @@ app.use((_req, res, next) => {
   next();
 });
 
+// Static tool registry — mirrors src/constants/tools.ts on the frontend
+app.get('/api/tools', (req, res) => {
+  res.json({
+    tools: [
+      { id: 1, slug: 'chat', name: 'Chat', price: '0.005' },
+      { id: 2, slug: 'tweet', name: 'Tweet', price: '0.005' },
+      { id: 3, slug: 'reflect', name: 'Reflect', price: '0.005' },
+      { id: 4, slug: 'pattern', name: 'Pattern', price: '0.005' },
+      { id: 5, slug: 'letter', name: 'Letter', price: '0.01' },
+    ],
+  });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
