@@ -22,6 +22,7 @@ export function MoodChart() {
   const [counts, setCounts]   = useState<Record<string, number>>({});
   const [total, setTotal]     = useState(0);
   const [trend, setTrend]     = useState<(string | null)[]>([]);
+  const [trendDates, setTrendDates] = useState<string[]>([]);
   const [topMood, setTopMood] = useState<string | null>(null);
   const [positivity, setPositivity] = useState(0);
   const [stability, setStability] = useState(0);
@@ -42,14 +43,17 @@ export function MoodChart() {
     // 7-day mood trend — last mood written each day
     const now = new Date();
     const trend7: (string | null)[] = [];
+    const dates7: string[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       const dayEntries = entries.filter(e => e.date === dateStr);
       trend7.push(dayEntries.length > 0 ? dayEntries[0].mood : null);
+      dates7.push(dateStr);
     }
     setTrend(trend7);
+    setTrendDates(dates7);
 
     // Positivity ratio
     const happyCount = c['happy'] || 0;
@@ -136,7 +140,7 @@ export function MoodChart() {
                       className={`w-full rounded-full transition-all ${
                         mood && cfg ? `${cfg.color} h-5` : 'bg-border h-1.5'
                       }`}
-                      title={mood ?? 'No entry'}
+                      title={`${trendDates[i] ?? ''}: ${mood ? cfg?.label ?? mood : 'No entry'}`}
                     />
                     <span className="text-[9px] font-mono text-text-muted/70">{LAST_7_DAYS[i]}</span>
                   </div>
