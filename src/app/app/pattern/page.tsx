@@ -228,9 +228,18 @@ function PatternPageInner() {
         <div className="flex flex-col items-center justify-center text-center p-8 border border-dashed border-border rounded-2xl bg-surface">
           <HelpCircle className="w-12 h-12 text-text-muted/40 mb-4 animate-bounce" />
           <h3 className="text-lg font-serif mb-2 text-text-primary">More entries needed</h3>
-          <p className="font-mono text-xs text-text-muted max-w-[260px] mb-6">
+          <p className="font-mono text-xs text-text-muted max-w-[260px] mb-4">
             Write at least 5 journal entries to discover recurring emotional patterns across your journal.
           </p>
+          <div className="w-full max-w-[200px] mb-6">
+            <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+              <div
+                className="h-full bg-accent transition-all"
+                style={{ width: `${Math.min(entries.length / 5, 1) * 100}%` }}
+              />
+            </div>
+            <p className="font-mono text-[10px] text-text-muted/70 mt-1.5">{entries.length} of 5 entries</p>
+          </div>
           <Link href="/app/journal" className="pill-button pill-button-primary px-6 py-2.5 text-xs font-mono tracking-wider">
             Go to Journal
           </Link>
