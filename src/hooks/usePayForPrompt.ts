@@ -115,7 +115,7 @@ export function usePayForPrompt() {
       const gasPrice = await publicClient.getGasPrice();
       const price = parseUnits(tool.price, PAYMENT_TOKEN_DECIMALS);
 
-      if (price <= 0n) {
+      if (price <= BigInt(0)) {
         throw new Error('Invalid payment amount: Price must be greater than zero.');
       }
 
