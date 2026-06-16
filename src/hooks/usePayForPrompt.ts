@@ -173,6 +173,11 @@ export function usePayForPrompt() {
 
       setTxHash(payTx);
 
+      // Notify any interested listeners (e.g. analytics, UI badges) that a payment succeeded
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('micromind:paid', { detail: { txHash: payTx, toolId, toolName } }));
+      }
+
       // STEP 4 — Fetch AI response from agent
       // Try direct /api/process-direct first (fastest path, ~5s).
       // Falls back to polling /api/response/:txHash every POLL_INTERVAL_MS.
