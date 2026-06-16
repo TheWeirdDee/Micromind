@@ -34,6 +34,26 @@ No subscription. No cloud account required. Write freely for free. Pay only when
 
 ---
 
+## Architecture
+
+```
+┌─────────────┐      pay (cUSD)      ┌──────────────────┐
+│   Browser   │ ───────────────────▶ │  MicroMindPayment │
+│  (Next.js)  │                      │  contract (Celo)  │
+└──────┬──────┘ ◀─────────────────── └────────┬──────────┘
+       │           PromptPaid event           │
+       │ submit prompt / poll                 │ listens for
+       ▼                                       ▼
+┌─────────────┐                       ┌──────────────────┐
+│  AI Agent    │ ───── Groq API ────▶ │  Llama-3.3-70b    │
+│ (Express)    │                      │  inference        │
+└──────────────┘                      └──────────────────┘
+```
+
+Journal entries never leave the browser (`localStorage` only). Only the prompt hash and payment touch the chain; the agent reads the on-chain event to know which prompt to run.
+
+---
+
 ## Tech Stack
 
 - **Frontend**: Next.js 15, Tailwind CSS, Framer Motion, Viem
