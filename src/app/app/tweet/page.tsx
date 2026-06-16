@@ -178,7 +178,9 @@ function TweetPageInner() {
         </button>
       </div>
 
-      {response && <ResponseCard response={response} />}
+      {response && (
+        <ResponseCard response={response} onRegenerate={handleGenerate} regenerating={loading} />
+      )}
       <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </motion.div>
   );

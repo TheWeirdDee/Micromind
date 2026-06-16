@@ -16,6 +16,12 @@ const POLL_INTERVAL_MS = 2_000;
 /** Maximum number of polling attempts before declaring a timeout. */
 const MAX_POLL_ATTEMPTS = 60;
 
+/** Abort timeout for the fast-path /api/process-direct request. */
+const DIRECT_FETCH_TIMEOUT_MS = 30_000;
+
+/** Abort timeout for each individual /api/response poll request. */
+const POLL_FETCH_TIMEOUT_MS = 5_000;
+
 export type PaymentStep =
   | 'idle'
   | 'checking'
@@ -167,6 +173,11 @@ export function usePayForPrompt() {
 
       setTxHash(payTx);
 
+      // Notify any interested listeners (e.g. analytics, UI badges) that a payment succeeded
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('micromind:paid', { detail: { txHash: payTx, toolId, toolName } }));
+      }
+
       // STEP 4 — Fetch AI response from agent
       // Try direct /api/process-direct first (fastest path, ~5s).
       // Falls back to polling /api/response/:txHash every POLL_INTERVAL_MS.
@@ -184,7 +195,7 @@ export function usePayForPrompt() {
               toolId,
               userAddress: address
             }),
-            signal: AbortSignal.timeout(30_000)
+            signal: AbortSignal.timeout(DIRECT_FETCH_TIMEOUT_MS)
           }).then(r => r.json());
 
           if (directRes.status === 'ready') {
@@ -210,7 +221,7 @@ export function usePayForPrompt() {
           try {
             const data = await fetch(
               `${agentUrl}/api/response/${payTx}`,
-              { signal: AbortSignal.timeout(5000) }
+              { signal: AbortSignal.timeout(POLL_FETCH_TIMEOUT_MS) }
             ).then(r => r.json());
 
             if (data.status === 'ready') {

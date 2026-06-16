@@ -61,13 +61,20 @@ export function Hero() {
               variants={item} 
               className="flex flex-wrap gap-4 pt-2"
             >
-              <Link 
-                href="/app" 
-                className="pill-button bg-accent text-bg hover:bg-white text-sm px-8 py-4 group shadow-xl shadow-accent/5 font-mono"
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] as any }}
               >
-                Explore App
-                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Link>
+                <Link
+                  href="/app"
+                  className="pill-button bg-accent text-bg hover:bg-white text-sm px-8 py-4 group shadow-xl shadow-accent/5 font-mono"
+                >
+                  Explore App
+                  <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </Link>
+              </motion.div>
               <a 
                 href="#about" 
                 className="pill-button pill-button-outline text-sm px-8 py-4 font-mono"

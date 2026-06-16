@@ -29,6 +29,22 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     return () => clearTimeout(t);
   }, [step]);
 
+  // Resume from where the user left off if a partial profile already exists
+  // (e.g. they filled in their name on a previous visit but never finished).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('mm_user_profile');
+      if (!raw) return;
+      const profile = JSON.parse(raw);
+      if (profile.name) {
+        setName(profile.name);
+        setEmail(profile.email || '');
+        setGoals(profile.goals || []);
+        setStep(2);
+      }
+    } catch { /* ignore corrupt profile */ }
+  }, []);
+
   const submitProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
