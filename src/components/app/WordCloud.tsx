@@ -6,8 +6,8 @@ import { getEntries } from '@/lib/journal';
 const STOP_WORDS = new Set([
   'the', 'a', 'an', 'and', 'or', 'but', 'to', 'of', 'in', 'i', 'my', 'we', 'you',
   'he', 'she', 'it', 'they', 'was', 'is', 'for', 'on', 'that', 'this', 'with',
-  'have', 'had', 'as', 'at', 'be', 'your', 'me', 'my', 'myself', 'are', 'am',
-  'so', 'so', 'just', 'like', 'about', 'very', 'up', 'out', 'all', 'any', 'if'
+  'have', 'had', 'as', 'at', 'be', 'your', 'me', 'myself', 'are', 'am',
+  'so', 'just', 'like', 'about', 'very', 'up', 'out', 'all', 'any', 'if'
 ]);
 
 type WordFreq = {
