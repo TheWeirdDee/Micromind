@@ -13,7 +13,7 @@ export function Footer() {
           <div className="lg:col-span-5 space-y-4">
             <span className="font-serif text-2xl text-text-primary tracking-tight">MicroMind</span>
             <p className="font-mono text-xs text-text-muted leading-relaxed max-w-sm">
-              Your thoughts deserve a safe, private home. Local-first journaling enhanced by pay-per-prompt AI on Celo. Write for free — pay only for the insights you want.
+              Your thoughts deserve a safe home. Journal freely, reflect deeply, and grow with AI-powered insights — built on Celo for everyone.
             </p>
           </div>
 
@@ -22,7 +22,7 @@ export function Footer() {
             <h4 className="font-mono text-[10px] tracking-widest uppercase text-accent-gold font-bold">Product</h4>
             <ul className="space-y-2.5 font-mono text-[11px] text-text-muted">
               <li>
-                <Link href="/app/journal" className="hover:text-accent transition-colors">Journal (Free)</Link>
+                <Link href="/app/journal" className="hover:text-accent transition-colors">Journal</Link>
               </li>
               <li>
                 <Link href="/app/chat" className="hover:text-accent transition-colors">AI Chat</Link>
@@ -48,11 +48,11 @@ export function Footer() {
             <ul className="space-y-2.5 font-mono text-[11px] text-text-muted">
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
-                <span>On-Device Storage</span>
+                <span>End-to-End Encrypted</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
-                <span>Zero Cloud Databases</span>
+                <span>Cross-Device Sync</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
