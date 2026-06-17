@@ -17,7 +17,7 @@ import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 import { Suspense } from 'react';
 
 function TweetPageInner() {
-  const { isConnected, address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [topic, setTopic] = useState('');
   const [response, setResponse] = useState<string | null>(null);
@@ -27,7 +27,7 @@ function TweetPageInner() {
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
 
-  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
 
   useEffect(() => {
     setLastEntry(getLastEntry());

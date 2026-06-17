@@ -29,7 +29,7 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 import { Suspense } from 'react';
 
 function ChatPageInner() {
-  const { isConnected, address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -38,7 +38,7 @@ function ChatPageInner() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
 
-  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
 
   useEffect(() => {
     const historyId = searchParams.get('id');

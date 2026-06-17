@@ -17,7 +17,7 @@ import ReactMarkdown from 'react-markdown';
 import { Suspense } from 'react';
 
 function PatternPageInner() {
-  const { isConnected, address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [response, setResponse] = useState<string | null>(null);
@@ -32,7 +32,7 @@ function PatternPageInner() {
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
 
-  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
 
   const folderParam = searchParams.get('folder');
   const folderName  = folderParam
