@@ -74,9 +74,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(error.message);
     if (!data.user) throw new Error('Signup failed. Please try again.');
 
-    // Insert profile row
+    // Sign in immediately to get an authenticated session before inserting the profile.
+    // This is required because signUp() alone does not establish a session when email
+    // confirmation is enabled — auth.uid() would be null and the RLS INSERT would 401.
+    const { error: loginError } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
+    if (loginError) {
+      throw new Error('Account created! Please check your email to verify, then log in.');
+    }
+
+    const { data: { session: freshSession } } = await supabase.auth.getSession();
+    if (!freshSession?.user) throw new Error('Authentication session missing after signup.');
+
+    // Insert profile row — now authenticated so RLS passes
     const { error: profileError } = await supabase.from('profiles').insert({
-      id: data.user.id,
+      id: freshSession.user.id,
       username: cleanUsername,
       email: cleanEmail,
     });
