@@ -43,18 +43,11 @@ export function Hero() {
               <span className="italic text-accent">Inner Clarity.</span>
             </motion.h1>
             
-            <motion.p 
-              variants={item}
-              className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent-gold"
-            >
-              5 AI tools &middot; 1 wallet &middot; pay per prompt
-            </motion.p>
-            
-            <motion.p 
+            <motion.p
               variants={item}
               className="text-text-primary/80 font-mono text-sm md:text-base max-w-xl leading-relaxed"
             >
-              A private, on-device journal for clear thinking, emotional awareness, and self-reflection. Write freely for free, and unlock pay-per-prompt AI insights only when you choose.
+              Your private space to think clearly, track your mood, and reflect deeply. Entries sync across all your devices. AI insights available when you need them.
             </motion.p>
             
             <motion.div 
@@ -122,7 +115,7 @@ export function Hero() {
                 <Lock className="w-5 h-5 shrink-0 text-accent/60" />
                 <span>100%</span>
               </div>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Private & Local</p>
+              <p className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Private & Secure</p>
             </div>
             <div className="space-y-1">
               <div className="text-2xl md:text-3xl font-serif text-accent flex items-center gap-1.5">
@@ -140,7 +133,7 @@ export function Hero() {
           {/* Stat description block */}
           <div className="lg:col-span-5 space-y-4 text-left">
             <p className="font-mono text-xs text-text-muted leading-relaxed">
-              Write freely without accounts. When you want AI to summarize your week, find emotional patterns, or polish a letter, pay a fraction of a cent. Powered by Celo micro-transactions.
+              Your journal, your voice — synced securely across every device. When you want AI to reflect on your week, surface emotional patterns, or polish a thought, it costs just a few cents in cUSD on Celo.
             </p>
             <Link 
               href="#features" 
