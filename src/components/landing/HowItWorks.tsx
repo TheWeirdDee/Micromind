@@ -52,7 +52,7 @@ export function HowItWorks() {
             </h2>
             
             <p className="font-mono text-xs text-text-muted leading-relaxed">
-              We believe your thoughts should belong only to you. MicroMind is a local-first environment that stores all your journal entries directly in your browser. No cloud databases, no tracking, and no surveillance.
+              We believe your thoughts should belong only to you. MicroMind encrypts your journal entries in the browser before syncing — so you can write freely on any device, knowing only you can read what you write.
             </p>
             
             <p className="font-mono text-xs text-text-muted leading-relaxed">
