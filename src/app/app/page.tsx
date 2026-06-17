@@ -158,36 +158,55 @@ export default function AppHome() {
               )}
             </div>
 
-            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {TOOLS.slice(0, 4).map((tool) => {
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+              {TOOLS.map((tool) => {
                 const isReflectLocked = tool.slug === 'reflect' && entriesCount < 2;
                 const isPatternLocked = tool.slug === 'pattern' && entriesCount < 5;
                 const isLocked = isReflectLocked || isPatternLocked;
                 const lockRequirement = isReflectLocked ? '2 entries required' : '5 entries required';
 
-                return (
-                  <Link key={tool.name} href={tool.route} className="block w-full min-w-0">
-                    <div className="rounded-3xl border border-border bg-surface p-4 transition hover:border-accent/30 h-full">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="min-w-0">
-                          <h4 className="font-serif text-base truncate">{tool.name}</h4>
-                          <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted mt-1 leading-5">{isLocked ? lockRequirement : tool.description}</p>
-                        </div>
-                        <div className="rounded-2xl bg-bg/90 p-3">
-                          {(() => {
-                            const TOOL_ICONS: Record<string, any> = {
-                              chat: MessageSquare,
-                              tweet: Bird,
-                              reflect: Sparkles,
-                              pattern: Search,
-                              letter: Mail,
-                            };
-                            const Icon = TOOL_ICONS[tool.slug] || HelpCircle;
-                            return <Icon className="w-5 h-5 text-accent" />;
-                          })()}
-                        </div>
+                const CardContent = (
+                  <div className={`rounded-3xl border border-border bg-surface p-4 transition h-full flex flex-col justify-between ${
+                    isLocked ? 'opacity-50 cursor-not-allowed' : 'hover:border-accent/30 cursor-pointer'
+                  }`}>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <h4 className="font-serif text-base truncate">{tool.name}</h4>
+                        <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted mt-1 leading-5">
+                          {isLocked ? lockRequirement : tool.description}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-bg/90 p-3 shrink-0">
+                        {(() => {
+                          if (isLocked) {
+                            return <Lock className="w-5 h-5 text-text-muted" />;
+                          }
+                          const TOOL_ICONS: Record<string, any> = {
+                            chat: MessageSquare,
+                            tweet: Bird,
+                            reflect: Sparkles,
+                            pattern: Search,
+                            letter: Mail,
+                          };
+                          const Icon = TOOL_ICONS[tool.slug] || HelpCircle;
+                          return <Icon className="w-5 h-5 text-accent" />;
+                        })()}
                       </div>
                     </div>
+                  </div>
+                );
+
+                if (isLocked) {
+                  return (
+                    <div key={tool.name} className="block w-full min-w-0">
+                      {CardContent}
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link key={tool.name} href={tool.route} className="block w-full min-w-0">
+                    {CardContent}
                   </Link>
                 );
               })}
