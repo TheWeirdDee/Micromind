@@ -111,6 +111,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     try { localStorage.removeItem('micromind_address'); } catch {}
     try { localStorage.removeItem('micromind_connected'); } catch {}
+    // Prevent auto-connect loop from immediately reconnecting after disconnect
+    try { sessionStorage.setItem('mm_wallet_disconnected', '1'); } catch {}
 
     window.location.replace('/app');
   }, []);
@@ -118,9 +120,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // Hydrate from localStorage to prevent flash of disconnected state
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    // Don't restore session if user explicitly disconnected this tab
+    if (sessionStorage.getItem('mm_wallet_disconnected')) return;
+
     const storedAddress = localStorage.getItem('micromind_address');
     const storedConnected = localStorage.getItem('micromind_connected');
-    
+
     if (storedAddress && storedConnected === 'true') {
       try {
         const checksummed = getAddress(storedAddress);
@@ -154,6 +159,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     let attempts = 0;
 
     const checkAndConnect = async () => {
+      // User explicitly disconnected — do not auto-reconnect
+      if (sessionStorage.getItem('mm_wallet_disconnected')) {
+        clearInterval(checkInterval);
+        return;
+      }
+
       attempts++;
 
       const ethereum = getPreferredProvider();
@@ -243,6 +254,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [fetchBalances, disconnect]);
 
   const connect = useCallback(async (provider?: any) => {
+    // Clear disconnect flag so auto-connect can resume for future sessions
+    try { sessionStorage.removeItem('mm_wallet_disconnected'); } catch {}
+
     const win = window as any;
     let ethereum = provider || win.ethereum;
 
