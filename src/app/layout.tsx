@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, DM_Mono } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
+import { AuthProvider } from "@/context/AuthContext";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -82,12 +83,14 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${playfair.variable} ${dmMono.variable} antialiased selection:bg-accent selection:text-bg`}
       >
-        <WalletProvider>
-          <div className="grain-overlay" />
-          <main className="min-h-screen">
-            {children}
-          </main>
-        </WalletProvider>
+        <AuthProvider>
+          <WalletProvider>
+            <div className="grain-overlay" />
+            <main className="min-h-screen">
+              {children}
+            </main>
+          </WalletProvider>
+        </AuthProvider>
       </body>
     </html>
   );
