@@ -105,7 +105,7 @@ export function AuthModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-bg flex flex-col items-center justify-center p-6 select-none overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-bg flex flex-col items-center justify-start sm:justify-center p-6 pt-12 sm:pt-6 select-none overflow-y-auto">
       <div className="absolute inset-0 halftone-bg opacity-10 pointer-events-none" />
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[350px] h-[350px] rounded-full bg-accent/5 filter blur-3xl pointer-events-none" />
 
