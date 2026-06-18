@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronLeft, Loader2, BookOpen, Sparkles, HelpCircle, AlertTriangle, Smile, Mail, CheckCircle, Share2 } from 'lucide-react';
+import { ChevronLeft, Loader2, BookOpen, Sparkles, HelpCircle, AlertTriangle, Smile, Mail, CheckCircle, Share2, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -16,7 +16,7 @@ import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 import { Suspense } from 'react';
 
 function ReflectPageInner() {
-  const { isConnected, address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [response, setResponse] = useState<string | null>(null);
@@ -31,7 +31,7 @@ function ReflectPageInner() {
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
 
-  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
 
   const folderParam = searchParams.get('folder');
   const folderName  = folderParam
@@ -188,6 +188,18 @@ function ReflectPageInner() {
       </header>
 
       {entries.length < 2 ? (
+        entries.length === 0 ? (
+          /* Skeleton while localStorage hydrates */
+          <div className="space-y-3 animate-pulse" aria-busy="true" aria-label="Loading journal entries">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-surface border border-border rounded-2xl p-5 space-y-3">
+                <div className="h-3 w-24 bg-white/10 rounded" />
+                <div className="h-3 w-full bg-white/10 rounded" />
+                <div className="h-3 w-3/4 bg-white/10 rounded" />
+              </div>
+            ))}
+          </div>
+        ) : (
         <div className="flex flex-col items-center justify-center text-center p-8 border border-dashed border-border rounded-2xl bg-surface p-8">
           <HelpCircle className="w-12 h-12 text-text-muted/40 mb-4 animate-bounce" />
           <h3 className="text-lg font-serif mb-2 text-text-primary">More entries needed</h3>
@@ -198,6 +210,7 @@ function ReflectPageInner() {
             Go to Journal
           </Link>
         </div>
+        )
       ) : (
         <div className="space-y-6">
           {/* Celo Gas Warning */}
@@ -287,7 +300,7 @@ function ReflectPageInner() {
                   {emailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
                   Send
                 </button>
-                <button onClick={() => setShowEmailInput(false)} className="px-3 py-2 text-xs font-mono text-text-muted hover:text-text-primary">✕</button>
+                <button onClick={() => setShowEmailInput(false)} className="px-3 py-2 text-xs font-mono text-text-muted hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>
               </div>
             ) : (
               <button

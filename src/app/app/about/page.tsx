@@ -1,5 +1,6 @@
-import { ArrowLeft, BrainCircuit, Shield, Zap, Globe, Coins } from 'lucide-react';
+import { ArrowLeft, BrainCircuit, Shield, Zap, Globe, Coins, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
+import { CONTRACT_ADDRESS } from '@/lib/contract';
 
 export default function AboutPage() {
   return (
@@ -82,6 +83,21 @@ export default function AboutPage() {
           </p>
         </div>
       </section>
+
+      <div className="bg-surface border border-border p-5 rounded-2xl flex items-center justify-between gap-4">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-text-muted">Smart Contract</p>
+          <p className="font-mono text-xs text-text-primary mt-1">{CONTRACT_ADDRESS}</p>
+        </div>
+        <a
+          href={`https://celoscan.io/address/${CONTRACT_ADDRESS}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-widest text-accent hover:text-accent-gold transition-colors shrink-0"
+        >
+          View on Celoscan <ExternalLink className="w-3.5 h-3.5" />
+        </a>
+      </div>
 
       <div className="text-center pt-6 pb-8">
         <p className="font-mono text-[10px] tracking-widest uppercase text-text-muted opacity-30">

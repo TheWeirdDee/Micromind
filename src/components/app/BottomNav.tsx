@@ -22,7 +22,7 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6 pb-8 pointer-events-none">
+    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6 pb-8 pointer-events-none">
       <div className="bg-surface/80 backdrop-blur-xl border border-border rounded-full px-4 py-3 flex gap-2 pointer-events-auto shadow-2xl">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -30,6 +30,8 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
                 "p-3 rounded-full transition-all duration-300 relative group",
                 isActive ? "bg-accent text-bg" : "text-text-muted hover:text-text-primary hover:bg-surface-2"

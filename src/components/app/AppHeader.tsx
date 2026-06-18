@@ -33,6 +33,7 @@ export function AppHeader() {
               onClick={handleDisconnect}
               className="p-1.5 text-text-muted hover:text-accent-red hover:bg-accent-red/10 rounded-full transition-all shrink-0"
               title="Disconnect Wallet"
+              aria-label="Disconnect wallet"
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -41,6 +42,7 @@ export function AppHeader() {
             href="/app/settings"
             className="p-1.5 text-text-muted hover:text-accent hover:bg-surface-2 rounded-full transition-all shrink-0"
             title="Settings"
+            aria-label="Open settings"
           >
             <Settings className="w-4 h-4" />
           </Link>

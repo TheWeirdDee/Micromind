@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronLeft, Loader2, PenTool, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Loader2, PenTool, AlertTriangle, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -17,7 +17,7 @@ import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 import { Suspense } from 'react';
 
 function TweetPageInner() {
-  const { isConnected, address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [topic, setTopic] = useState('');
   const [response, setResponse] = useState<string | null>(null);
@@ -27,7 +27,7 @@ function TweetPageInner() {
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
 
-  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
 
   useEffect(() => {
     setLastEntry(getLastEntry());
@@ -148,6 +148,18 @@ function TweetPageInner() {
             placeholder="What should the tweet be about? Or import your last journal entry..."
             className="w-full bg-surface border border-border rounded-xl p-4 font-mono text-sm min-h-[120px] focus:border-accent outline-none transition-colors resize-none"
           />
+          <div className="flex justify-between items-center px-1 mt-1">
+            <span className={`text-[10px] font-mono ${
+              topic.length > 280 ? 'text-yellow-400' : 'text-transparent'
+            }`}>
+              ⚠ Exceeds 280 chars — tweet may be trimmed
+            </span>
+            <span className={`text-[10px] font-mono ${
+              topic.length > 280 ? 'text-yellow-400' : 'text-text-muted'
+            }`}>
+              {topic.length} chars
+            </span>
+          </div>
         </div>
 
         <button
@@ -161,12 +173,14 @@ function TweetPageInner() {
               <span>{getStepMessage()}</span>
             </div>
           ) : (
-            <>Generate Tweet <span className="group-hover:translate-x-1 transition-transform">→</span></>
+            <>Generate Tweet <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>
           )}
         </button>
       </div>
 
-      {response && <ResponseCard response={response} />}
+      {response && (
+        <ResponseCard response={response} onRegenerate={handleGenerate} regenerating={loading} />
+      )}
       <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </motion.div>
   );

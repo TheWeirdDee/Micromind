@@ -48,6 +48,17 @@ export function WhySection() {
               <p className="font-mono text-xs text-text-muted leading-relaxed max-w-xl">
                 Most AI journaling tools store your thoughts on their servers. MicroMind keeps everything on your device, only reaching the internet when you choose to pay for an AI insight.
               </p>
+              <p className="font-mono text-[10px] text-text-muted/70 leading-relaxed">
+                Built in the open on Celo — tracked on the{' '}
+                <a
+                  href="https://talentprotocol.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-gold hover:underline"
+                >
+                  Talent Protocol builder leaderboard
+                </a>.
+              </p>
             </div>
 
             {/* Stats strip */}

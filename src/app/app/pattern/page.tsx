@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ChevronLeft, Loader2, BookOpen, Search, HelpCircle, AlertTriangle, Mail, CheckCircle, Share2 } from 'lucide-react';
+import { ChevronLeft, Loader2, BookOpen, Search, HelpCircle, AlertTriangle, Mail, CheckCircle, Share2, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -17,7 +17,7 @@ import ReactMarkdown from 'react-markdown';
 import { Suspense } from 'react';
 
 function PatternPageInner() {
-  const { isConnected, address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [response, setResponse] = useState<string | null>(null);
@@ -32,7 +32,7 @@ function PatternPageInner() {
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const searchParams = useSearchParams();
 
-  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
 
   const folderParam = searchParams.get('folder');
   const folderName  = folderParam
@@ -228,9 +228,18 @@ function PatternPageInner() {
         <div className="flex flex-col items-center justify-center text-center p-8 border border-dashed border-border rounded-2xl bg-surface">
           <HelpCircle className="w-12 h-12 text-text-muted/40 mb-4 animate-bounce" />
           <h3 className="text-lg font-serif mb-2 text-text-primary">More entries needed</h3>
-          <p className="font-mono text-xs text-text-muted max-w-[260px] mb-6">
+          <p className="font-mono text-xs text-text-muted max-w-[260px] mb-4">
             Write at least 5 journal entries to discover recurring emotional patterns across your journal.
           </p>
+          <div className="w-full max-w-[200px] mb-6">
+            <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+              <div
+                className="h-full bg-accent transition-all"
+                style={{ width: `${Math.min(entries.length / 5, 1) * 100}%` }}
+              />
+            </div>
+            <p className="font-mono text-[10px] text-text-muted/70 mt-1.5">{entries.length} of 5 entries</p>
+          </div>
           <Link href="/app/journal" className="pill-button pill-button-primary px-6 py-2.5 text-xs font-mono tracking-wider">
             Go to Journal
           </Link>
@@ -312,7 +321,7 @@ function PatternPageInner() {
                   {emailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
                   Send
                 </button>
-                <button onClick={() => setShowEmailInput(false)} className="px-3 py-2 text-xs font-mono text-text-muted hover:text-text-primary">✕</button>
+                <button onClick={() => setShowEmailInput(false)} className="px-3 py-2 text-xs font-mono text-text-muted hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>
               </div>
             ) : (
               <button

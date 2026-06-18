@@ -43,6 +43,9 @@ export function DailyStreak() {
   const [showSpark, setShowSpark] = useState(false);
   const [sparkMessage, setSparkMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [milestone, setMilestone] = useState<number | null>(null);
+
+  const MILESTONES = [7, 14, 30];
 
   const getLocalDateString = (date: Date = new Date()) => {
     const year = date.getFullYear();
@@ -149,6 +152,11 @@ export function DailyStreak() {
       setSparkMessage(quote);
       setShowSpark(true);
       setLoading(false);
+
+      if (MILESTONES.includes(newStreakCount)) {
+        setMilestone(newStreakCount);
+        setTimeout(() => setMilestone(null), 4000);
+      }
     }, 800);
   }, [streak, streakKey, sparkKey]);
 
@@ -200,6 +208,20 @@ export function DailyStreak() {
   return (
     <div className="bg-surface border border-border p-5 rounded-2xl relative overflow-hidden group">
       <div className="absolute inset-0 halftone-bg opacity-10 pointer-events-none" />
+
+      <AnimatePresence>
+        {milestone && (
+          <motion.div
+            initial={{ opacity: 0, y: -12, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.95 }}
+            className="absolute inset-x-3 top-3 z-20 flex items-center justify-center gap-2 rounded-xl bg-accent-gold text-bg py-2 px-4 font-mono text-xs font-bold shadow-lg shadow-accent-gold/30"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>{milestone}-day streak! Keep it up.</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       <div className="flex justify-between items-start mb-5 relative z-10">
         <div>
@@ -210,6 +232,7 @@ export function DailyStreak() {
         </div>
         <Link
           href="/app/history?tab=journal"
+          title="Current streak"
           className="flex items-center gap-1.5 bg-accent-gold/10 border border-accent-gold/20 px-2.5 py-1 rounded-full text-accent-gold shrink-0 hover:bg-accent-gold/20 transition-colors"
         >
           <Flame className="w-4 h-4 fill-current" />

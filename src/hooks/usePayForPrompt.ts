@@ -7,6 +7,21 @@ import { cUSD_ADDRESS, PAYMENT_TOKEN_DECIMALS, CELO_MAINNET_PARAMS, CHAIN_ID_HEX
 import { TOOLS } from '@/constants/tools';
 import { saveToHistory } from '@/lib/storage';
 
+/** Maximum characters of the prompt sent to the agent for hash computation. */
+const MAX_PROMPT_CHARS = 500;
+
+/** Milliseconds between each polling attempt for the AI response. */
+const POLL_INTERVAL_MS = 2_000;
+
+/** Maximum number of polling attempts before declaring a timeout. */
+const MAX_POLL_ATTEMPTS = 60;
+
+/** Abort timeout for the fast-path /api/process-direct request. */
+const DIRECT_FETCH_TIMEOUT_MS = 30_000;
+
+/** Abort timeout for each individual /api/response poll request. */
+const POLL_FETCH_TIMEOUT_MS = 5_000;
+
 export type PaymentStep =
   | 'idle'
   | 'checking'
@@ -78,7 +93,10 @@ export function usePayForPrompt() {
       }
 
       setStep('submitting');
-      const finalPrompt = chatHistory ? JSON.stringify(chatHistory) : prompt;
+      let finalPrompt = chatHistory ? JSON.stringify(chatHistory) : prompt;
+      if (finalPrompt.length > MAX_PROMPT_CHARS) {
+        finalPrompt = finalPrompt.slice(0, MAX_PROMPT_CHARS);
+      }
 
       // Compute hash locally — matches agent logic exactly, no server roundtrip needed
       const nonce = Date.now().toString();
@@ -97,9 +115,14 @@ export function usePayForPrompt() {
       const gasPrice = await publicClient.getGasPrice();
       const price = parseUnits(tool.price, PAYMENT_TOKEN_DECIMALS);
 
-      // STEP 4 — Approve cUSD
+      if (price <= BigInt(0)) {
+        throw new Error('Invalid payment amount: Price must be greater than zero.');
+      }
+
+      // STEP 1 — Approve cUSD transfer
+      // We must approve the contract to pull `price` worth of cUSD from the user's wallet.
+      // MiniPay requires explicit nonce management; MetaMask handles nonces internally.
       setStep('approving');
-      // MiniPay requires explicit nonce; MetaMask manages its own — don't override it
       const approveNonce = isMiniPay
         ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
         : undefined;
@@ -121,7 +144,9 @@ export function usePayForPrompt() {
         confirmations: 1
       });
 
-      // STEP 5 — Pay for prompt (cUSD)
+      // STEP 2 — Submit payment to contract
+      // Calls payForPrompt(toolId, promptHash) on the smart contract.
+      // The contract emits a PromptPaid event that the agent listens for.
       setStep('paying');
       const payNonce = isMiniPay
         ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
@@ -139,6 +164,7 @@ export function usePayForPrompt() {
         feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
 
+      // STEP 3 — Wait for on-chain confirmation
       setStep('confirming');
       await publicClient.waitForTransactionReceipt({
         hash: payTx,
@@ -147,7 +173,14 @@ export function usePayForPrompt() {
 
       setTxHash(payTx);
 
-      // STEP 5 — Get AI response
+      // Notify any interested listeners (e.g. analytics, UI badges) that a payment succeeded
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('micromind:paid', { detail: { txHash: payTx, toolId, toolName } }));
+      }
+
+      // STEP 4 — Fetch AI response from agent
+      // Try direct /api/process-direct first (fastest path, ~5s).
+      // Falls back to polling /api/response/:txHash every POLL_INTERVAL_MS.
       setStep('generating');
 
       if (agentUrl) {
@@ -162,7 +195,7 @@ export function usePayForPrompt() {
               toolId,
               userAddress: address
             }),
-            signal: AbortSignal.timeout(30_000)
+            signal: AbortSignal.timeout(DIRECT_FETCH_TIMEOUT_MS)
           }).then(r => r.json());
 
           if (directRes.status === 'ready') {
@@ -183,12 +216,12 @@ export function usePayForPrompt() {
         } catch { /* fallback to polling */ }
 
         // Poll for response
-        for (let i = 0; i < 60; i++) {
-          await new Promise(r => setTimeout(r, 2000));
+        for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
+          await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
           try {
             const data = await fetch(
               `${agentUrl}/api/response/${payTx}`,
-              { signal: AbortSignal.timeout(5000) }
+              { signal: AbortSignal.timeout(POLL_FETCH_TIMEOUT_MS) }
             ).then(r => r.json());
 
             if (data.status === 'ready') {

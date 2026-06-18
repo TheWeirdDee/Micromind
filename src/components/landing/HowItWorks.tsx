@@ -52,12 +52,27 @@ export function HowItWorks() {
             </h2>
             
             <p className="font-mono text-xs text-text-muted leading-relaxed">
-              We believe your thoughts should belong only to you. MicroMind is a local-first environment that stores all your journal entries directly in your browser. No cloud databases, no tracking, and no surveillance.
+              We believe your thoughts should belong only to you. MicroMind encrypts your journal entries in the browser before syncing — so you can write freely on any device, knowing only you can read what you write.
             </p>
             
             <p className="font-mono text-xs text-text-muted leading-relaxed">
               Start writing completely free without setting up a wallet. Connect only when you need deep emotional insights, weekly summaries, or eloquent letter polishing from our AI companions.
             </p>
+
+            <ol className="space-y-3 pt-2">
+              {[
+                'Write journal entries for free — no wallet, no account.',
+                'Connect a wallet only when you want an AI tool.',
+                'Pay a fraction of a cent per prompt and get instant insights.',
+              ].map((stepText, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-accent/10 border border-accent/30 text-accent text-[10px] font-mono font-bold flex items-center justify-center mt-0.5">
+                    {i + 1}
+                  </span>
+                  <span className="font-mono text-xs text-text-muted leading-relaxed">{stepText}</span>
+                </li>
+              ))}
+            </ol>
 
             <div className="pt-4">
               <Link 

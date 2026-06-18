@@ -16,9 +16,10 @@ import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 import { Suspense } from 'react';
 
 function LetterPageInner() {
-  const { isConnected, address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [recipientName, setRecipientName] = useState('');
   const [senderName, setSenderName] = useState('');
   const [content, setContent] = useState('');
   const [freeSending, setFreeSending] = useState(false);
@@ -29,7 +30,7 @@ function LetterPageInner() {
   const { payAndGenerate, loading: paidLoading, step: paidStep } = usePayForPrompt();
   const searchParams = useSearchParams();
 
-  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
   const isFormValid = recipientEmail.includes('@') && senderName.trim().length > 0 && content.trim().length >= 20;
 
   useEffect(() => {
@@ -189,7 +190,7 @@ function LetterPageInner() {
         <div className="absolute inset-0 halftone-bg opacity-5 pointer-events-none" />
         
         <div className="space-y-6 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-2">Recipient Email</label>
               <input
@@ -197,6 +198,23 @@ function LetterPageInner() {
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
                 placeholder="friend@example.com"
+                disabled={freeSending || paidLoading}
+                className="w-full bg-surface-2 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:border-accent outline-none transition-colors"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-2">Recipient Name</label>
+              <input
+                type="text"
+                value={recipientName}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  setRecipientName(name);
+                  if (!content.trim() && name.trim()) {
+                    setContent(`Dear ${name.trim()},\n\n`);
+                  }
+                }}
+                placeholder="Friend's Name"
                 disabled={freeSending || paidLoading}
                 className="w-full bg-surface-2 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:border-accent outline-none transition-colors"
               />

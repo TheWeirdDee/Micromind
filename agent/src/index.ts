@@ -14,6 +14,12 @@ const port = process.env.PORT || 3001;
 const IS_TESTNET = process.env.IS_TESTNET === 'true';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS as `0x${string}`;
 
+// Fail fast — without a valid contract address the agent cannot decode events
+if (!CONTRACT_ADDRESS || CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+  console.error('[STARTUP] FATAL: CONTRACT_ADDRESS env var is missing or zero address. Exiting.');
+  process.exit(1);
+}
+
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -156,8 +162,28 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
   }
 }
 
-app.use(express.json());
+// Limit request body to 50 KB to prevent payload-based DoS attacks
+app.use(express.json({ limit: '50kb' }));
 app.use(cors());
+
+// Stamp every response with a unique request ID for log correlation
+app.use((_req, res, next) => {
+  res.setHeader('X-Request-Id', `mmr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  next();
+});
+
+// Static tool registry — mirrors src/constants/tools.ts on the frontend
+app.get('/api/tools', (req, res) => {
+  res.json({
+    tools: [
+      { id: 1, slug: 'chat', name: 'Chat', price: '0.005' },
+      { id: 2, slug: 'tweet', name: 'Tweet', price: '0.005' },
+      { id: 3, slug: 'reflect', name: 'Reflect', price: '0.005' },
+      { id: 4, slug: 'pattern', name: 'Pattern', price: '0.005' },
+      { id: 5, slug: 'letter', name: 'Letter', price: '0.01' },
+    ],
+  });
+});
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -336,9 +362,15 @@ app.get('/api/response/:txHash', async (req, res) => {
 app.post('/api/process-direct', async (req, res) => {
   const { txHash, prompt, toolId, userAddress } = req.body;
   console.log('[DIRECT] Processing:', { txHash, toolId });
-  
+
+  // Validate toolId — must be an integer between 1 and 5 (inclusive)
+  const parsedToolId = parseInt(toolId, 10);
+  if (!Number.isInteger(parsedToolId) || parsedToolId < 1 || parsedToolId > 5) {
+    return res.status(400).json({ error: 'Invalid toolId: must be an integer between 1 and 5' });
+  }
+
   try {
-    const response = await callAI(Number(toolId), prompt);
+    const response = await callAI(parsedToolId, prompt);
     
     await storeData(`resp:${txHash}`, response, 86400);
     console.log('[DIRECT] Success, response length:', response.length);

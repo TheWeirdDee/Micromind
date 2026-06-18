@@ -141,7 +141,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
                     <button
                       key={option.name}
                       onClick={() => connect(option.provider)}
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition hover:border-accent hover:bg-accent/5 focus:outline-none flex items-center gap-3"
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition-all duration-200 hover:border-accent hover:bg-accent/5 active:scale-[0.98] focus:outline-none flex items-center gap-3"
                     >
                       {option.icon ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -159,7 +159,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
               ) : (
                 <div className="space-y-3 text-center">
                   <p className="font-mono text-xs text-white/40 leading-relaxed">
-                    No wallet detected. Install MetaMask to continue.
+                    No wallet detected. Install MetaMask, or open this page inside MiniPay on mobile.
                   </p>
                   <a
                     href="https://metamask.io/download/"
@@ -168,6 +168,12 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
                     className="pill-button pill-button-primary w-full py-4 text-xs font-mono uppercase tracking-widest font-bold inline-flex items-center justify-center gap-2 focus:outline-none"
                   >
                     Install MetaMask <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                  <a
+                    href={`https://minipay.opera.com/open?url=${encodeURIComponent(typeof window !== 'undefined' ? window.location.href : '')}`}
+                    className="pill-button border border-white/15 bg-transparent text-white w-full py-4 text-xs font-mono uppercase tracking-widest font-bold inline-flex items-center justify-center gap-2 focus:outline-none hover:bg-white/5"
+                  >
+                    Open in MiniPay <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </div>
               )}

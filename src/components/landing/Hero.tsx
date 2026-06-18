@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Sparkles, BookOpen, Lock } from 'lucide-react';
+import { Sparkles, BookOpen, Lock, ArrowRight } from 'lucide-react';
 
 export function Hero() {
   const container = {
@@ -43,24 +43,31 @@ export function Hero() {
               <span className="italic text-accent">Inner Clarity.</span>
             </motion.h1>
             
-            <motion.p 
+            <motion.p
               variants={item}
               className="text-text-primary/80 font-mono text-sm md:text-base max-w-xl leading-relaxed"
             >
-              A private, on-device journal for clear thinking, emotional awareness, and self-reflection. Write freely for free, and unlock pay-per-prompt AI insights only when you choose.
+              Your private space to think clearly, track your mood, and reflect deeply. Entries sync across all your devices. AI insights available when you need them.
             </motion.p>
             
             <motion.div 
               variants={item} 
               className="flex flex-wrap gap-4 pt-2"
             >
-              <Link 
-                href="/app" 
-                className="pill-button bg-accent text-bg hover:bg-white text-sm px-8 py-4 group shadow-xl shadow-accent/5 font-mono"
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] as any }}
               >
-                Explore App 
-                <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
-              </Link>
+                <Link
+                  href="/app"
+                  className="pill-button bg-accent text-bg hover:bg-white text-sm px-8 py-4 group shadow-xl shadow-accent/5 font-mono"
+                >
+                  Explore App
+                  <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+                </Link>
+              </motion.div>
               <a 
                 href="#about" 
                 className="pill-button pill-button-outline text-sm px-8 py-4 font-mono"
@@ -108,7 +115,7 @@ export function Hero() {
                 <Lock className="w-5 h-5 shrink-0 text-accent/60" />
                 <span>100%</span>
               </div>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Private & Local</p>
+              <p className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Private & Secure</p>
             </div>
             <div className="space-y-1">
               <div className="text-2xl md:text-3xl font-serif text-accent flex items-center gap-1.5">
@@ -126,13 +133,13 @@ export function Hero() {
           {/* Stat description block */}
           <div className="lg:col-span-5 space-y-4 text-left">
             <p className="font-mono text-xs text-text-muted leading-relaxed">
-              Write freely without accounts. When you want AI to summarize your week, find emotional patterns, or polish a letter, pay a fraction of a cent. Powered by Celo micro-transactions.
+              Your journal, your voice — synced securely across every device. When you want AI to reflect on your week, surface emotional patterns, or polish a thought, it costs just a few cents in cUSD on Celo.
             </p>
             <Link 
               href="#features" 
               className="font-mono text-[10px] text-accent-gold uppercase tracking-wider hover:underline"
             >
-              Explore AI Assist Tools →
+              <span className="inline-flex items-center gap-1">Explore AI Assist Tools <ArrowRight className="w-3 h-3" /></span>
             </Link>
           </div>
         </div>

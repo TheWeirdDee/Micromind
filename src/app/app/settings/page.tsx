@@ -84,7 +84,6 @@ export default function SettingsPage() {
           return;
         }
 
-        // Merge entries
         const currentEntries = JSON.parse(localStorage.getItem('mm_journal') || '[]');
         const entryIds = new Set(currentEntries.map((entry: any) => entry.id));
         const mergedEntries = [...currentEntries];
@@ -228,7 +227,7 @@ export default function SettingsPage() {
                 onClick={saveProfile}
                 className="pill-button pill-button-primary w-full py-3 text-xs font-mono uppercase tracking-widest font-bold"
               >
-                {saved ? '✓ Saved' : 'Save Changes'}
+                {saved ? <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Saved</span> : 'Save Changes'}
               </button>
             </div>
           </section>
@@ -263,7 +262,7 @@ export default function SettingsPage() {
               onClick={saveProfile}
               className="pill-button pill-button-outline w-full py-3 text-xs font-mono uppercase tracking-widest"
             >
-              {saved ? '✓ Goals Saved' : 'Save Goals'}
+              {saved ? <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Goals Saved</span> : 'Save Goals'}
             </button>
           </section>
         </div>
@@ -295,8 +294,7 @@ export default function SettingsPage() {
                   />
                 </button>
               </div>
-
-              {/* Export Backup */}
+              
               <button
                 onClick={exportJournal}
                 className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group"

@@ -29,6 +29,22 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     return () => clearTimeout(t);
   }, [step]);
 
+  // Resume from where the user left off if a partial profile already exists
+  // (e.g. they filled in their name on a previous visit but never finished).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('mm_user_profile');
+      if (!raw) return;
+      const profile = JSON.parse(raw);
+      if (profile.name) {
+        setName(profile.name);
+        setEmail(profile.email || '');
+        setGoals(profile.goals || []);
+        setStep(2);
+      }
+    } catch { /* ignore corrupt profile */ }
+  }, []);
+
   const submitProfile = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -142,7 +158,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     type="submit"
                     className="pill-button pill-button-primary w-full py-4 text-xs font-mono uppercase tracking-widest font-bold mt-2"
                   >
-                    Continue →
+                    <span className="inline-flex items-center justify-center gap-1.5">Continue <ArrowRight className="w-3.5 h-3.5" /></span>
                   </button>
 
                 </form>

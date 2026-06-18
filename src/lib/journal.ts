@@ -3,6 +3,96 @@ import { Smile, Laugh, Meh, Angry, Frown } from 'lucide-react';
 const JOURNAL_KEY = "mm_journal";
 const FOLDERS_KEY = "mm_journal_folders";
 
+// ── Supabase sync helpers (fire-and-forget, never block the UI) ──────────────
+
+async function getSupabaseSession() {
+  if (typeof window === 'undefined') return null;
+  const { supabase } = await import('./supabase');
+  const { data: { session } } = await supabase.auth.getSession();
+  return session;
+}
+
+async function pushEntryToSupabase(entry: JournalEntry) {
+  const session = await getSupabaseSession();
+  if (!session) return;
+  const { supabase } = await import('./supabase');
+  await supabase.from('journal_entries').upsert({
+    id: entry.id,
+    user_id: session.user.id,
+    content: entry.content,
+    mood: entry.mood,
+    timestamp: entry.timestamp,
+    folder_id: entry.folderId ?? null,
+    tags: entry.tags ?? [],
+    date: entry.date,
+    image: entry.image ?? null,
+  }, { onConflict: 'id' });
+}
+
+async function deleteEntryFromSupabase(id: string) {
+  const session = await getSupabaseSession();
+  if (!session) return;
+  const { supabase } = await import('./supabase');
+  await supabase.from('journal_entries').delete().eq('id', id).eq('user_id', session.user.id);
+}
+
+/** Pulls all entries from Supabase and merges them into localStorage. Call on login. */
+export async function loadEntriesFromSupabase(): Promise<void> {
+  const session = await getSupabaseSession();
+  if (!session) return;
+  const { supabase } = await import('./supabase');
+  const { data } = await supabase
+    .from('journal_entries')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .order('timestamp', { ascending: false });
+
+  if (!data || data.length === 0) return;
+
+  const remote: JournalEntry[] = data.map((row: any) => ({
+    id: row.id,
+    date: row.date,
+    content: row.content,
+    mood: row.mood,
+    timestamp: row.timestamp,
+    folderId: row.folder_id ?? undefined,
+    image: row.image ?? undefined,
+    tags: row.tags ?? [],
+  }));
+
+  // Merge: remote wins on conflict (same id), keep any local-only entries
+  const local = getEntries();
+  const remoteIds = new Set(remote.map(e => e.id));
+  const localOnly = local.filter(e => !remoteIds.has(e.id));
+  const merged = [...remote, ...localOnly].sort((a, b) => b.timestamp - a.timestamp);
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(JOURNAL_KEY, JSON.stringify(merged));
+    window.dispatchEvent(new Event('journal_updated'));
+  }
+}
+
+/** Pushes all localStorage entries to Supabase. Call on first login to migrate existing data. */
+export async function migrateLocalEntriesToSupabase(): Promise<void> {
+  const session = await getSupabaseSession();
+  if (!session) return;
+  const entries = getEntries();
+  if (!entries.length) return;
+  const { supabase } = await import('./supabase');
+  const rows = entries.map(e => ({
+    id: e.id,
+    user_id: session.user.id,
+    content: e.content,
+    mood: e.mood,
+    timestamp: e.timestamp,
+    folder_id: e.folderId ?? null,
+    tags: e.tags ?? [],
+    date: e.date,
+    image: e.image ?? null,
+  }));
+  await supabase.from('journal_entries').upsert(rows, { onConflict: 'id', ignoreDuplicates: true });
+}
+
 export interface JournalEntry {
   id: string;
   date: string;
@@ -26,11 +116,14 @@ export const MOOD_ICONS: Record<string, any> = {
   neutral: Meh,
   angry: Angry,
   sad: Frown,
-  '😊': Smile,
-  '🤩': Laugh,
-  '😐': Meh,
-  '😤': Angry,
-  '😔': Frown,
+};
+
+const LEGACY_MOOD_MAP: Record<string, string> = {
+  '😊': 'happy',
+  '🤩': 'excited',
+  '😐': 'neutral',
+  '😤': 'angry',
+  '😔': 'sad',
 };
 
 function newId(): string {
@@ -43,14 +136,24 @@ function dispatch() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('journal_updated'));
 }
 
-// ── Entries ───────────────────────────────────────────────────────────────────
+// ── Entries
 
+/** Returns all journal entries sorted newest-first. Migrates legacy emoji moods. */
 export function getEntries(): JournalEntry[] {
   if (typeof window === 'undefined') return [];
   const raw = localStorage.getItem(JOURNAL_KEY);
   if (!raw) return [];
   try {
     const entries: JournalEntry[] = JSON.parse(raw);
+    let migrated = false;
+    for (const e of entries) {
+      const mapped = LEGACY_MOOD_MAP[e.mood];
+      if (mapped) {
+        e.mood = mapped;
+        migrated = true;
+      }
+    }
+    if (migrated) localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
     return entries.sort((a, b) => b.timestamp - a.timestamp);
   } catch {
     return [];
@@ -63,32 +166,41 @@ export function getEntriesByFolder(folderId: string | null): JournalEntry[] {
   return all.filter(e => e.folderId === folderId);
 }
 
+/** Saves a new journal entry. Sanitizes content to prevent XSS. */
 export function saveEntry(entry: Omit<JournalEntry, 'id' | 'date' | 'timestamp'>): JournalEntry {
   const entries = getEntries();
+  const sanitizedContent = entry.content.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
   const newEntry: JournalEntry = {
     ...entry,
+    content: sanitizedContent,
     id: newId(),
     date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
     timestamp: Date.now(),
   };
   localStorage.setItem(JOURNAL_KEY, JSON.stringify([newEntry, ...entries]));
+  pushEntryToSupabase(newEntry).catch(() => {});
   dispatch();
   return newEntry;
 }
 
+/** Updates fields of an existing journal entry by id. */
 export function editEntry(id: string, updates: Partial<Pick<JournalEntry, 'content' | 'mood' | 'folderId' | 'image' | 'tags'>>): void {
   const entries = getEntries().map(e => e.id === id ? { ...e, ...updates } : e);
   localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
+  const updated = entries.find(e => e.id === id);
+  if (updated) pushEntryToSupabase(updated).catch(() => {});
   dispatch();
 }
 
+/** Deletes a journal entry by id. */
 export function deleteEntry(id: string): void {
   const entries = getEntries().filter(e => e.id !== id);
   localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
+  deleteEntryFromSupabase(id).catch(() => {});
   dispatch();
 }
 
-// ── Folders ───────────────────────────────────────────────────────────────────
+// ── Folders   
 
 export function getFolders(): Folder[] {
   if (typeof window === 'undefined') return [];
@@ -119,16 +231,22 @@ export function deleteFolder(id: string): void {
   dispatch();
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
+// ── Utilities  
 
+/** Returns the most recently created entry, or null if none exist. */
 export function getLastEntry(): JournalEntry | null {
   return getEntries()[0] ?? null;
 }
 
+/** Returns the N most recent journal entries. */
 export function getRecentEntries(n: number): JournalEntry[] {
   return getEntries().slice(0, n);
 }
 
+/**
+ * Updates the daily activity streak for a wallet.
+ * Merges journal dates, prompt history dates, and manual check-in dates.
+ */
 export function updateStreak(walletAddress: string | null): void {
   if (typeof window === 'undefined') return;
   const streakKey = walletAddress ? `micromind_streak_data_${walletAddress}` : 'micromind_streak_data';

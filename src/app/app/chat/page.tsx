@@ -29,7 +29,7 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 import { Suspense } from 'react';
 
 function ChatPageInner() {
-  const { isConnected, address, celoBalance } = useWallet();
+  const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -38,7 +38,7 @@ function ChatPageInner() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
 
-  const hasNoCelo = isConnected && Number(celoBalance) < 0.0005;
+  const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
 
   useEffect(() => {
     const historyId = searchParams.get('id');
@@ -267,16 +267,17 @@ function ChatPageInner() {
         </div>
       )}
 
-      <form 
+      <form
         onSubmit={handleSubmit}
         className="relative"
       >
         <input
           type="text"
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => setPrompt(e.target.value.slice(0, 500))}
           placeholder={hasNoCelo ? "Please get CELO to chat..." : "Type your message..."}
           disabled={loading || hasNoCelo}
+          maxLength={500}
           className="w-full bg-surface border border-border rounded-2xl px-6 py-4 pr-16 text-sm focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
         />
         <button
@@ -291,6 +292,13 @@ function ChatPageInner() {
           )}
         </button>
       </form>
+      <div className="flex justify-end mt-1 pr-1">
+        <span className={`text-[10px] font-mono ${
+          prompt.length >= 480 ? 'text-red-400' : 'text-text-muted'
+        }`}>
+          {prompt.length}/500
+        </span>
+      </div>
       <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </motion.div>
   );

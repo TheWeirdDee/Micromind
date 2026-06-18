@@ -12,7 +12,8 @@ import {
   createWalletClient,
   custom,
   http,
-  erc20Abi
+  erc20Abi,
+  getAddress
 } from 'viem';
 import { celo } from 'viem/chains';
 import {
@@ -22,16 +23,27 @@ import {
   CHAIN_ID_HEX
 } from '@/constants/chains';
 
+/** Shape of the global wallet context shared across the app. */
 interface WalletContextType {
+  /** Checksummed EIP-55 address of the connected wallet, or null if not connected. */
   address: string | null;
+  /** True when a wallet is connected and an address is available. */
   isConnected: boolean;
+  /** True when the app is running inside the Opera MiniPay wallet browser. */
   isMiniPay: boolean;
+  /** Human-readable cUSD balance of the connected address (2 decimal places). */
   cusdBalance: string;
+  /** Human-readable CELO balance of the connected address (4 decimal places). */
   celoBalance: string;
+  /** Viem WalletClient instance for signing and sending transactions. */
   walletClient: any;
+  /** Viem PublicClient instance for reading chain state (balances, receipts). */
   publicClient: any;
+  /** Prompts the user to connect a wallet. Accepts an optional injected provider. */
   connect: (provider?: any) => Promise<void>;
+  /** Clears wallet state and redirects to /app. */
   disconnect: () => void;
+  /** Fetches and updates cUSD + CELO balances for a given address. */
   fetchBalances: (addr: string) => Promise<void>;
 }
 
@@ -99,6 +111,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     try { localStorage.removeItem('micromind_address'); } catch {}
     try { localStorage.removeItem('micromind_connected'); } catch {}
+    // Prevent auto-connect loop from immediately reconnecting after disconnect
+    try { sessionStorage.setItem('mm_wallet_disconnected', '1'); } catch {}
 
     window.location.replace('/app');
   }, []);
@@ -106,13 +120,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // Hydrate from localStorage to prevent flash of disconnected state
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    // Don't restore session if user explicitly disconnected this tab
+    if (sessionStorage.getItem('mm_wallet_disconnected')) return;
+
     const storedAddress = localStorage.getItem('micromind_address');
     const storedConnected = localStorage.getItem('micromind_connected');
-    
+
     if (storedAddress && storedConnected === 'true') {
-      setAddress(storedAddress);
-      setIsConnected(true);
-      fetchBalances(storedAddress);
+      try {
+        const checksummed = getAddress(storedAddress);
+        setAddress(checksummed);
+        setIsConnected(true);
+        fetchBalances(checksummed);
+      } catch {
+        setAddress(storedAddress);
+        setIsConnected(true);
+        fetchBalances(storedAddress);
+      }
       
       // Initialize wallet client early using the preferred provider
       const provider = getPreferredProvider();
@@ -135,6 +159,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     let attempts = 0;
 
     const checkAndConnect = async () => {
+      // User explicitly disconnected — do not auto-reconnect
+      if (sessionStorage.getItem('mm_wallet_disconnected')) {
+        clearInterval(checkInterval);
+        return;
+      }
+
       attempts++;
 
       const ethereum = getPreferredProvider();
@@ -146,7 +176,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           const accounts = await ethereum.request({ method });
 
           if (accounts && accounts.length > 0) {
-            const addr = accounts[0];
+            const addr = getAddress(accounts[0]);
             const client = createWalletClient({
               chain: celo,
               transport: custom(ethereum)
@@ -177,7 +207,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     checkAndConnect();
     checkInterval = setInterval(checkAndConnect, 100);
 
-    return () => clearInterval(checkInterval);
+    // Also fire immediately when the DOM reaches interactive/complete state,
+    // catching late-injected window.ethereum on some Android webviews.
+    const onReadyStateChange = () => {
+      if (document.readyState === 'interactive' || document.readyState === 'complete') {
+        checkAndConnect();
+      }
+    };
+    document.addEventListener('readystatechange', onReadyStateChange);
+
+    return () => {
+      clearInterval(checkInterval);
+      document.removeEventListener('readystatechange', onReadyStateChange);
+    };
   }, [fetchBalances]);
 
   // Listen for account/chain changes on the preferred provider
@@ -189,8 +231,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (accounts.length === 0) {
         disconnect();
       } else {
-        setAddress(accounts[0]);
-        fetchBalances(accounts[0]);
+        try {
+          const checksummed = getAddress(accounts[0]);
+          setAddress(checksummed);
+          fetchBalances(checksummed);
+        } catch {
+          setAddress(accounts[0]);
+          fetchBalances(accounts[0]);
+        }
       }
     };
 
@@ -206,6 +254,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [fetchBalances, disconnect]);
 
   const connect = useCallback(async (provider?: any) => {
+    // Clear disconnect flag so auto-connect can resume for future sessions
+    try { sessionStorage.removeItem('mm_wallet_disconnected'); } catch {}
+
     const win = window as any;
     let ethereum = provider || win.ethereum;
 
@@ -254,7 +305,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const addr = accounts[0];
+      const addr = getAddress(accounts[0]);
       const client = createWalletClient({
         chain: celo,
         transport: custom(ethereum)
