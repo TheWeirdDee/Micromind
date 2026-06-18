@@ -1,7 +1,8 @@
 import { createPublicClient, createWalletClient, custom, http } from 'viem';
 import { celo, celoSepolia } from 'viem/chains';
 
-const IS_TESTNET = process.env.NEXT_PUBLIC_IS_TESTNET === 'true';
+/** True when running against Celo Sepolia testnet. Driven by NEXT_PUBLIC_IS_TESTNET env var. */
+export const IS_TESTNET = process.env.NEXT_PUBLIC_IS_TESTNET === 'true';
 
 declare global {
   interface Window {
@@ -16,6 +17,10 @@ export const publicClient = createPublicClient({
 
 export const getWalletClient = async () => {
   if (typeof window !== 'undefined' && window.ethereum) {
+    // Guard against non-object injections (e.g. malicious page scripts)
+    if (typeof window.ethereum !== 'object') {
+      throw new Error('window.ethereum is not a valid provider object');
+    }
     return createWalletClient({
       chain: IS_TESTNET ? celoSepolia : celo,
       transport: custom(window.ethereum),

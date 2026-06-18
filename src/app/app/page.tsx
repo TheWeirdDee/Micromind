@@ -2,16 +2,47 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, FileText, X, User, Loader2 } from 'lucide-react';
+import { MessageSquare, Loader2, BookOpen, Lock, Bird, Sparkles, Search, Mail, HelpCircle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 import { QRCodeSVG } from 'qrcode.react';
 
 import { TOOLS } from '@/constants/tools';
+import { DailyStreak } from '@/components/app/DailyStreak';
+import { MoodChart } from '@/components/app/MoodChart';
+import { WordCloud } from '@/components/app/WordCloud';
+import { getHistory, type HistoryItem } from '@/lib/storage';
+import { getEntries, getLastEntry, type JournalEntry } from '@/lib/journal';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+} as const;
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: 'spring',
+      stiffness: 90,
+      damping: 14,
+    },
+  },
+} as const;
 
 export default function AppHome() {
   const { isConnected, address, isMiniPay, connect } = useWallet();
   const [appUrl, setAppUrl] = useState('');
+  const [recentPrompt, setRecentPrompt] = useState<HistoryItem | null>(null);
+  const [entriesCount, setEntriesCount] = useState(0);
+  const [lastEntry, setLastEntry] = useState<JournalEntry | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -25,126 +56,188 @@ export default function AppHome() {
           'Add this in Vercel dashboard after deploying.'
         );
       }
+      
+      const entries = getEntries();
+      setEntriesCount(entries.length);
+      setLastEntry(getLastEntry());
+      
+      const hist = getHistory();
+      if (hist && hist.length > 0) {
+        setRecentPrompt(hist[0]);
+      }
     }
   }, []);
 
-  // If not connected, show connect screen
-  if (!isConnected || !address) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-8">
-        <h2 className="text-3xl font-serif mb-8 text-text-primary">Welcome to MicroMind.</h2>
-        
-        {/* Hide connect button inside MiniPay */}
-        {!isMiniPay ? (
-          <div className="space-y-6 w-full max-w-sm">
-            <button 
-              onClick={() => connect()}
-              className="w-full pill-button pill-button-primary text-sm tracking-widest"
-            >
-              Connect Wallet
-            </button>
-
-            <div className="flex items-center gap-4 text-text-muted opacity-30">
-              <div className="h-[1px] flex-1 bg-border" />
-              <span className="text-[10px] font-mono uppercase tracking-widest">— or open directly in MiniPay —</span>
-              <div className="h-[1px] flex-1 bg-border" />
-            </div>
-
-            <div className="bg-surface border border-border p-8 rounded-[2rem] flex flex-col items-center">
-              <div className="bg-white p-3 rounded-2xl mb-6">
-                <QRCodeSVG 
-                  value={appUrl} 
-                  size={200}
-                  level="H"
-                />
-              </div>
-              
-              <p className="text-text-muted font-mono text-[10px] uppercase tracking-widest leading-relaxed mb-6">
-                Scan with your phone camera, <br /> then open in MiniPay
-              </p>
-
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(appUrl);
-                  alert('App link copied to clipboard!');
-                }}
-                className="text-[10px] font-mono text-accent uppercase tracking-widest border border-accent/20 px-4 py-2 rounded-full hover:bg-accent/5 transition-colors"
-              >
-                Copy App Link
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center">
-            <Loader2 className="w-8 h-8 text-accent animate-spin mb-4" />
-            <p className="text-text-muted font-mono text-sm max-w-[280px]">
-              MiniPay detected. <br />
-              Connecting automatically...
-            </p>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   // Only show app content when connected
-  return (
-    <div className="space-y-12 animate-fade-up">
-      <header>
-        <h2 className="text-4xl font-serif mb-2 tracking-tight">
-          What do you want <br /> to build?
-        </h2>
-        <p className="text-text-muted font-mono text-sm">Select a tool to begin.</p>
-      </header>
-      
-      <motion.div 
-        variants={{
-          hidden: { opacity: 0 },
-          show: {
-            opacity: 1,
-            transition: { staggerChildren: 0.1 }
-          }
-        }}
-        initial="hidden"
-        animate="show"
-        className="grid grid-cols-2 gap-4"
-      >
-        {TOOLS.map((tool, i) => (
-          <Link key={tool.name} href={tool.href}>
-            <motion.div 
-              variants={{
-                hidden: { opacity: 0, y: 20 },
-                show: { opacity: 1, y: 0 }
-              }}
-              whileTap={{ scale: 0.98 }}
-              className="bg-surface border border-border p-5 rounded-2xl flex flex-col gap-4 group hover:border-text-muted transition-colors"
-            >
-              <div 
-                className="p-2.5 rounded-xl w-fit border border-border group-hover:border-accent-gold/40 transition-colors"
-                style={{ backgroundColor: `${tool.color}10`, borderColor: `${tool.color}30` }}
-              >
-                <span className="text-xl">{tool.icon}</span>
-              </div>
-              <div>
-                <h3 className="font-serif text-xl mb-1">{tool.name}</h3>
-                <p className="text-[10px] font-mono text-text-muted mb-3 uppercase tracking-wider">{tool.description}</p>
-                <span className="text-[10px] font-mono text-accent-green px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/20">
-                  {tool.priceDisplay}
-                </span>
-              </div>
-            </motion.div>
-          </Link>
-        ))}
-      </motion.div>
+  const todayLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  });
 
-      <section className="space-y-6">
-        <h4 className="font-mono text-[10px] tracking-widest uppercase text-text-muted">Recent Prompts</h4>
-        <div className="space-y-3">
-          <p className="text-text-muted font-mono text-xs italic opacity-40 py-4 border border-dashed border-border rounded-xl text-center">
-            No history yet. Start your first prompt above.
-          </p>
+  return (
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-8 pb-24"
+    >
+      <div className="grid gap-8 lg:grid-cols-[2.2fr_1fr] items-start">
+        <div className="space-y-8">
+          <motion.div variants={itemVariants} className="space-y-4">
+            <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">Journal dashboard</p>
+            <h2 className="text-4xl md:text-5xl font-serif tracking-tight">A calmer place for your daily writing.</h2>
+            <p className="text-text-muted leading-relaxed max-w-none md:max-w-3xl">
+              Capture your thoughts, keep your streak alive, and access your private writing tools in a cleaner, more mindful layout.
+            </p>
+          </motion.div>
+
+          <motion.div variants={itemVariants}>
+            <Link href="/app/journal">
+              <motion.div
+                whileTap={{ scale: 0.99 }}
+                className="relative overflow-hidden rounded-[2rem] border border-border bg-gradient-to-br from-accent/10 to-surface p-8 shadow-[0_24px_70px_rgba(0,0,0,0.25)] group"
+              >
+                <div className="absolute inset-0 halftone-bg opacity-6 pointer-events-none" />
+                <div className="relative z-10 flex flex-col gap-6">
+                  <div className="space-y-3">
+                    <span className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">Core journal</span>
+                    <h3 className="text-3xl font-serif tracking-tight group-hover:text-accent transition-colors">Continue your journal</h3>
+                    <p className="text-sm text-text-muted leading-relaxed">
+                      Open your private journal to add a new entry, revisit old reflections, or simply write without judgment.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="space-y-1 max-w-3xl">
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Recent entry</p>
+                      <p className="font-mono text-sm text-text-primary leading-relaxed">
+                        {lastEntry?.content ? `${lastEntry.content.slice(0, 115)}${lastEntry.content.length > 115 ? '…' : ''}` : 'No entry yet. Start with your first thought today.'}
+                      </p>
+                    </div>
+                    <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-accent text-bg shadow-lg shadow-accent/20">
+                      <BookOpen className="w-6 h-6" />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </Link>
+          </motion.div>
+
+          <motion.section variants={itemVariants} className="rounded-[2rem] border border-border bg-surface-2 p-6 shadow-[0_12px_40px_rgba(0,0,0,0.16)]">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Recent activity</p>
+                <h3 className="text-2xl md:text-3xl font-serif mt-2">Latest prompt & reflection</h3>
+              </div>
+              {recentPrompt && (
+                <Link href="/app/history" className="inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.35em] text-accent hover:text-accent-gold transition-colors">
+                  View all
+                  <ArrowRight aria-hidden="true" className="w-3 h-3" />
+                </Link>
+              )}
+            </div>
+
+            <div className="mt-6 rounded-[2rem] border border-border bg-surface p-6">
+              {recentPrompt ? (
+                <Link href={`/app/history`}>
+                  <div className="space-y-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h4 className="text-xl font-serif">{recentPrompt.toolName || 'Prompt'}</h4>
+                        <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted mt-1">
+                          {new Date(recentPrompt.timestamp).toLocaleDateString()} · {recentPrompt.cost}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-mono text-text-muted leading-relaxed italic">“{recentPrompt.prompt}”</p>
+                  </div>
+                </Link>
+              ) : (
+                <div className="text-center text-sm text-text-muted">No activity yet. Start journaling and your recent prompts will appear here.</div>
+              )}
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+              {TOOLS.map((tool) => {
+                const isReflectLocked = tool.slug === 'reflect' && entriesCount < 2;
+                const isPatternLocked = tool.slug === 'pattern' && entriesCount < 5;
+                const isLocked = isReflectLocked || isPatternLocked;
+                const lockRequirement = isReflectLocked ? '2 entries required' : '5 entries required';
+
+                const CardContent = (
+                  <div className={`rounded-3xl border border-border bg-surface p-4 transition h-full flex flex-col justify-between ${
+                    isLocked ? 'opacity-50 cursor-not-allowed' : 'hover:border-accent/30 cursor-pointer'
+                  }`}>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <h4 className="font-serif text-base truncate">{tool.name}</h4>
+                        <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted mt-1 leading-5">
+                          {isLocked ? lockRequirement : tool.description}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-bg/90 p-3 shrink-0">
+                        {(() => {
+                          if (isLocked) {
+                            return <Lock className="w-5 h-5 text-text-muted" />;
+                          }
+                          const TOOL_ICONS: Record<string, any> = {
+                            chat: MessageSquare,
+                            tweet: Bird,
+                            reflect: Sparkles,
+                            pattern: Search,
+                            letter: Mail,
+                          };
+                          const Icon = TOOL_ICONS[tool.slug] || HelpCircle;
+                          return <Icon className="w-5 h-5 text-accent" />;
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                );
+
+                if (isLocked) {
+                  return (
+                    <div key={tool.name} className="block w-full min-w-0">
+                      {CardContent}
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link key={tool.name} href={tool.route} className="block w-full min-w-0">
+                    {CardContent}
+                  </Link>
+                );
+              })}
+            </div>
+          </motion.section>
         </div>
-      </section>
-    </div>
+
+        <motion.aside variants={itemVariants} className="space-y-6 lg:max-w-[340px] xl:max-w-[360px]">
+          <div className="rounded-[2rem] border border-border bg-surface-2 p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
+            <div className="mb-5">
+              <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Today</p>
+              <p className="text-2xl font-serif mt-2">{todayLabel}</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-3xl bg-bg/60 border border-border p-4">
+                <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Entries</p>
+                <p className="text-3xl font-serif mt-2">{entriesCount}</p>
+              </div>
+              <div className="rounded-3xl bg-bg/60 border border-border p-4">
+                <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Last saved</p>
+                <p className="mt-2 font-mono text-sm text-text-primary">{lastEntry?.date ?? 'No entry yet'}</p>
+              </div>
+            </div>
+          </div>
+
+          <DailyStreak />
+          <MoodChart />
+          <WordCloud />
+        </motion.aside>
+      </div>
+    </motion.div>
   );
 }

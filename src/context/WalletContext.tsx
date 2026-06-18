@@ -12,30 +12,60 @@ import {
   createWalletClient,
   custom,
   http,
-  erc20Abi
+  erc20Abi,
+  getAddress
 } from 'viem';
 import { celo } from 'viem/chains';
 import {
-  USDC_ADDRESS,
+  cUSD_ADDRESS,
   PAYMENT_TOKEN_DECIMALS,
   CELO_MAINNET_PARAMS,
   CHAIN_ID_HEX
 } from '@/constants/chains';
 
+/** Shape of the global wallet context shared across the app. */
 interface WalletContextType {
+  /** Checksummed EIP-55 address of the connected wallet, or null if not connected. */
   address: string | null;
+  /** True when a wallet is connected and an address is available. */
   isConnected: boolean;
+  /** True when the app is running inside the Opera MiniPay wallet browser. */
   isMiniPay: boolean;
-  usdcBalance: string;
+  /** Human-readable cUSD balance of the connected address (2 decimal places). */
+  cusdBalance: string;
+  /** Human-readable CELO balance of the connected address (4 decimal places). */
   celoBalance: string;
+  /** Viem WalletClient instance for signing and sending transactions. */
   walletClient: any;
+  /** Viem PublicClient instance for reading chain state (balances, receipts). */
   publicClient: any;
-  connect: () => Promise<void>;
+  /** Prompts the user to connect a wallet. Accepts an optional injected provider. */
+  connect: (provider?: any) => Promise<void>;
+  /** Clears wallet state and redirects to /app. */
   disconnect: () => void;
+  /** Fetches and updates cUSD + CELO balances for a given address. */
   fetchBalances: (addr: string) => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | null>(null);
+
+// Prefer MetaMask over Zerion/other injected wallets when multiple providers are present.
+// MiniPay always wins. Returns null if nothing is available.
+function getPreferredProvider(): any {
+  if (typeof window === 'undefined') return null;
+  const eth = (window as any).ethereum;
+  if (!eth) return null;
+  if (eth.isMiniPay) return eth;
+  if (eth.providers && Array.isArray(eth.providers)) {
+    return (
+      eth.providers.find((p: any) => p.isMetaMask && !p.isZerion) ||
+      eth.providers.find((p: any) => p.isMetaMask) ||
+      eth.providers[0] ||
+      eth
+    );
+  }
+  return eth;
+}
 
 export const publicClient = createPublicClient({
   chain: celo,
@@ -46,13 +76,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isMiniPay, setIsMiniPay] = useState(false);
-  const [usdcBalance, setUsdcBalance] = useState('0');
+  const [cusdBalance, setCusdBalance] = useState('0');
   const [celoBalance, setCeloBalance] = useState('0');
   const [walletClient, setWalletClient] = useState<any>(null);
 
   const fetchBalances = useCallback(async (addr: string) => {
     try {
-      // CELO balance
       const celoRaw = await publicClient.getBalance({
         address: addr as `0x${string}`
       });
@@ -60,154 +89,248 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } catch { setCeloBalance('0'); }
 
     try {
-      // USDC balance (6 decimals)
-      const usdcRaw = await publicClient.readContract({
-        address: USDC_ADDRESS as `0x${string}`,
+      const cusdRaw = await publicClient.readContract({
+        address: cUSD_ADDRESS as `0x${string}`,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [addr as `0x${string}`]
       });
-      setUsdcBalance(
-        (Number(usdcRaw) / 10 ** PAYMENT_TOKEN_DECIMALS).toFixed(2)
+      setCusdBalance(
+        (Number(cusdRaw) / 10 ** PAYMENT_TOKEN_DECIMALS).toFixed(2)
       );
-    } catch { setUsdcBalance('0'); }
+    } catch { setCusdBalance('0'); }
   }, []);
 
   const disconnect = useCallback(() => {
     setAddress(null);
     setIsConnected(false);
-    setUsdcBalance('0');
+    setCusdBalance('0');
     setCeloBalance('0');
     setWalletClient(null);
     setIsMiniPay(false);
 
-    try { localStorage.clear(); } catch {}
-    try { sessionStorage.clear(); } catch {}
+    try { localStorage.removeItem('micromind_address'); } catch {}
+    try { localStorage.removeItem('micromind_connected'); } catch {}
+    // Prevent auto-connect loop from immediately reconnecting after disconnect
+    try { sessionStorage.setItem('mm_wallet_disconnected', '1'); } catch {}
 
     window.location.replace('/app');
   }, []);
 
-  // Auto-connect for MiniPay ONLY
+  // Hydrate from localStorage to prevent flash of disconnected state
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!window.ethereum) return;
+    // Don't restore session if user explicitly disconnected this tab
+    if (sessionStorage.getItem('mm_wallet_disconnected')) return;
 
-    // MiniPay Hook — required for Proof of Ship 
-    // "Build for MiniPay" booster
-    // Detects MiniPay wallet and auto-connects
-    const isMiniPay = window.ethereum?.isMiniPay === true;
-    if (!isMiniPay) return;
+    const storedAddress = localStorage.getItem('micromind_address');
+    const storedConnected = localStorage.getItem('micromind_connected');
 
-    setIsMiniPay(true);
-
-    window.ethereum
-      .request({ method: 'eth_requestAccounts' })
-      .then(async (accounts: string[]) => {
-        if (!accounts?.[0]) return;
-        const addr = accounts[0];
+    if (storedAddress && storedConnected === 'true') {
+      try {
+        const checksummed = getAddress(storedAddress);
+        setAddress(checksummed);
+        setIsConnected(true);
+        fetchBalances(checksummed);
+      } catch {
+        setAddress(storedAddress);
+        setIsConnected(true);
+        fetchBalances(storedAddress);
+      }
+      
+      // Initialize wallet client early using the preferred provider
+      const provider = getPreferredProvider();
+      if (provider) {
         const client = createWalletClient({
           chain: celo,
-          transport: custom(window.ethereum)
+          transport: custom(provider)
         });
-        setAddress(addr);
-        setIsConnected(true);
         setWalletClient(client);
-        await fetchBalances(addr);
-      })
-      .catch((e: any) => {
-        console.log('MiniPay auto-connect failed:', e);
-      });
+        if (provider.isMiniPay) setIsMiniPay(true);
+      }
+    }
   }, [fetchBalances]);
 
-  // Listen for account/chain changes
+  // Auto-connect and robust late-injection handling
   useEffect(() => {
-    if (!window.ethereum) return;
+    if (typeof window === 'undefined') return;
+
+    let checkInterval: NodeJS.Timeout;
+    let attempts = 0;
+
+    const checkAndConnect = async () => {
+      // User explicitly disconnected — do not auto-reconnect
+      if (sessionStorage.getItem('mm_wallet_disconnected')) {
+        clearInterval(checkInterval);
+        return;
+      }
+
+      attempts++;
+
+      const ethereum = getPreferredProvider();
+      if (ethereum) {
+        const isMiniPayDetected = ethereum.isMiniPay === true;
+
+        try {
+          const method = isMiniPayDetected ? 'eth_requestAccounts' : 'eth_accounts';
+          const accounts = await ethereum.request({ method });
+
+          if (accounts && accounts.length > 0) {
+            const addr = getAddress(accounts[0]);
+            const client = createWalletClient({
+              chain: celo,
+              transport: custom(ethereum)
+            });
+            if (isMiniPayDetected) setIsMiniPay(true);
+            setAddress(addr);
+            setIsConnected(true);
+            setWalletClient(client);
+            await fetchBalances(addr);
+            
+            try { localStorage.setItem('micromind_address', addr); } catch {}
+            try { localStorage.setItem('micromind_connected', 'true'); } catch {}
+            
+            clearInterval(checkInterval);
+            return; // Success
+          }
+        } catch (e) {
+          console.log('Auto-connect failed:', e);
+        }
+        
+        // If we found ethereum but accounts are empty, we can stop polling unless it's very early
+        if (attempts > 5) clearInterval(checkInterval);
+      } else {
+        if (attempts > 30) clearInterval(checkInterval);
+      }
+    };
+
+    checkAndConnect();
+    checkInterval = setInterval(checkAndConnect, 100);
+
+    // Also fire immediately when the DOM reaches interactive/complete state,
+    // catching late-injected window.ethereum on some Android webviews.
+    const onReadyStateChange = () => {
+      if (document.readyState === 'interactive' || document.readyState === 'complete') {
+        checkAndConnect();
+      }
+    };
+    document.addEventListener('readystatechange', onReadyStateChange);
+
+    return () => {
+      clearInterval(checkInterval);
+      document.removeEventListener('readystatechange', onReadyStateChange);
+    };
+  }, [fetchBalances]);
+
+  // Listen for account/chain changes on the preferred provider
+  useEffect(() => {
+    const ethereum = getPreferredProvider();
+    if (!ethereum) return;
 
     const onAccountsChanged = (accounts: string[]) => {
       if (accounts.length === 0) {
         disconnect();
       } else {
-        setAddress(accounts[0]);
-        fetchBalances(accounts[0]);
+        try {
+          const checksummed = getAddress(accounts[0]);
+          setAddress(checksummed);
+          fetchBalances(checksummed);
+        } catch {
+          setAddress(accounts[0]);
+          fetchBalances(accounts[0]);
+        }
       }
     };
 
     const onChainChanged = () => window.location.reload();
 
-    window.ethereum.on('accountsChanged', onAccountsChanged);
-    window.ethereum.on('chainChanged', onChainChanged);
+    ethereum.on('accountsChanged', onAccountsChanged);
+    ethereum.on('chainChanged', onChainChanged);
 
     return () => {
-      window.ethereum?.removeListener(
-        'accountsChanged', onAccountsChanged
-      );
-      window.ethereum?.removeListener(
-        'chainChanged', onChainChanged
-      );
+      ethereum.removeListener?.('accountsChanged', onAccountsChanged);
+      ethereum.removeListener?.('chainChanged', onChainChanged);
     };
   }, [fetchBalances, disconnect]);
 
-  const connect = useCallback(async () => {
-    if (!window.ethereum) {
+  const connect = useCallback(async (provider?: any) => {
+    // Clear disconnect flag so auto-connect can resume for future sessions
+    try { sessionStorage.removeItem('mm_wallet_disconnected'); } catch {}
+
+    const win = window as any;
+    let ethereum = provider || win.ethereum;
+
+    if (!ethereum) {
       alert('Please install MetaMask or open in MiniPay');
       return;
     }
 
+    if (!provider && ethereum?.providers && Array.isArray(ethereum.providers)) {
+      const metaMaskProvider = ethereum.providers.find((item: any) => item.isMetaMask);
+      ethereum = metaMaskProvider || ethereum.providers[0] || ethereum;
+    }
+
     try {
-      // Force MetaMask to show account selection (optional, may fail in some wallets)
-      try {
-        await window.ethereum.request({
-          method: 'wallet_requestPermissions',
-          params: [{ eth_accounts: {} }]
-        });
-      } catch (err) {
-        console.log('Permissions request skipped or failed:', err);
+      if (ethereum.isMetaMask) {
+        try {
+          await ethereum.request({
+            method: 'wallet_requestPermissions',
+            params: [{ eth_accounts: {} }]
+          });
+        } catch (err) {
+          console.log('Permissions request skipped or failed:', err);
+        }
       }
 
-      const accounts: string[] = await window.ethereum.request({
+      const accounts: string[] = await ethereum.request({
         method: 'eth_requestAccounts'
       });
 
       if (!accounts?.[0]) return;
 
-      // Switch to Celo Mainnet
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: CHAIN_ID_HEX }]
-        });
-      } catch (switchError: any) {
-        if (switchError.code === 4902) {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [CELO_MAINNET_PARAMS]
+      const isMiniPayDetected = ethereum?.isMiniPay === true;
+      if (!isMiniPayDetected) {
+        try {
+          await ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: CHAIN_ID_HEX }]
           });
+        } catch (switchError: any) {
+          if (switchError.code === 4902) {
+            await ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [CELO_MAINNET_PARAMS]
+            });
+          }
         }
       }
 
-      const addr = accounts[0];
+      const addr = getAddress(accounts[0]);
       const client = createWalletClient({
         chain: celo,
-        transport: custom(window.ethereum)
+        transport: custom(ethereum)
       });
 
       setAddress(addr);
       setIsConnected(true);
-      setIsMiniPay(window.ethereum?.isMiniPay === true);
+      setIsMiniPay(isMiniPayDetected);
       setWalletClient(client);
+
+      try { localStorage.setItem('micromind_address', addr); } catch {}
+      try { localStorage.setItem('micromind_connected', 'true'); } catch {}
+      try { localStorage.removeItem('micromind_disconnected'); } catch {}
 
       await fetchBalances(addr);
 
-      // Suggest USDC token to MetaMask
       try {
-        await window.ethereum.request({
+        await ethereum.request({
           method: 'wallet_watchAsset',
           params: {
             type: 'ERC20',
             options: {
-              address: USDC_ADDRESS,
-              symbol: 'USDC',
-              decimals: 6,
+              address: cUSD_ADDRESS,
+              symbol: 'USDm',
+              decimals: 18,
             }
           }
         });
@@ -225,7 +348,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       address,
       isConnected,
       isMiniPay,
-      usdcBalance,
+      cusdBalance,
       celoBalance,
       walletClient,
       publicClient,

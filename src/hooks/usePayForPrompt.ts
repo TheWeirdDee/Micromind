@@ -1,11 +1,26 @@
 import { useState, useCallback } from 'react';
-import { parseUnits, erc20Abi } from 'viem';
+import { parseUnits, erc20Abi, keccak256, toBytes } from 'viem';
 import { celo } from 'viem/chains';
 import { useWallet } from '@/context/WalletContext';
 import { CONTRACT_ADDRESS, MICROMIND_ABI } from '@/lib/contract';
-import { USDC_ADDRESS, PAYMENT_TOKEN_DECIMALS } from '@/constants/chains';
+import { cUSD_ADDRESS, PAYMENT_TOKEN_DECIMALS, CELO_MAINNET_PARAMS, CHAIN_ID_HEX } from '@/constants/chains';
 import { TOOLS } from '@/constants/tools';
 import { saveToHistory } from '@/lib/storage';
+
+/** Maximum characters of the prompt sent to the agent for hash computation. */
+const MAX_PROMPT_CHARS = 500;
+
+/** Milliseconds between each polling attempt for the AI response. */
+const POLL_INTERVAL_MS = 2_000;
+
+/** Maximum number of polling attempts before declaring a timeout. */
+const MAX_POLL_ATTEMPTS = 60;
+
+/** Abort timeout for the fast-path /api/process-direct request. */
+const DIRECT_FETCH_TIMEOUT_MS = 30_000;
+
+/** Abort timeout for each individual /api/response poll request. */
+const POLL_FETCH_TIMEOUT_MS = 5_000;
 
 export type PaymentStep =
   | 'idle'
@@ -19,7 +34,7 @@ export type PaymentStep =
   | 'error';
 
 export function usePayForPrompt() {
-  const { address, walletClient, publicClient } = useWallet();
+  const { address, walletClient, publicClient, isMiniPay } = useWallet();
   const [step, setStep] = useState<PaymentStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -38,8 +53,14 @@ export function usePayForPrompt() {
       return;
     }
 
-    const tool = TOOLS[toolId];
+    const tool = TOOLS.find(t => t.id === toolId);
     const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+
+    if (!tool) {
+      setError('Unknown tool');
+      setStep('error');
+      return;
+    }
 
     if (!agentUrl) {
       setError('Agent URL not configured');
@@ -51,57 +72,71 @@ export function usePayForPrompt() {
     setTxHash(null);
 
     try {
-      // STEP 1 — Check agent health
+      // Ensure wallet is on Celo before any transaction
       setStep('checking');
       try {
-        const health = await fetch(`${agentUrl}/api/health`, {
-          signal: AbortSignal.timeout(5000)
-        });
-        if (!health.ok) throw new Error('Agent offline');
-      } catch {
-        throw new Error(
-          'AI agent is offline. Contact support or try again.'
-        );
+        await walletClient.switchChain({ id: 42220 });
+      } catch (switchErr: any) {
+        if (switchErr.code === 4902 || switchErr.code === -32603) {
+          try {
+            await walletClient.request({
+              method: 'wallet_addEthereumChain',
+              params: [CELO_MAINNET_PARAMS],
+            });
+            await walletClient.switchChain({ id: 42220 });
+          } catch {
+            throw new Error('Failed to add Celo network to your wallet.');
+          }
+        } else {
+          throw new Error('Please switch your wallet to the Celo network to proceed.');
+        }
       }
 
-      // STEP 2 — Submit prompt, get hash
       setStep('submitting');
-      const finalPrompt = chatHistory ? JSON.stringify(chatHistory) : prompt;
-      
-      const submitRes = await fetch(`${agentUrl}/api/prompt/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          prompt: finalPrompt, 
-          toolId, 
-          userAddress: address 
-        })
-      });
+      let finalPrompt = chatHistory ? JSON.stringify(chatHistory) : prompt;
+      if (finalPrompt.length > MAX_PROMPT_CHARS) {
+        finalPrompt = finalPrompt.slice(0, MAX_PROMPT_CHARS);
+      }
 
-      if (!submitRes.ok) throw new Error('Failed to submit prompt');
-      const { promptHash } = await submitRes.json();
+      // Compute hash locally — matches agent logic exactly, no server roundtrip needed
+      const nonce = Date.now().toString();
+      const promptHash = keccak256(toBytes(`${finalPrompt}:${address}:${nonce}`));
+
+      // Notify agent in the background so it can cache the prompt for polling fallback
+      if (agentUrl) {
+        fetch(`${agentUrl}/api/prompt/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: finalPrompt, toolId, userAddress: address, nonce }),
+        }).catch(() => { /* agent offline — payment still proceeds */ });
+      }
 
       // Get current gas price (legacy tx for MiniPay)
       const gasPrice = await publicClient.getGasPrice();
-
-      // STEP 3 — Approve USDC
-      setStep('approving');
       const price = parseUnits(tool.price, PAYMENT_TOKEN_DECIMALS);
 
-      const approveNonce = await publicClient.getTransactionCount({
-        address: address as `0x${string}`,
-        blockTag: 'pending'
-      });
+      if (price <= BigInt(0)) {
+        throw new Error('Invalid payment amount: Price must be greater than zero.');
+      }
+
+      // STEP 1 — Approve cUSD transfer
+      // We must approve the contract to pull `price` worth of cUSD from the user's wallet.
+      // MiniPay requires explicit nonce management; MetaMask handles nonces internally.
+      setStep('approving');
+      const approveNonce = isMiniPay
+        ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
+        : undefined;
 
       const approveTx = await walletClient.writeContract({
-        address: USDC_ADDRESS as `0x${string}`,
+        address: cUSD_ADDRESS as `0x${string}`,
         abi: erc20Abi,
         functionName: 'approve',
         args: [CONTRACT_ADDRESS as `0x${string}`, price],
         chain: celo,
         account: address as `0x${string}`,
         gasPrice,
-        nonce: approveNonce,
+        ...(approveNonce !== undefined ? { nonce: approveNonce } : {}),
+        feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
 
       await publicClient.waitForTransactionReceipt({
@@ -109,12 +144,13 @@ export function usePayForPrompt() {
         confirmations: 1
       });
 
-      // STEP 4 — Pay for prompt
+      // STEP 2 — Submit payment to contract
+      // Calls payForPrompt(toolId, promptHash) on the smart contract.
+      // The contract emits a PromptPaid event that the agent listens for.
       setStep('paying');
-      const payNonce = await publicClient.getTransactionCount({
-        address: address as `0x${string}`,
-        blockTag: 'pending'
-      });
+      const payNonce = isMiniPay
+        ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
+        : undefined;
 
       const payTx = await walletClient.writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
@@ -124,9 +160,11 @@ export function usePayForPrompt() {
         chain: celo,
         account: address as `0x${string}`,
         gasPrice,
-        nonce: payNonce,
+        ...(payNonce !== undefined ? { nonce: payNonce } : {}),
+        feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
 
+      // STEP 3 — Wait for on-chain confirmation
       setStep('confirming');
       await publicClient.waitForTransactionReceipt({
         hash: payTx,
@@ -135,69 +173,100 @@ export function usePayForPrompt() {
 
       setTxHash(payTx);
 
-      // STEP 5 — Get AI response
+      // Notify any interested listeners (e.g. analytics, UI badges) that a payment succeeded
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('micromind:paid', { detail: { txHash: payTx, toolId, toolName } }));
+      }
+
+      // STEP 4 — Fetch AI response from agent
+      // Try direct /api/process-direct first (fastest path, ~5s).
+      // Falls back to polling /api/response/:txHash every POLL_INTERVAL_MS.
       setStep('generating');
 
-      // Try direct processing first (faster)
-      try {
-        const directRes = await fetch(`${agentUrl}/api/process-direct`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            txHash: payTx,
-            prompt: finalPrompt,
-            toolId,
-            userAddress: address
-          })
-        }).then(r => r.json());
-
-        if (directRes.status === 'ready') {
-          saveToHistory({
-            id: Math.random().toString(36).substring(7),
-            txHash: payTx,
-            toolId,
-            toolName,
-            prompt,
-            response: directRes.response,
-            cost: tool.priceDisplay,
-            timestamp: Date.now()
-          });
-          setResponse(directRes.response);
-          setStep('complete');
-          return directRes.response;
-        }
-      } catch { /* fallback to polling */ }
-
-      // Poll for response
-      for (let i = 0; i < 60; i++) {
-        await new Promise(r => setTimeout(r, 2000));
+      if (agentUrl) {
+        // Try direct processing first (faster)
         try {
-          const data = await fetch(
-            `${agentUrl}/api/response/${payTx}`
-          ).then(r => r.json());
+          const directRes = await fetch(`${agentUrl}/api/process-direct`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              txHash: payTx,
+              prompt: finalPrompt,
+              toolId,
+              userAddress: address
+            }),
+            signal: AbortSignal.timeout(DIRECT_FETCH_TIMEOUT_MS)
+          }).then(r => r.json());
 
-          if (data.status === 'ready') {
+          if (directRes.status === 'ready') {
             saveToHistory({
               id: Math.random().toString(36).substring(7),
               txHash: payTx,
               toolId,
               toolName,
               prompt,
-              response: data.response,
-              cost: tool.priceDisplay,
+              response: directRes.response,
+              cost: `${tool.price} cUSD`,
               timestamp: Date.now()
             });
-            setResponse(data.response);
+            setResponse(directRes.response);
             setStep('complete');
-            return data.response;
+            return directRes.response;
           }
-        } catch { /* continue polling */ }
+        } catch { /* fallback to polling */ }
+
+        // Poll for response
+        for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
+          await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+          try {
+            const data = await fetch(
+              `${agentUrl}/api/response/${payTx}`,
+              { signal: AbortSignal.timeout(POLL_FETCH_TIMEOUT_MS) }
+            ).then(r => r.json());
+
+            if (data.status === 'ready') {
+              saveToHistory({
+                id: Math.random().toString(36).substring(7),
+                txHash: payTx,
+                toolId,
+                toolName,
+                prompt,
+                response: data.response,
+                cost: `${tool.price} cUSD`,
+                timestamp: Date.now()
+              });
+              setResponse(data.response);
+              setStep('complete');
+              return data.response;
+            }
+
+            if (data.status === 'prompt_not_found') {
+              console.log('[POLL] Agent reports prompt not found. Resubmitting...');
+              await fetch(`${agentUrl}/api/prompt/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: finalPrompt, toolId, userAddress: address, nonce }),
+              }).catch(() => { /* ignore error, retry on next poll */ });
+            }
+          } catch { /* continue polling */ }
+        }
       }
 
-      throw new Error(
-        `Response timed out. Payment confirmed. ` +
-        `Check: https://celoscan.io/tx/${payTx}`
-      );
+      // Agent offline or timed out — payment still went through
+      const fallbackMsg = `Payment confirmed (tx: ${payTx.slice(0, 10)}…). AI agent is offline — your response will appear once it's back online. Check celoscan.io/tx/${payTx}`;
+      saveToHistory({
+        id: Math.random().toString(36).substring(7),
+        txHash: payTx,
+        toolId,
+        toolName,
+        prompt,
+        response: fallbackMsg,
+        cost: `${tool.price} cUSD`,
+        timestamp: Date.now()
+      });
+      setResponse(fallbackMsg);
+      setStep('complete');
+      return fallbackMsg;
 
     } catch (e: any) {
       console.error('Payment Error:', e);

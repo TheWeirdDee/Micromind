@@ -5,6 +5,7 @@ import Groq from 'groq-sdk';
 import { createPublicClient, http, decodeEventLog } from 'viem';
 import { celo, celoAlfajores } from 'viem/chains';
 import { MICROMIND_ABI } from './lib/contract';
+import { Resend } from 'resend';
 
 dotenv.config();
 
@@ -13,11 +14,18 @@ const port = process.env.PORT || 3001;
 const IS_TESTNET = process.env.IS_TESTNET === 'true';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS as `0x${string}`;
 
+// Fail fast — without a valid contract address the agent cannot decode events
+if (!CONTRACT_ADDRESS || CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+  console.error('[STARTUP] FATAL: CONTRACT_ADDRESS env var is missing or zero address. Exiting.');
+  process.exit(1);
+}
+
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const publicClient = createPublicClient({
   chain: celo,
-  transport: http('https://forno.celo.org')
+  transport: http('https://rpc.ankr.com/celo')
 });
 
 let useRedis = false;
@@ -59,35 +67,74 @@ async function getData(key: string): Promise<string | null> {
   return memoryStore.get(key) ?? null;
 }
 
+// Tool IDs: 1=Chat, 2=Tweet, 3=Reflect, 4=Pattern, 5=Letter (AI Polish)
 const SYSTEM_PROMPTS: Record<number, string> = {
-  0: "Current Date: May 2026. You are a highly advanced AI assistant. Provide direct, accurate, and informational responses. IMPORTANT: Do NOT include any meta-commentary about transactions, payments, CELO, your processing status, or 'MicroMind'. Just answer the user's question directly.",
-  1: "Current Date: May 2026. You are a professional resume writer. Create ATS-optimized resumes. Do not mention any platform details or payments.",
-  2: "Current Date: May 2026. You are a viral Twitter copywriter. Write punchy tweets. No meta-talk.",
-  3: "Current Date: May 2026. You are a personal branding expert. Write compelling bios. No meta-talk."
+  0: "Current Date: June 2026. You are a helpful AI assistant for MicroMind, a personal journaling app. Provide direct, accurate, and thoughtful responses. Do NOT mention transactions, payments, CELO, or processing status. Just answer the question.",
+  1: "Current Date: June 2026. You are a helpful AI assistant for MicroMind, a personal journaling app. Provide direct, accurate, and thoughtful responses. Do NOT mention transactions, payments, CELO, or processing status. Just answer the question.",
+  2: "Current Date: June 2026. Turn this personal thought or journal reflection into a compelling tweet under 280 characters. Keep the authentic, human voice of the writer. Make it specific and emotionally resonant — not generic or corporate-sounding. Add 1-2 hashtags only if they feel completely natural. Return only the tweet text, nothing else.",
+  3: "You are a compassionate journal companion. The user has shared their recent journal entries below. Write a warm, insightful weekly reflection (150-200 words) that summarizes their emotional journey, highlights any growth moments or recurring themes, and ends with one encouraging, actionable thought. Be personal and gentle. Do not be clinical or list-heavy — write as a trusted friend would.",
+  4: "You are an empathetic AI analyst. Analyze these journal entries and identify exactly 3 emotional patterns or recurring themes in the user's life. For each pattern, provide:\n1. A short, memorable name (2-4 words, e.g. \"The Sunday Spiral\")\n2. A 1-2 sentence description of what you noticed\n3. One gentle, actionable insight (start with \"Try:\")\nBe warm and non-clinical. Frame patterns as observations, not diagnoses. Format your response clearly with each pattern separated.",
+  5: "You are a warm and eloquent writing assistant. Rewrite this letter to make it more heartfelt, emotionally resonant, and beautifully expressed — while keeping the original meaning and the authentic voice of the writer completely intact. Do not add information, events, or relationships that were not in the original. Do not change the tone from loving to formal or vice versa — enhance what is already there. Return only the rewritten letter text, nothing else.",
 };
+
+async function sendEmail(to: string, senderName: string, content: string, isPolished: boolean) {
+  if (!resend) {
+    console.warn('[EMAIL] Resend not configured. Skipping email send.');
+    return;
+  }
+
+  const subject = `A letter for you, from ${senderName}`;
+  const text = isPolished 
+    ? `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app\n✨ This letter was enhanced with AI`
+    : `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app`;
+
+  await resend.emails.send({
+    from: 'MicroMind Letters <onboarding@resend.dev>',
+    to,
+    subject,
+    text
+  });
+  console.log(`[EMAIL] Sent email successfully to ${to}`);
+}
 
 async function callAI(toolId: number, prompt: string): Promise<string> {
   try {
     console.log(`[AI] Generating for tool ${toolId}...`);
     
+    let finalPrompt = prompt;
+    let recipientEmail = '';
+    let senderName = '';
+
+    // If it is the Letter tool, the prompt is a JSON string containing content, email, and name
+    if (toolId === 5) {
+      try {
+        const parsed = JSON.parse(prompt);
+        finalPrompt = parsed.content || '';
+        recipientEmail = parsed.recipientEmail || '';
+        senderName = parsed.senderName || '';
+      } catch (e) {
+        console.log('[AI] Failed to parse JSON prompt for Letter tool, using raw prompt');
+      }
+    }
+
     let messages: any[] = [
       { role: "system", content: SYSTEM_PROMPTS[toolId] ?? SYSTEM_PROMPTS[0] }
     ];
 
     // Check if prompt is a JSON array of messages (chat history)
     try {
-      if (prompt.trim().startsWith('[') && prompt.trim().endsWith(']')) {
-        const history = JSON.parse(prompt);
+      if (finalPrompt.trim().startsWith('[') && finalPrompt.trim().endsWith(']')) {
+        const history = JSON.parse(finalPrompt);
         if (Array.isArray(history)) {
           messages = [...messages, ...history];
         } else {
-          messages.push({ role: "user", content: prompt });
+          messages.push({ role: "user", content: finalPrompt });
         }
       } else {
-        messages.push({ role: "user", content: prompt });
+        messages.push({ role: "user", content: finalPrompt });
       }
     } catch {
-      messages.push({ role: "user", content: prompt });
+      messages.push({ role: "user", content: finalPrompt });
     }
 
     const completion = await groq.chat.completions.create({
@@ -99,6 +146,15 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
     
     const result = completion.choices[0]?.message?.content ?? "No response generated.";
     console.log(`[AI] Success! Response length: ${result.length}`);
+
+    // If it is the Letter tool, send email in background
+    if (toolId === 5 && recipientEmail) {
+      console.log(`[EMAIL] Sending polished letter to ${recipientEmail}...`);
+      sendEmail(recipientEmail, senderName, result, true).catch(err => {
+        console.error('[EMAIL] Failed to send polished letter email:', err);
+      });
+    }
+
     return result;
   } catch (error: any) {
     console.error('[AI] Groq Error:', error.message);
@@ -106,22 +162,131 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
   }
 }
 
-app.use(express.json());
+// Limit request body to 50 KB to prevent payload-based DoS attacks
+app.use(express.json({ limit: '50kb' }));
 app.use(cors());
+
+// Stamp every response with a unique request ID for log correlation
+app.use((_req, res, next) => {
+  res.setHeader('X-Request-Id', `mmr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  next();
+});
+
+// Static tool registry — mirrors src/constants/tools.ts on the frontend
+app.get('/api/tools', (req, res) => {
+  res.json({
+    tools: [
+      { id: 1, slug: 'chat', name: 'Chat', price: '0.005' },
+      { id: 2, slug: 'tweet', name: 'Tweet', price: '0.005' },
+      { id: 3, slug: 'reflect', name: 'Reflect', price: '0.005' },
+      { id: 4, slug: 'pattern', name: 'Pattern', price: '0.005' },
+      { id: 5, slug: 'letter', name: 'Letter', price: '0.01' },
+    ],
+  });
+});
 
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     network: 'celo-mainnet',
     contract: process.env.CONTRACT_ADDRESS,
-    paymentToken: 'USDC',
+    paymentToken: 'cUSD',
     groqConfigured: !!process.env.GROQ_API_KEY,
+    agent8004Id: process.env.AGENT_8004_ID || null,
+    selfAgentId: process.env.SELF_AGENT_ID || null,
   });
+});
+
+// Email a reflection/pattern result to the user
+app.post('/api/reflection/email', async (req, res) => {
+  const { email, name, content, type } = req.body; // type: 'reflection' | 'pattern'
+  if (!email || !content) return res.status(400).json({ error: 'Missing email or content' });
+
+  if (!resend) return res.status(503).json({ error: 'Email not configured' });
+
+  const subject = type === 'pattern'
+    ? 'Your Emotional Patterns — MicroMind'
+    : 'Your Weekly Reflection — MicroMind';
+
+  const greeting = name ? `Hi ${name},` : 'Hi,';
+
+  try {
+    await resend.emails.send({
+      from: 'MicroMind <onboarding@resend.dev>',
+      to: email,
+      subject,
+      text: `${greeting}\n\nHere's your MicroMind insight:\n\n${content}\n\n---\nGenerated privately on MicroMind · micromind.app`,
+    });
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error('[REFLECTION EMAIL]', e.message);
+    res.status(500).json({ error: 'Email delivery failed' });
+  }
+});
+
+app.post('/api/letter/send', async (req, res) => {
+  const { content, recipientEmail, senderName } = req.body;
+  console.log('[LETTER] Free send request received for recipient:', recipientEmail);
+
+  if (!content || !recipientEmail || !senderName) {
+    return res.status(400).json({ error: 'Missing fields' });
+  }
+
+  try {
+    await sendEmail(recipientEmail, senderName, content, false);
+    res.json({ success: true });
+  } catch (e: any) {
+    console.error('[LETTER] Free send failed:', e);
+    res.status(500).json({ error: e.message || 'Email delivery failed' });
+  }
+});
+
+app.post('/api/letter/polish', async (req, res) => {
+  const { content, recipientEmail, senderName, txHash } = req.body;
+  console.log('[POLISH] Request for recipient:', recipientEmail);
+
+  if (!content || !senderName) {
+    return res.status(400).json({ error: 'Missing required fields: content, senderName' });
+  }
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 1024,
+      temperature: 0.7,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPTS[5] },
+        { role: 'user', content },
+      ],
+    });
+
+    const polished = completion.choices[0]?.message?.content ?? '';
+    console.log('[POLISH] AI done, length:', polished.length);
+
+    let sent = false;
+    if (recipientEmail) {
+      try {
+        await sendEmail(recipientEmail, senderName, polished, true);
+        sent = true;
+      } catch (e: any) {
+        console.error('[POLISH] Email send failed:', e.message);
+      }
+    }
+
+    if (txHash) {
+      await storeData(`resp:${txHash}`, polished, 86400);
+    }
+
+    res.json({ polishedContent: polished, sent });
+  } catch (e: any) {
+    console.error('[POLISH] Error:', e.message);
+    res.status(500).json({ error: e.message || 'Polish failed' });
+  }
 });
 
 app.post('/api/prompt/submit', async (req, res) => {
   console.log('[SUBMIT] Received:', req.body);
-  const { prompt, toolId, userAddress } = req.body;
+  const { prompt, toolId, userAddress, nonce: reqNonce } = req.body;
   
   if (!prompt || toolId === undefined || !userAddress) {
     console.log('[SUBMIT] Missing fields');
@@ -129,7 +294,7 @@ app.post('/api/prompt/submit', async (req, res) => {
   }
 
   const { keccak256, toBytes } = await import('viem');
-  const nonce = Date.now().toString();
+  const nonce = reqNonce || Date.now().toString();
   const promptHash = keccak256(
     toBytes(`${prompt}:${userAddress}:${nonce}`)
   );
@@ -179,7 +344,7 @@ app.get('/api/response/:txHash', async (req, res) => {
     const storedStr = await getData(`prompt:${promptHash}`);
     if (!storedStr) {
       console.log('[RESPONSE] Prompt source not found for hash:', promptHash);
-      return res.json({ status: 'pending' });
+      return res.json({ status: 'prompt_not_found', promptHash });
     }
 
     const { prompt } = JSON.parse(storedStr);
@@ -197,9 +362,15 @@ app.get('/api/response/:txHash', async (req, res) => {
 app.post('/api/process-direct', async (req, res) => {
   const { txHash, prompt, toolId, userAddress } = req.body;
   console.log('[DIRECT] Processing:', { txHash, toolId });
-  
+
+  // Validate toolId — must be an integer between 1 and 5 (inclusive)
+  const parsedToolId = parseInt(toolId, 10);
+  if (!Number.isInteger(parsedToolId) || parsedToolId < 1 || parsedToolId > 5) {
+    return res.status(400).json({ error: 'Invalid toolId: must be an integer between 1 and 5' });
+  }
+
   try {
-    const response = await callAI(Number(toolId), prompt);
+    const response = await callAI(parsedToolId, prompt);
     
     await storeData(`resp:${txHash}`, response, 86400);
     console.log('[DIRECT] Success, response length:', response.length);

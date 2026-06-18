@@ -95,7 +95,7 @@ export default function SendPage() {
   }
 
   return (
-    <div className="space-y-12 animate-fade-up">
+    <div className="space-y-12 animate-fade-up max-w-lg mx-auto">
       <header>
         <h2 className="text-4xl font-serif mb-2 tracking-tight">Send CELO</h2>
         <p className="text-text-muted font-mono text-sm">Transfer assets to any address.</p>
@@ -143,7 +143,7 @@ export default function SendPage() {
 
         {error && (
           <p className="text-red-500 font-mono text-[10px] text-center">
-            ⚠ {error}
+            {error}
           </p>
         )}
 

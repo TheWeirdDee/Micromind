@@ -1,16 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Copy, ExternalLink, Check, Share2 } from 'lucide-react';
+import { Copy, ExternalLink, Check, Share2, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useMiniPay } from '@/hooks/useMiniPay';
 
 interface ResponseCardProps {
   response: string;
   txHash?: string;
+  /** Re-runs the same prompt for a fresh generation. Omit to hide the Regenerate button. */
+  onRegenerate?: () => void;
+  regenerating?: boolean;
 }
 
-export function ResponseCard({ response, txHash }: ResponseCardProps) {
+export function ResponseCard({ response, txHash, onRegenerate, regenerating }: ResponseCardProps) {
   const [copied, setCopied] = useState(false);
   const { shareToMiniPay } = useMiniPay();
 
@@ -21,13 +24,13 @@ export function ResponseCard({ response, txHash }: ResponseCardProps) {
   };
 
   const handleShare = () => {
-    const text = `Check out what I generated with @MicroMind_AI! 🧠✨\n\n"${response.slice(0, 100)}..."`;
+    const text = `Check out what I generated with @MicroMind_AI!\n\n"${response.slice(0, 100)}..."`;
     const url = 'https://micromind-three.vercel.app';
     shareToMiniPay(text, url);
   };
 
   return (
-    <div className="mt-8 animate-fade-up">
+    <div className="mt-8 animate-fade-up" aria-live="polite" aria-label="AI response">
       <div className="bg-surface-2 border-l-2 border-accent-green p-6 rounded-r-2xl border-y border-r border-border">
         <div className="font-mono text-sm leading-relaxed text-text-primary prose prose-invert prose-sm max-w-none 
           prose-p:mb-4 prose-headings:mb-4 prose-headings:font-serif prose-li:list-disc prose-li:ml-4">
@@ -53,13 +56,24 @@ export function ResponseCard({ response, txHash }: ResponseCardProps) {
               )}
             </button>
 
-            <button 
+            <button
               onClick={handleShare}
               className="flex items-center gap-2 text-[10px] font-mono tracking-widest uppercase text-text-muted hover:text-accent transition-colors"
             >
               <Share2 className="w-3 h-3" />
               <span>Share on X</span>
             </button>
+
+            {onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                disabled={regenerating}
+                className="flex items-center gap-2 text-[10px] font-mono tracking-widest uppercase text-text-muted hover:text-accent transition-colors disabled:opacity-40"
+              >
+                <RefreshCw className={`w-3 h-3 ${regenerating ? 'animate-spin' : ''}`} />
+                <span>Regenerate</span>
+              </button>
+            )}
           </div>
           
           {txHash && (

@@ -2,7 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+ 
 import { Send, Bot, User as UserIcon, Loader2, History as HistoryIcon, X } from 'lucide-react';
+ 
+import { Send, Bot, User as UserIcon, Loader2, History as HistoryIcon, X, AlertTriangle } from 'lucide-react';
+ 
 import Link from 'next/link';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { TOOLS } from '@/constants/tools';
@@ -11,6 +15,9 @@ import { twMerge } from 'tailwind-merge';
 import { useSearchParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { getHistory } from '@/lib/storage';
+import { useWallet } from '@/context/WalletContext';
+import { updateStreak } from '@/lib/journal';
+import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -26,18 +33,23 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 import { Suspense } from 'react';
 
 function ChatPageInner() {
+  const { isConnected, address, celoBalance, isMiniPay } = useWallet();
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string; chatHistory?: any[] }>(null);
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
+
+  const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
 
   useEffect(() => {
     const historyId = searchParams.get('id');
     if (historyId) {
       const history = getHistory();
       const item = history.find(h => h.txHash === historyId);
-      if (item && item.toolId === 0) {
+      if (item && item.toolId === 1) {
         setMessages([
           { role: 'user', content: item.prompt },
           { role: 'assistant', content: item.response }
@@ -73,6 +85,11 @@ function ChatPageInner() {
     e.preventDefault();
     if (!prompt.trim() || loading) return;
 
+    if (!isConnected || !address) {
+      setShowWalletModal(true);
+      return;
+    }
+
     const userPrompt = prompt;
     setPrompt('');
     setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
@@ -83,17 +100,37 @@ function ChatPageInner() {
         ...messages.slice(-5),
         { role: 'user', content: userPrompt }
       ];
-
-      const aiResponse = await payAndGenerate(0, 'Chat', userPrompt, historyContext);
+      setLastSubmission({ toolId: 1, toolName: 'Chat', prompt: userPrompt, chatHistory: historyContext });
+      const aiResponse = await payAndGenerate(1, 'Chat', userPrompt, historyContext);
       if (aiResponse) {
         setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+        updateStreak(address);
       }
     } catch (err) {
       console.error(err);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Error: Transaction failed. Make sure you have enough USDC in your wallet.' 
+        content: 'Error: Transaction failed. Make sure you have enough cUSD and CELO in your wallet.' 
       }]);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!lastSubmission || loading) return;
+
+    if (!isConnected || !address) {
+      setShowWalletModal(true);
+      return;
+    }
+
+    try {
+      setMessages(prev => [...prev, { role: 'user', content: lastSubmission.prompt }] );
+      const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt, lastSubmission.chatHistory);
+      if (aiResponse) setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+      setLastSubmission(null);
+    } catch (e) {
+      console.error('Retry failed', e);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Retry failed. Check your wallet and try again.' }]);
     }
   };
 
@@ -101,7 +138,7 @@ function ChatPageInner() {
     switch (step) {
       case 'checking': return 'Checking agent...';
       case 'submitting': return 'Preparing prompt...';
-      case 'approving': return 'Approving USDC spend...';
+      case 'approving': return 'Approving cUSD spend...';
       case 'paying': return 'Sending payment...';
       case 'confirming': return 'Confirming on Celo...';
       case 'generating': return 'AI is generating...';
@@ -114,14 +151,14 @@ function ChatPageInner() {
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col h-[calc(100vh-180px)]"
+      className="flex flex-col h-[calc(100vh-180px)] max-w-2xl mx-auto w-full"
     >
       <AgentWarning />
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-serif">AI Chat</h1>
           <p className="text-text-muted font-mono text-xs uppercase tracking-widest mt-1">
-            0.01 USDC per prompt
+            0.005 cUSD per prompt
           </p>
         </div>
         <div className="flex gap-2">
@@ -150,6 +187,15 @@ function ChatPageInner() {
         ref={scrollRef}
         className="flex-1 overflow-y-auto space-y-6 mb-6 pr-2 scrollbar-hide"
       >
+        {step === 'error' && (
+          <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-700 text-sm text-red-100 flex items-center justify-between">
+            <div>Payment failed or cancelled. You can retry the last submission.</div>
+            <div className="flex gap-2">
+              <button onClick={handleRetry} disabled={loading} className="px-3 py-1 rounded bg-accent text-bg text-xs">Retry</button>
+              <button onClick={() => { setLastSubmission(null); }} className="px-3 py-1 rounded border border-border text-xs">Dismiss</button>
+            </div>
+          </div>
+        )}
         <AnimatePresence initial={false}>
           {messages.length === 0 ? (
             <motion.div 
@@ -218,21 +264,29 @@ function ChatPageInner() {
         </AnimatePresence>
       </div>
 
-      <form 
+      {hasNoCelo && (
+        <div className="mb-4 p-4 rounded-xl bg-red-950/30 border border-red-900/60 text-xs text-red-200 font-mono leading-relaxed flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+          <span>You need a small amount of CELO for gas fees (~0.001 CELO per prompt). Get CELO via MiniPay or any Celo exchange before using AI tools.</span>
+        </div>
+      )}
+
+      <form
         onSubmit={handleSubmit}
         className="relative"
       >
         <input
           type="text"
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Type your message..."
-          disabled={loading}
+          onChange={(e) => setPrompt(e.target.value.slice(0, 500))}
+          placeholder={hasNoCelo ? "Please get CELO to chat..." : "Type your message..."}
+          disabled={loading || hasNoCelo}
+          maxLength={500}
           className="w-full bg-surface border border-border rounded-2xl px-6 py-4 pr-16 text-sm focus:outline-none focus:border-accent transition-colors disabled:opacity-50"
         />
         <button
           type="submit"
-          disabled={!prompt.trim() || loading}
+          disabled={!prompt.trim() || loading || hasNoCelo}
           className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-accent text-bg flex items-center justify-center hover:bg-white transition-colors disabled:opacity-50 disabled:hover:bg-accent"
         >
           {loading ? (
@@ -242,6 +296,14 @@ function ChatPageInner() {
           )}
         </button>
       </form>
+      <div className="flex justify-end mt-1 pr-1">
+        <span className={`text-[10px] font-mono ${
+          prompt.length >= 480 ? 'text-red-400' : 'text-text-muted'
+        }`}>
+          {prompt.length}/500
+        </span>
+      </div>
+      <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </motion.div>
   );
 }

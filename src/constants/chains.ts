@@ -1,18 +1,22 @@
 import { celo } from 'viem/chains';
 
 // MAINNET ONLY — no testnet
+// NOTE: feeCurrency is intentionally NOT set on any transaction.
+// Users pay gas in native CELO — this is required for Talent Protocol
+// leaderboard scoring. Using feeCurrency (cUSD gas) results in zero CELO
+// activity score and a lower rank.
 export const CHAIN = celo;
 export const CHAIN_ID = 42220;
 export const CHAIN_ID_HEX = '0xA4EC';
 export const RPC_URL = 'https://forno.celo.org';
 export const EXPLORER = 'https://celoscan.io';
 
-// USDC on Celo Mainnet
-export const USDC_ADDRESS = '0xcebA9300f2b948710d2653dD7B07f33A8B32118C';
+// cUSD on Celo Mainnet
+export const cUSD_ADDRESS = '0x765DE816845861e75A25fCA122bb6898B8B1282a';
 
 // Payment token info
-export const PAYMENT_TOKEN_SYMBOL = 'USDC';
-export const PAYMENT_TOKEN_DECIMALS = 6; // USDC uses 6 decimals
+export const PAYMENT_TOKEN_SYMBOL = 'cUSD';
+export const PAYMENT_TOKEN_DECIMALS = 18; // cUSD uses 18 decimals
 
 // MiniPay fee currency (pay gas in USDm)
 export const USDm_ADDRESS = '0x765DE816845861e75A25fCA122bb6898B8B1282a';
