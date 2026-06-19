@@ -12,6 +12,7 @@ interface AuthContextValue {
   login: (username: string, password: string, rememberMe: boolean) => Promise<void>;
   logout: () => Promise<void>;
   checkUsername: (username: string) => Promise<'available' | 'taken' | 'error'>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -96,6 +97,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (profileError) throw new Error('Could not save profile. Please try again.');
 
+    // Seed local profile so settings page shows name/email immediately
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mm_user_profile', JSON.stringify({
+        name: cleanUsername,
+        email: cleanEmail,
+        goals: [],
+        loginMethod: 'credentials',
+        onboardedAt: Date.now(),
+      }));
+    }
+
     if (!rememberMe) {
       sessionStorage.setItem('mm_no_persist', '1');
     }
@@ -121,6 +133,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) throw new Error('Incorrect password. Please try again.');
 
+    // Seed local profile if not already set (e.g. logging in on a new device)
+    if (typeof window !== 'undefined' && !localStorage.getItem('mm_user_profile')) {
+      localStorage.setItem('mm_user_profile', JSON.stringify({
+        name: cleanUsername,
+        email: profile.email,
+        goals: [],
+        loginMethod: 'credentials',
+        onboardedAt: Date.now(),
+      }));
+    }
+
     if (!rememberMe) {
       sessionStorage.setItem('mm_no_persist', '1');
     }
@@ -129,6 +152,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     sessionStorage.removeItem('mm_no_persist');
     await supabase.auth.signOut();
+  }, []);
+
+  const resetPassword = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/app/reset-password` : undefined,
+    });
+    if (error) throw new Error(error.message);
   }, []);
 
   // Sign out if user chose not to persist and this is a new page load
@@ -141,7 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, login, logout, checkUsername }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, login, logout, checkUsername, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
