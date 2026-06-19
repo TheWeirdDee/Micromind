@@ -132,6 +132,11 @@ export default function AppHome() {
             </div>
           </motion.section>
 
+          {/* Word Cloud on desktop only */}
+          <motion.div variants={itemVariants} className="hidden lg:block">
+            <WordCloud />
+          </motion.div>
+
           {/* Recent activity */}
           {recentPrompt && (
             <motion.section variants={itemVariants} className="rounded-[2rem] border border-border bg-surface-2 p-5">
@@ -173,7 +178,9 @@ export default function AppHome() {
 
           <DailyStreak />
           <MoodChart />
-          <WordCloud />
+          <div className="lg:hidden">
+            <WordCloud />
+          </div>
         </motion.aside>
       </div>
     </motion.div>

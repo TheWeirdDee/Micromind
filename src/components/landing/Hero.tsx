@@ -47,7 +47,7 @@ export function Hero() {
               variants={item}
               className="text-text-primary/80 font-mono text-sm md:text-base max-w-xl leading-relaxed"
             >
-              Your private space to think clearly, track your mood, and reflect deeply. Entries sync across all your devices. AI insights available when you need them.
+              Your private space to think clearly, track your mood, reflect deeply, and send polished letters to loved ones. AI insights are always available when you need them.
             </motion.p>
             
             <motion.div 
@@ -69,7 +69,7 @@ export function Hero() {
                 </Link>
               </motion.div>
               <a 
-                href="#about" 
+                href="#how-it-works" 
                 className="pill-button pill-button-outline text-sm px-8 py-4 font-mono"
               >
                 See How It Works
@@ -133,7 +133,7 @@ export function Hero() {
           {/* Stat description block */}
           <div className="lg:col-span-5 space-y-4 text-left">
             <p className="font-mono text-xs text-text-muted leading-relaxed">
-              Your journal, your voice — synced securely across every device. When you want AI to reflect on your week, surface emotional patterns, or polish a thought, it costs just a few cents in cUSD on Celo.
+              Your journal, your voice — own your thoughts and express them fully. When you want AI to reflect on your week, surface emotional patterns, or polish a letter to a loved one, it costs just a fraction of a cent in cUSD on Celo.
             </p>
             <Link 
               href="#features" 

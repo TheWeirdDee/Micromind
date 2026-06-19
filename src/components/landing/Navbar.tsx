@@ -9,7 +9,7 @@ import { ArrowRight, Menu, X } from 'lucide-react';
 
 const MOBILE_LINKS = [
   { href: '#', label: 'Home' },
-  { href: '#about', label: 'About' },
+  { href: '#how-it-works', label: 'How It Works' },
   { href: '#features', label: 'Features' },
   { href: '#companions', label: 'Companions' },
 ];
@@ -44,8 +44,8 @@ export function Navbar() {
           <a href="#" className="font-mono text-[10px] tracking-widest uppercase text-text-primary/70 hover:text-accent transition-colors">
             Home
           </a>
-          <a href="#about" className="font-mono text-[10px] tracking-widest uppercase text-text-primary/70 hover:text-accent transition-colors">
-            About
+          <a href="#how-it-works" className="font-mono text-[10px] tracking-widest uppercase text-text-primary/70 hover:text-accent transition-colors">
+            How It Works
           </a>
           <a href="#features" className="font-mono text-[10px] tracking-widest uppercase text-text-primary/70 hover:text-accent transition-colors">
             Features
