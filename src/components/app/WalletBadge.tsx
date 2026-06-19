@@ -54,12 +54,7 @@ export function WalletBadge() {
       >
         {Number(cusdBalance).toFixed(2)} cUSD
       </div>
-      <div
-        aria-label={`CELO balance: ${Number(celoBalance).toFixed(4)}`}
-        className="text-[9px] font-mono px-2 py-0.5 rounded border flex-shrink-0 border-yellow-400/40 text-yellow-400 bg-yellow-400/10 whitespace-nowrap hidden sm:block"
-      >
-        {Number(celoBalance).toFixed(3)} CELO
-      </div>
+
     </div>
   );
 }
