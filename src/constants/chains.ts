@@ -1,10 +1,6 @@
 import { celo } from 'viem/chains';
 
-// MAINNET ONLY — no testnet
-// NOTE: feeCurrency is intentionally NOT set on any transaction.
-// Users pay gas in native CELO — this is required for Talent Protocol
-// leaderboard scoring. Using feeCurrency (cUSD gas) results in zero CELO
-// activity score and a lower rank.
+ 
 export const CHAIN = celo;
 export const CHAIN_ID = 42220;
 export const CHAIN_ID_HEX = '0xA4EC';
