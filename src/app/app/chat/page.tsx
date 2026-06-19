@@ -104,9 +104,11 @@ function ChatPageInner() {
       }
     } catch (err) {
       console.error(err);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'Error: Transaction failed. Make sure you have enough cUSD and CELO in your wallet.' 
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: isMiniPay
+          ? 'Error: Transaction failed. Make sure you have enough cUSD in your wallet.'
+          : 'Error: Transaction failed. Make sure you have enough cUSD and CELO (for gas) in your wallet.'
       }]);
     }
   };
