@@ -6,7 +6,7 @@ import { BookOpen, Play } from 'lucide-react';
 
 export function HowItWorks() {
   return (
-    <section id="about" className="py-24 md:py-32 px-6 bg-bg relative">
+    <section id="how-it-works" className="py-24 md:py-32 px-6 bg-bg relative">
       <div className="container mx-auto max-w-6xl">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20 items-center">
           
@@ -45,14 +45,14 @@ export function HowItWorks() {
             transition={{ duration: 0.8 }}
             className="lg:col-span-6 space-y-6 text-left"
           >
-            <span className="font-mono text-[10px] tracking-widest uppercase text-accent-gold">About MicroMind</span>
+            <span className="font-mono text-[10px] tracking-widest uppercase text-accent-gold">How It Works</span>
             
             <h2 className="text-3xl md:text-5xl font-serif leading-tight text-text-primary">
               Helping you find clarity through private writing.
             </h2>
             
             <p className="font-mono text-xs text-text-muted leading-relaxed">
-              We believe your thoughts should belong only to you. MicroMind encrypts your journal entries in the browser before syncing — so you can write freely on any device, knowing only you can read what you write.
+              We believe your thoughts should belong only to you. MicroMind encrypts your journal entries directly in your browser — so you can write freely in complete privacy, knowing only you can read what you write.
             </p>
             
             <p className="font-mono text-xs text-text-muted leading-relaxed">
