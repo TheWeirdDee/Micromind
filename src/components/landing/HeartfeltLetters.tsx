@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Sparkles, Send, CheckCircle2, ChevronRight, PenTool, Inbox, Reply } from 'lucide-react';
 
@@ -11,33 +11,94 @@ export function HeartfeltLetters() {
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [openedEmail, setOpenedEmail] = useState(false);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
   const draftMessage = "Hey mom, just wanted to say thank you for always supporting me. Sorry I haven't called as much lately, I've been busy but I always think about you. You're the best.";
   const polishedMessage = "Dear Mom, I wanted to send a small note to let you know how much I appreciate you. Life has been moving fast lately, but your constant love and support are always on my mind. Thank you for being such an incredible presence in my life. With love, Alex.";
 
   const handlePolish = () => {
     setIsPolishing(true);
-    setTimeout(() => {
+    const t = setTimeout(() => {
       setIsPolishing(false);
       setIsPolished(true);
       setStep(2);
     }, 1500);
+    return () => clearTimeout(t);
   };
 
   const handleSend = () => {
     setIsSending(true);
-    setTimeout(() => {
+    const t = setTimeout(() => {
       setIsSending(false);
       setIsSent(true);
       setStep(3);
     }, 1500);
+    return () => clearTimeout(t);
   };
 
   const handleReset = () => {
     setStep(1);
     setIsPolished(false);
+    setIsPolishing(false);
+    setIsSending(false);
     setIsSent(false);
     setOpenedEmail(false);
+  };
+
+  // Auto-play loop effect
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+
+    let timer: NodeJS.Timeout;
+
+    if (step === 1 && !isPolishing && !isPolished) {
+      // Wait 4 seconds on Step 1, then trigger AI Polish
+      timer = setTimeout(() => {
+        setIsPolishing(true);
+        timer = setTimeout(() => {
+          setIsPolishing(false);
+          setIsPolished(true);
+          setStep(2);
+        }, 1500);
+      }, 4000);
+    } else if (step === 2 && !isSending && !isSent) {
+      // Wait 4 seconds on Step 2, then trigger send
+      timer = setTimeout(() => {
+        setIsSending(true);
+        timer = setTimeout(() => {
+          setIsSending(false);
+          setIsSent(true);
+          setStep(3);
+        }, 1500);
+      }, 4000);
+    } else if (step === 3 && isSent) {
+      if (!openedEmail) {
+        // Wait 3 seconds on closed inbox, then open email
+        timer = setTimeout(() => {
+          setOpenedEmail(true);
+        }, 3000);
+      } else {
+        // Wait 6 seconds showing opened email, then reset and loop
+        timer = setTimeout(() => {
+          handleReset();
+        }, 6000);
+      }
+    }
+
+    return () => clearTimeout(timer);
+  }, [step, isPolishing, isPolished, isSending, isSent, openedEmail, isAutoPlaying]);
+
+  const handleManualStepChange = (targetStep: 1 | 2 | 3) => {
+    setIsAutoPlaying(false);
+    if (targetStep === 1) {
+      handleReset();
+    } else if (targetStep === 2 && isPolished) {
+      setStep(2);
+      setIsSent(false);
+      setOpenedEmail(false);
+    } else if (targetStep === 3 && isSent) {
+      setStep(3);
+    }
   };
 
   return (
@@ -71,7 +132,7 @@ export function HeartfeltLetters() {
               
               {/* Step 1 */}
               <button 
-                onClick={() => setStep(1)}
+                onClick={() => handleManualStepChange(1)}
                 className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 ${
                   step === 1 
                     ? 'bg-surface border-accent/20 shadow-lg' 
@@ -94,7 +155,7 @@ export function HeartfeltLetters() {
 
               {/* Step 2 */}
               <button 
-                onClick={() => { if (isPolished) setStep(2); }}
+                onClick={() => handleManualStepChange(2)}
                 disabled={!isPolished}
                 className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 ${
                   !isPolished ? 'opacity-50 cursor-not-allowed' : ''
@@ -120,7 +181,7 @@ export function HeartfeltLetters() {
 
               {/* Step 3 */}
               <button 
-                onClick={() => { if (isSent) setStep(3); }}
+                onClick={() => handleManualStepChange(3)}
                 disabled={!isSent}
                 className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 ${
                   !isSent ? 'opacity-50 cursor-not-allowed' : ''
@@ -146,15 +207,25 @@ export function HeartfeltLetters() {
 
             </div>
 
-            {/* Reset Button (only shows when flow is completed) */}
-            {isSent && (
-              <button 
-                onClick={handleReset}
-                className="font-mono text-[10px] text-accent hover:underline uppercase tracking-wider pl-5 flex items-center gap-1.5"
-              >
-                Start Over / Reset Demo
-              </button>
-            )}
+            {/* Reset / Autoplay Controls */}
+            <div className="flex items-center gap-4 pl-5 pt-2">
+              {isSent && (
+                <button 
+                  onClick={() => { handleReset(); setIsAutoPlaying(true); }}
+                  className="font-mono text-[10px] text-accent hover:underline uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  Restart Demo Loop
+                </button>
+              )}
+              {!isAutoPlaying && (
+                <button 
+                  onClick={() => { setIsAutoPlaying(true); handleReset(); }}
+                  className="font-mono text-[10px] text-accent-gold hover:underline uppercase tracking-wider flex items-center gap-1.5"
+                >
+                  Enable Autoplay
+                </button>
+              )}
+            </div>
 
           </div>
 
@@ -198,7 +269,7 @@ export function HeartfeltLetters() {
                     {/* Actions Row */}
                     <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border/60">
                       <button 
-                        onClick={handleSend}
+                        onClick={() => { setIsAutoPlaying(false); handleSend(); }}
                         className="flex-1 pill-button border border-border text-text-primary bg-bg hover:bg-surface transition"
                       >
                         <Send className="w-3.5 h-3.5" />
@@ -206,7 +277,7 @@ export function HeartfeltLetters() {
                       </button>
                       
                       <button 
-                        onClick={handlePolish}
+                        onClick={() => { setIsAutoPlaying(false); handlePolish(); }}
                         disabled={isPolishing}
                         className="flex-1 pill-button pill-button-primary bg-accent-gold hover:bg-white text-bg relative overflow-hidden disabled:opacity-80"
                       >
@@ -269,13 +340,13 @@ export function HeartfeltLetters() {
                     {/* Actions Row */}
                     <div className="flex gap-3 pt-4 border-t border-border/60">
                       <button 
-                        onClick={() => setStep(1)}
+                        onClick={() => { setIsAutoPlaying(false); setStep(1); }}
                         className="pill-button pill-button-outline flex-1 py-3.5 text-xs"
                       >
                         Edit Draft
                       </button>
                       <button 
-                        onClick={handleSend}
+                        onClick={() => { setIsAutoPlaying(false); handleSend(); }}
                         disabled={isSending}
                         className="pill-button pill-button-primary flex-1 py-3.5 text-xs bg-accent text-bg hover:opacity-90 relative overflow-hidden"
                       >
@@ -308,13 +379,13 @@ export function HeartfeltLetters() {
                     exit={{ opacity: 0, scale: 0.95 }}
                     className="space-y-6 flex-grow flex flex-col justify-between"
                   >
-                    {/* Inbox View Simulation */}
+                    {/* Inbox View */}
                     <div className="space-y-5">
                       {/* Recipient Inbox Header */}
                       <div className="flex items-center gap-2 border-b border-border/60 pb-3">
                         <Inbox className="w-4 h-4 text-accent" />
                         <span className="font-mono text-[10px] text-text-muted uppercase tracking-widest">
-                          Mom's Email Inbox Simulation
+                          Mom's Email Inbox (via MicroMind)
                         </span>
                         <span className="ml-auto w-2 h-2 rounded-full bg-accent-green animate-pulse" />
                       </div>
@@ -327,7 +398,7 @@ export function HeartfeltLetters() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={() => setOpenedEmail(true)}
+                            onClick={() => { setOpenedEmail(true); setIsAutoPlaying(false); }}
                             className="bg-bg border border-accent/20 p-4 rounded-2xl cursor-pointer hover:border-accent transition group relative"
                           >
                             <div className="flex justify-between items-start mb-2">
@@ -375,7 +446,7 @@ export function HeartfeltLetters() {
                                 Sent privately using MicroMind
                               </span>
                               <button 
-                                onClick={(e) => { e.stopPropagation(); alert('Reply flows can be handled directly via email client!'); }}
+                                onClick={(e) => { e.stopPropagation(); setIsAutoPlaying(false); alert('Replies can be sent directly back via their native email client!'); }}
                                 className="px-3 py-1.5 bg-[#1E1E1E] text-[#F5F5F0] hover:bg-[#32322E] rounded-lg text-[9px] font-mono flex items-center gap-1 transition-colors"
                               >
                                 <Reply className="w-3 h-3" /> Reply Privately
@@ -389,7 +460,7 @@ export function HeartfeltLetters() {
                     {/* Status Alert */}
                     <div className="flex items-center gap-2 p-3 bg-accent-green/10 border border-accent-green/20 rounded-xl text-accent-green font-mono text-[10px] justify-center mt-4">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Delivery simulation successful. Letter received by recipient.</span>
+                      <span>Letter successfully delivered via MicroMind.</span>
                     </div>
                   </motion.div>
                 )}
