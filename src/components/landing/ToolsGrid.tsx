@@ -9,7 +9,7 @@ const tools = [
     icon: BookOpen,
     slug: 'journal',
     name: 'Journal Core',
-    desc: 'Write freely. Your entries sync securely across all your devices.',
+    desc: 'Write freely. Own your thoughts and express them fully in a private space.',
     price: 'Free',
     btnText: 'Write Entry',
     route: '/app/journal',
