@@ -93,11 +93,10 @@ function ConfirmDialog({ action, userEmail, onConfirm, onCancel }: ConfirmDialog
         exit={{ opacity: 0, scale: 0.95 }}
         className="w-full max-w-sm bg-surface border border-border rounded-2xl overflow-hidden shadow-2xl"
       >
-        {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-red-950/50 border border-red-900/60 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-4.5 h-4.5 text-red-400" />
+              <AlertTriangle className="w-4 h-4 text-red-400" />
             </div>
             <h3 className="font-mono text-sm font-bold text-text-primary">{meta.title}</h3>
           </div>
@@ -106,10 +105,8 @@ function ConfirmDialog({ action, userEmail, onConfirm, onCancel }: ConfirmDialog
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-5 space-y-4">
           <p className="font-mono text-xs text-text-muted leading-relaxed">{meta.description}</p>
-
           <ul className="space-y-1.5">
             {meta.consequences.map((c) => (
               <li key={c} className="flex items-start gap-2 font-mono text-[10px] text-red-300/80">
@@ -157,12 +154,8 @@ function ConfirmDialog({ action, userEmail, onConfirm, onCancel }: ConfirmDialog
           {error && <p className="font-mono text-[10px] text-red-400">{error}</p>}
         </div>
 
-        {/* Footer */}
         <div className="flex gap-2 px-5 pb-5">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-2.5 rounded-xl border border-border font-mono text-xs text-text-muted hover:bg-surface-2 transition-colors"
-          >
+          <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-border font-mono text-xs text-text-muted hover:bg-surface-2 transition-colors">
             Cancel
           </button>
           <button
@@ -181,10 +174,9 @@ function ConfirmDialog({ action, userEmail, onConfirm, onCancel }: ConfirmDialog
 export default function SettingsPage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [goals, setGoals] = useState<string[]>([]);
-  const [saved, setSaved] = useState(false);
+  const [goalsSaved, setGoalsSaved] = useState(false);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [pendingAction, setPendingAction] = useState<DestructiveAction | null>(null);
 
@@ -193,6 +185,31 @@ export default function SettingsPage() {
       setRemindersEnabled(localStorage.getItem('mm_daily_reminder') === 'true');
     }
   }, []);
+
+  useEffect(() => {
+    const raw = localStorage.getItem('mm_user_profile');
+    if (raw) {
+      try {
+        const p: UserProfile = JSON.parse(raw);
+        setProfile(p);
+        setDisplayName(p.name || '');
+        setGoals(p.goals || []);
+      } catch {}
+    }
+  }, []);
+
+  // If display name is still empty, fetch username from Supabase profiles
+  useEffect(() => {
+    if (displayName || !user) return;
+    supabase
+      .from('profiles')
+      .select('username')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.username) setDisplayName(data.username);
+      });
+  }, [user, displayName]);
 
   const toggleReminders = async () => {
     if (!remindersEnabled) {
@@ -225,7 +242,7 @@ export default function SettingsPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       alert('Failed to export journal backup.');
     }
   };
@@ -233,81 +250,52 @@ export default function SettingsPage() {
   const importJournal = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
         if (!data || !Array.isArray(data.entries) || !Array.isArray(data.folders)) {
-          alert('Invalid backup file format. Must contain entries and folders arrays.');
+          alert('Invalid backup file format.');
           return;
         }
-
         const currentEntries = JSON.parse(localStorage.getItem('mm_journal') || '[]');
         const entryIds = new Set(currentEntries.map((entry: any) => entry.id));
         const mergedEntries = [...currentEntries];
-
-        data.entries.forEach((entry: any) => {
-          if (!entryIds.has(entry.id)) {
-            mergedEntries.push(entry);
-          }
-        });
+        data.entries.forEach((entry: any) => { if (!entryIds.has(entry.id)) mergedEntries.push(entry); });
 
         const currentFolders = JSON.parse(localStorage.getItem('mm_journal_folders') || '[]');
         const folderIds = new Set(currentFolders.map((f: any) => f.id));
         const mergedFolders = [...currentFolders];
-
-        data.folders.forEach((f: any) => {
-          if (!folderIds.has(f.id)) {
-            mergedFolders.push(f);
-          }
-        });
+        data.folders.forEach((f: any) => { if (!folderIds.has(f.id)) mergedFolders.push(f); });
 
         localStorage.setItem('mm_journal', JSON.stringify(mergedEntries));
         localStorage.setItem('mm_journal_folders', JSON.stringify(mergedFolders));
-
         window.dispatchEvent(new Event('journal_updated'));
         window.dispatchEvent(new Event('streak_updated'));
-
         alert('Backup successfully imported and merged!');
-      } catch (err) {
+      } catch {
         alert('Failed to parse backup file.');
       }
     };
     reader.readAsText(file);
   };
 
-  useEffect(() => {
-    const raw = localStorage.getItem('mm_user_profile');
-    if (raw) {
-      try {
-        const p: UserProfile = JSON.parse(raw);
-        setProfile(p);
-        setName(p.name || '');
-        setEmail(p.email || '');
-        setGoals(p.goals || []);
-      } catch {}
-    }
-  }, []);
+  const toggleGoal = (goal: string) => {
+    setGoals((prev) => prev.includes(goal) ? prev.filter((g) => g !== goal) : [...prev, goal]);
+  };
 
-  const saveProfile = () => {
+  const saveGoals = () => {
     const updated: UserProfile = {
-      name: name.trim() || 'Mindful Writer',
-      email: email.trim(),
+      name: displayName,
+      email: user?.email || profile?.email || '',
       goals,
-      loginMethod: profile?.loginMethod || 'email',
+      loginMethod: profile?.loginMethod || 'credentials',
       onboardedAt: profile?.onboardedAt || Date.now(),
     };
     localStorage.setItem('mm_user_profile', JSON.stringify(updated));
     setProfile(updated);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
-  const toggleGoal = (goal: string) => {
-    setGoals((prev) =>
-      prev.includes(goal) ? prev.filter((g) => g !== goal) : [...prev, goal]
-    );
+    setGoalsSaved(true);
+    setTimeout(() => setGoalsSaved(false), 2000);
   };
 
   const executeAction = (action: DestructiveAction) => {
@@ -325,7 +313,7 @@ export default function SettingsPage() {
     setPendingAction(null);
   };
 
-  const storageLabel = user ? 'Supabase + Local' : 'Local device only';
+  const userEmail = user?.email || profile?.email || '';
 
   return (
     <>
@@ -333,7 +321,7 @@ export default function SettingsPage() {
         {pendingAction && (
           <ConfirmDialog
             action={pendingAction}
-            userEmail={user?.email ?? null}
+            userEmail={userEmail || null}
             onConfirm={() => executeAction(pendingAction)}
             onCancel={() => setPendingAction(null)}
           />
@@ -359,43 +347,29 @@ export default function SettingsPage() {
 
         <div className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-8">
-            {/* Profile */}
+            {/* Profile — read-only */}
             <section className="space-y-3">
               <h3 className="font-mono text-[10px] uppercase tracking-widest text-text-muted px-1">Profile</h3>
               <div className="bg-surface border border-border rounded-2xl p-5 space-y-4">
                 <div className="space-y-2">
-                  <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted">Display Name</label>
+                  <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted">Username</label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-surface-2 border border-border rounded-xl px-11 py-3 text-sm font-mono focus:border-accent outline-none transition-colors"
-                    />
+                    <div className="w-full bg-surface-2 border border-border rounded-xl px-11 py-3 text-sm font-mono text-text-primary">
+                      {displayName || <span className="text-text-muted">—</span>}
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted">
-                    Email <span className="opacity-50">(optional)</span>
-                  </label>
+                  <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted">Email</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="alex@example.com"
-                      className="w-full bg-surface-2 border border-border rounded-xl px-11 py-3 text-sm font-mono focus:border-accent outline-none transition-colors"
-                    />
+                    <div className="w-full bg-surface-2 border border-border rounded-xl px-11 py-3 text-sm font-mono text-text-primary">
+                      {userEmail || <span className="text-text-muted">—</span>}
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={saveProfile}
-                  className="pill-button pill-button-primary w-full py-3 text-xs font-mono uppercase tracking-widest font-bold"
-                >
-                  {saved ? <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Saved</span> : 'Save Changes'}
-                </button>
+                <p className="font-mono text-[9px] text-text-muted px-1">Username and email cannot be changed.</p>
               </div>
             </section>
 
@@ -426,10 +400,10 @@ export default function SettingsPage() {
                 })}
               </div>
               <button
-                onClick={saveProfile}
+                onClick={saveGoals}
                 className="pill-button pill-button-outline w-full py-3 text-xs font-mono uppercase tracking-widest"
               >
-                {saved ? <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Goals Saved</span> : 'Save Goals'}
+                {goalsSaved ? <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Goals Saved</span> : 'Save Goals'}
               </button>
             </section>
           </div>
@@ -453,18 +427,11 @@ export default function SettingsPage() {
                       remindersEnabled ? 'bg-accent' : 'bg-surface-2 border border-border'
                     }`}
                   >
-                    <div
-                      className={`w-4 h-4 rounded-full bg-bg shadow-sm transition-transform duration-200 ${
-                        remindersEnabled ? 'translate-x-6' : 'translate-x-0'
-                      }`}
-                    />
+                    <div className={`w-4 h-4 rounded-full bg-bg shadow-sm transition-transform duration-200 ${remindersEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
                   </button>
                 </div>
 
-                <button
-                  onClick={exportJournal}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group"
-                >
+                <button onClick={exportJournal} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">
                   <div>
                     <p className="font-mono text-xs text-text-primary">Export Journal Backup</p>
                     <p className="font-mono text-[10px] text-text-muted mt-0.5">Download your entries and folders as JSON</p>
@@ -476,12 +443,7 @@ export default function SettingsPage() {
                   <div>
                     <p className="font-mono text-xs text-text-primary">Import Journal Backup</p>
                     <p className="font-mono text-[10px] text-text-muted mt-0.5">Restore entries and folders from JSON file</p>
-                    <input
-                      type="file"
-                      accept=".json"
-                      onChange={importJournal}
-                      className="hidden"
-                    />
+                    <input type="file" accept=".json" onChange={importJournal} className="hidden" />
                   </div>
                   <Upload className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors shrink-0 ml-4" />
                 </label>
@@ -495,30 +457,21 @@ export default function SettingsPage() {
                 <h3 className="font-mono text-[10px] uppercase tracking-widest text-text-muted">Data & Privacy</h3>
               </div>
               <div className="bg-surface border border-border rounded-2xl overflow-hidden divide-y divide-border">
-                <button
-                  onClick={() => setPendingAction('clearHistory')}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group"
-                >
+                <button onClick={() => setPendingAction('clearHistory')} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">
                   <div>
                     <p className="font-mono text-xs text-text-primary">Clear AI Prompt History</p>
                     <p className="font-mono text-[10px] text-text-muted mt-0.5">Removes all AI responses and chat memory</p>
                   </div>
                   <Trash2 className="w-4 h-4 text-text-muted group-hover:text-accent-gold transition-colors shrink-0 ml-4" />
                 </button>
-                <button
-                  onClick={() => setPendingAction('clearJournal')}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group"
-                >
+                <button onClick={() => setPendingAction('clearJournal')} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">
                   <div>
                     <p className="font-mono text-xs text-text-primary">Clear Journal Entries</p>
                     <p className="font-mono text-[10px] text-text-muted mt-0.5">Permanently deletes all your journal entries</p>
                   </div>
                   <Trash2 className="w-4 h-4 text-text-muted group-hover:text-accent-gold transition-colors shrink-0 ml-4" />
                 </button>
-                <button
-                  onClick={() => setPendingAction('resetAll')}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group"
-                >
+                <button onClick={() => setPendingAction('resetAll')} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">
                   <div>
                     <p className="font-mono text-xs text-red-400">Reset Everything</p>
                     <p className="font-mono text-[10px] text-text-muted mt-0.5">Wipes all data and restarts onboarding</p>
@@ -538,8 +491,6 @@ export default function SettingsPage() {
                 {[
                   { label: 'Version', value: '0.1.0' },
                   { label: 'Network', value: 'Celo Mainnet' },
-                  { label: 'Contract', value: '0xDdf2...214c' },
-                  { label: 'Storage', value: storageLabel },
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center justify-between px-5 py-4">
                     <span className="font-mono text-[10px] uppercase tracking-widest text-text-muted">{label}</span>
