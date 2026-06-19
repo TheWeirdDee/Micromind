@@ -111,8 +111,10 @@ export function usePayForPrompt() {
         }).catch(() => { /* agent offline — payment still proceeds */ });
       }
 
-      // Get current gas price (legacy tx for MiniPay)
-      const gasPrice = await publicClient.getGasPrice();
+      // MiniPay pays gas in cUSD via feeCurrency — do not pass a gasPrice so the
+      // network calculates the cUSD-denominated fee automatically. Non-MiniPay
+      // wallets still use the legacy CELO gas price.
+      const gasPriceFetched = isMiniPay ? undefined : await publicClient.getGasPrice();
       const price = parseUnits(tool.price, PAYMENT_TOKEN_DECIMALS);
 
       if (price <= BigInt(0)) {
@@ -134,7 +136,7 @@ export function usePayForPrompt() {
         args: [CONTRACT_ADDRESS as `0x${string}`, price],
         chain: celo,
         account: address as `0x${string}`,
-        gasPrice,
+        ...(gasPriceFetched !== undefined ? { gasPrice: gasPriceFetched } : {}),
         ...(approveNonce !== undefined ? { nonce: approveNonce } : {}),
         feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
@@ -159,7 +161,7 @@ export function usePayForPrompt() {
         args: [toolId, promptHash as `0x${string}`],
         chain: celo,
         account: address as `0x${string}`,
-        gasPrice,
+        ...(gasPriceFetched !== undefined ? { gasPrice: gasPriceFetched } : {}),
         ...(payNonce !== undefined ? { nonce: payNonce } : {}),
         feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
