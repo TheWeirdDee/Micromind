@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Sparkles, Send, CheckCircle2, ChevronRight, PenTool, Inbox, Reply } from 'lucide-react';
 
@@ -11,10 +11,58 @@ export function HeartfeltLetters() {
   const [isSending, setIsSending] = useState(false);
   const [isSent, setIsSent] = useState(false);
   const [openedEmail, setOpenedEmail] = useState(false);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
+
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const [hasPlayedInViewport, setHasPlayedInViewport] = useState(false);
 
   const draftMessage = "Hey mom, just wanted to say thank you for always supporting me. Sorry I haven't called as much lately, I've been busy but I always think about you. You're the best.";
   const polishedMessage = "Dear Mom, I wanted to send a small note to let you know how much I appreciate you. Life has been moving fast lately, but your constant love and support are always on my mind. Thank you for being such an incredible presence in my life. With love, Alex.";
+
+  // Scroll pinning observer
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      const [entry] = entries;
+      // Trigger when the top of the section enters the viewport (threshold 0.15 for high reliability on all screen sizes)
+      if (entry.isIntersecting && !hasPlayedInViewport) {
+        setHasPlayedInViewport(true);
+        setIsAutoPlaying(true);
+        setIsLocked(true);
+        handleReset();
+        // Programmatically scroll the section into full center view smoothly
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, { threshold: 0.15 });
+
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasPlayedInViewport]);
+
+  // Handle body overflow styling when scroll lock state changes
+  useEffect(() => {
+    if (isLocked) {
+      // Prevent scroll
+      document.body.style.overflow = 'hidden';
+      // Calculate and apply scrollbar width to prevent page layout shift
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    };
+  }, [isLocked]);
 
   const handlePolish = () => {
     setIsPolishing(true);
@@ -22,7 +70,7 @@ export function HeartfeltLetters() {
       setIsPolishing(false);
       setIsPolished(true);
       setStep(2);
-    }, 1500);
+    }, 500);
     return () => clearTimeout(t);
   };
 
@@ -32,7 +80,7 @@ export function HeartfeltLetters() {
       setIsSending(false);
       setIsSent(true);
       setStep(3);
-    }, 1500);
+    }, 500);
     return () => clearTimeout(t);
   };
 
@@ -43,145 +91,155 @@ export function HeartfeltLetters() {
     setIsSending(false);
     setIsSent(false);
     setOpenedEmail(false);
+    setProgress(0);
   };
 
-  // Auto-play loop effect
+  const handleRestartDemo = () => {
+    handleReset();
+    setIsAutoPlaying(true);
+    setIsLocked(true);
+  };
+
+  const handleManualAction = () => {
+    setIsAutoPlaying(false);
+    setIsLocked(false);
+  };
+
+  // Snappy autoplay flow logic
   useEffect(() => {
-    if (!isAutoPlaying) return;
+    if (!isAutoPlaying) {
+      setIsLocked(false);
+      return;
+    }
 
     let timer: NodeJS.Timeout;
 
     if (step === 1 && !isPolishing && !isPolished) {
-      // Wait 4 seconds on Step 1, then trigger AI Polish
+      // Step 1: Draft shown. Progress goes 0 -> 35%
+      setProgress(15);
       timer = setTimeout(() => {
         setIsPolishing(true);
+        setProgress(35);
         timer = setTimeout(() => {
           setIsPolishing(false);
           setIsPolished(true);
           setStep(2);
-        }, 1500);
-      }, 4000);
+        }, 500); // Polishing takes 500ms
+      }, 700); // Snappy reading time of draft
     } else if (step === 2 && !isSending && !isSent) {
-      // Wait 4 seconds on Step 2, then trigger send
+      // Step 2: Polish comparison shown. Progress 35 -> 75%
+      setProgress(55);
       timer = setTimeout(() => {
         setIsSending(true);
+        setProgress(75);
         timer = setTimeout(() => {
           setIsSending(false);
           setIsSent(true);
           setStep(3);
-        }, 1500);
-      }, 4000);
+        }, 500); // Sending takes 500ms
+      }, 700); // Snappy reading time of polish comparison
     } else if (step === 3 && isSent) {
+      // Step 3: Closed inbox shown. Progress 75 -> 90%
+      setProgress(90);
       if (!openedEmail) {
-        // Wait 3 seconds on closed inbox, then open email
         timer = setTimeout(() => {
           setOpenedEmail(true);
-        }, 3000);
+        }, 500);
       } else {
-        // Wait 6 seconds showing opened email, then reset and loop
+        // Opened email shown. Progress 100% -> Unlock scroll
+        setProgress(100);
         timer = setTimeout(() => {
-          handleReset();
-        }, 6000);
+          setIsAutoPlaying(false);
+          setIsLocked(false);
+        }, 1200); // Snappy pause to let user view email before unlocking
       }
     }
 
     return () => clearTimeout(timer);
   }, [step, isPolishing, isPolished, isSending, isSent, openedEmail, isAutoPlaying]);
 
-  const handleManualStepChange = (targetStep: 1 | 2 | 3) => {
-    setIsAutoPlaying(false);
-    if (targetStep === 1) {
-      handleReset();
-    } else if (targetStep === 2 && isPolished) {
-      setStep(2);
-      setIsSent(false);
-      setOpenedEmail(false);
-    } else if (targetStep === 3 && isSent) {
-      setStep(3);
-    }
-  };
-
   return (
-    <section id="letters" className="py-24 md:py-32 px-6 bg-bg relative border-t border-border overflow-hidden">
-      {/* Background Glows */}
-      <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-accent/2 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-accent-gold/2 rounded-full blur-[120px] pointer-events-none" />
+    <div ref={sectionRef}>
+      <section id="letters" className="py-24 md:py-32 px-6 bg-bg relative border-t border-border overflow-hidden">
+        {/* Background Glows */}
+        <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-accent/2 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-accent-gold/2 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="container mx-auto max-w-6xl relative z-10">
-        
-        {/* Section Header */}
-        <div className="text-left max-w-3xl mb-16 space-y-4">
-          <span className="font-mono text-[10px] tracking-widest uppercase text-accent-gold">Expressive Tools</span>
-          <h2 className="text-3xl md:text-5xl font-serif leading-tight text-text-primary">
-            Send Heartfelt Letters. <br />
-            <span className="italic text-accent">Polished by AI, delivered to their inbox.</span>
-          </h2>
-          <p className="font-mono text-xs md:text-sm text-text-muted leading-relaxed max-w-2xl">
-            Some thoughts are meant to be shared. Write a personal letter to a parent, friend, or loved one. Send it as a raw draft for free, or use our AI Companion to gently polish your words into an eloquent keepsake before delivery.
-          </p>
-        </div>
-
-        {/* Interactive Workspace Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+        <div className="container mx-auto max-w-6xl relative z-10">
           
-          {/* Left Column: Workflow Navigation & Explanations */}
-          <div className="lg:col-span-5 space-y-6">
-            
-            {/* Step Indicators */}
-            <div className="space-y-4">
-              
-              {/* Step 1 */}
-              <button 
-                onClick={() => handleManualStepChange(1)}
-                className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 ${
-                  step === 1 
-                    ? 'bg-surface border-accent/20 shadow-lg' 
-                    : 'border-transparent hover:bg-surface/40'
-                }`}
-              >
-                <div className={`p-2.5 rounded-xl border shrink-0 transition-colors ${
-                  step === 1 ? 'bg-accent/15 border-accent text-accent' : 'bg-surface-2 border-border text-text-muted'
-                }`}>
-                  <PenTool className="w-4 h-4" />
-                </div>
-                <div className="space-y-1">
-                  <span className="font-mono text-[9px] tracking-wider uppercase text-text-muted">Step 1</span>
-                  <h4 className="font-serif text-base text-text-primary">Draft Your Letter</h4>
-                  <p className="font-mono text-[11px] text-text-muted/80 leading-relaxed">
-                    Write naturally about what is on your mind. No filters, no pressure.
-                  </p>
-                </div>
-              </button>
+          {/* Section Header */}
+          <div className="text-left max-w-3xl mb-16 space-y-4">
+            <span className="font-mono text-[10px] tracking-widest uppercase text-accent-gold">Expressive Tools</span>
+            <h2 className="text-3xl md:text-5xl font-serif leading-tight text-text-primary">
+              Send Heartfelt Letters. <br />
+              <span className="italic text-accent">Polished by AI, delivered to their inbox.</span>
+            </h2>
+            <p className="font-mono text-xs md:text-sm text-text-muted leading-relaxed max-w-2xl">
+              Some thoughts are meant to be shared. Write a personal letter to a parent, friend, or loved one. Send it as a raw draft for free, or use our AI Companion to gently polish your words into an eloquent keepsake before delivery.
+            </p>
+          </div>
 
-              {/* Step 2 */}
-              <button 
-                onClick={() => handleManualStepChange(2)}
-                disabled={!isPolished}
-                className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 ${
-                  !isPolished ? 'opacity-50 cursor-not-allowed' : ''
-                } ${
-                  step === 2 
-                    ? 'bg-surface border-accent/20 shadow-lg' 
-                    : 'border-transparent hover:bg-surface/40'
-                }`}
-              >
-                <div className={`p-2.5 rounded-xl border shrink-0 transition-colors ${
-                  step === 2 ? 'bg-accent-gold/15 border-accent-gold text-accent-gold' : 'bg-surface-2 border-border text-text-muted'
-                }`}>
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div className="space-y-1">
-                  <span className="font-mono text-[9px] tracking-wider uppercase text-text-muted">Step 2</span>
-                  <h4 className="font-serif text-base text-text-primary">Optional AI Polish</h4>
-                  <p className="font-mono text-[11px] text-text-muted/80 leading-relaxed">
-                    Choose to refine your tone. AI elevates your message while preserving your core sentiments.
+          {/* Interactive Workspace Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+            
+            {/* Left Column: Workflow Navigation & Explanations */}
+            <div className="lg:col-span-5 space-y-6">
+              
+              {/* Step Indicators */}
+              <div className="space-y-4">
+                
+                {/* Step 1 */}
+                <button 
+                  onClick={() => { handleManualAction(); setStep(1); handleReset(); }}
+                  className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 ${
+                    step === 1 
+                      ? 'bg-surface border-accent/20 shadow-lg' 
+                      : 'border-transparent hover:bg-surface/40'
+                  }`}
+                >
+                  <div className={`p-2.5 rounded-xl border shrink-0 transition-colors ${
+                    step === 1 ? 'bg-accent/15 border-accent text-accent' : 'bg-surface-2 border-border text-text-muted'
+                  }`}>
+                    <PenTool className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="font-mono text-[9px] tracking-wider uppercase text-text-muted">Step 1</span>
+                    <h4 className="font-serif text-base text-text-primary">Draft Your Letter</h4>
+                    <p className="font-mono text-[11px] text-text-muted/80 leading-relaxed">
+                      Write naturally about what is on your mind. No filters, no pressure.
+                    </p>
+                  </div>
+                </button>
+
+                {/* Step 2 */}
+                <button 
+                  onClick={() => { handleManualAction(); setStep(2); setIsSent(false); setOpenedEmail(false); }}
+                  disabled={!isPolished}
+                  className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 ${
+                    !isPolished ? 'opacity-50 cursor-not-allowed' : ''
+                  } ${
+                    step === 2 
+                      ? 'bg-surface border-accent/20 shadow-lg' 
+                      : 'border-transparent hover:bg-surface/40'
+                  }`}
+                >
+                  <div className={`p-2.5 rounded-xl border shrink-0 transition-colors ${
+                    step === 2 ? 'bg-accent-gold/15 border-accent-gold text-accent-gold' : 'bg-surface-2 border-border text-text-muted'
+                  }`}>
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="font-mono text-[9px] tracking-wider uppercase text-text-muted">Step 2</span>
+                    <h4 className="font-serif text-base text-text-primary">Optional AI Polish</h4>
+                    <p className="font-mono text-[11px] text-text-muted/80 leading-relaxed">
+                      Choose to refine your tone. AI elevates your message while preserving your core sentiments.
                   </p>
                 </div>
               </button>
 
               {/* Step 3 */}
               <button 
-                onClick={() => handleManualStepChange(3)}
+                onClick={() => { handleManualAction(); setStep(3); }}
                 disabled={!isSent}
                 className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 ${
                   !isSent ? 'opacity-50 cursor-not-allowed' : ''
@@ -207,24 +265,14 @@ export function HeartfeltLetters() {
 
             </div>
 
-            {/* Reset / Autoplay Controls */}
+            {/* Restart Controls */}
             <div className="flex items-center gap-4 pl-5 pt-2">
-              {isSent && (
-                <button 
-                  onClick={() => { handleReset(); setIsAutoPlaying(true); }}
-                  className="font-mono text-[10px] text-accent hover:underline uppercase tracking-wider flex items-center gap-1.5"
-                >
-                  Restart Demo Loop
-                </button>
-              )}
-              {!isAutoPlaying && (
-                <button 
-                  onClick={() => { setIsAutoPlaying(true); handleReset(); }}
-                  className="font-mono text-[10px] text-accent-gold hover:underline uppercase tracking-wider flex items-center gap-1.5"
-                >
-                  Enable Autoplay
-                </button>
-              )}
+              <button 
+                onClick={handleRestartDemo}
+                className="font-mono text-[10px] text-accent hover:underline uppercase tracking-wider flex items-center gap-1.5"
+              >
+                Replay Autoplay Demo
+              </button>
             </div>
 
           </div>
@@ -232,6 +280,19 @@ export function HeartfeltLetters() {
           {/* Right Column: Live Interactive Demo Mockup */}
           <div className="lg:col-span-7">
             <div className="bg-surface-2 border border-border rounded-[2.5rem] p-6 md:p-8 shadow-[0_24px_70px_rgba(0,0,0,0.4)] relative overflow-hidden min-h-[460px] flex flex-col justify-between">
+              
+              {/* Autoplay Progress Bar */}
+              {isAutoPlaying && (
+                <div className="absolute top-0 left-0 w-full h-[3px] bg-border/20 z-20">
+                  <motion.div 
+                    className="h-full bg-accent-gold"
+                    initial={{ width: '0%' }}
+                    animate={{ width: `${progress}%` }}
+                    transition={{ duration: 0.6, ease: 'easeOut' }}
+                  />
+                </div>
+              )}
+
               <div className="absolute inset-0 halftone-bg opacity-3 pointer-events-none" />
               
               <AnimatePresence mode="wait">
@@ -269,7 +330,7 @@ export function HeartfeltLetters() {
                     {/* Actions Row */}
                     <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border/60">
                       <button 
-                        onClick={() => { setIsAutoPlaying(false); handleSend(); }}
+                        onClick={() => { handleManualAction(); handleSend(); }}
                         className="flex-1 pill-button border border-border text-text-primary bg-bg hover:bg-surface transition"
                       >
                         <Send className="w-3.5 h-3.5" />
@@ -277,7 +338,7 @@ export function HeartfeltLetters() {
                       </button>
                       
                       <button 
-                        onClick={() => { setIsAutoPlaying(false); handlePolish(); }}
+                        onClick={() => { handleManualAction(); handlePolish(); }}
                         disabled={isPolishing}
                         className="flex-1 pill-button pill-button-primary bg-accent-gold hover:bg-white text-bg relative overflow-hidden disabled:opacity-80"
                       >
@@ -321,7 +382,7 @@ export function HeartfeltLetters() {
                         </span>
                       </div>
 
-                      {/* Side-by-side or comparison card */}
+                      {/* Side-by-side comparison */}
                       <div className="space-y-4 font-mono text-xs">
                         <div className="opacity-55 border-l-2 border-border pl-3.5 space-y-1">
                           <span className="text-[9px] uppercase tracking-widest text-text-muted">Original draft:</span>
@@ -340,13 +401,13 @@ export function HeartfeltLetters() {
                     {/* Actions Row */}
                     <div className="flex gap-3 pt-4 border-t border-border/60">
                       <button 
-                        onClick={() => { setIsAutoPlaying(false); setStep(1); }}
+                        onClick={() => { handleManualAction(); setStep(1); }}
                         className="pill-button pill-button-outline flex-1 py-3.5 text-xs"
                       >
                         Edit Draft
                       </button>
                       <button 
-                        onClick={() => { setIsAutoPlaying(false); handleSend(); }}
+                        onClick={() => { handleManualAction(); handleSend(); }}
                         disabled={isSending}
                         className="pill-button pill-button-primary flex-1 py-3.5 text-xs bg-accent text-bg hover:opacity-90 relative overflow-hidden"
                       >
@@ -398,7 +459,7 @@ export function HeartfeltLetters() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={() => { setOpenedEmail(true); setIsAutoPlaying(false); }}
+                            onClick={() => { handleManualAction(); setOpenedEmail(true); }}
                             className="bg-bg border border-accent/20 p-4 rounded-2xl cursor-pointer hover:border-accent transition group relative"
                           >
                             <div className="flex justify-between items-start mb-2">
@@ -446,7 +507,7 @@ export function HeartfeltLetters() {
                                 Sent privately using MicroMind
                               </span>
                               <button 
-                                onClick={(e) => { e.stopPropagation(); setIsAutoPlaying(false); alert('Replies can be sent directly back via their native email client!'); }}
+                                onClick={(e) => { e.stopPropagation(); handleManualAction(); alert('Replies can be sent directly back via their native email client!'); }}
                                 className="px-3 py-1.5 bg-[#1E1E1E] text-[#F5F5F0] hover:bg-[#32322E] rounded-lg text-[9px] font-mono flex items-center gap-1 transition-colors"
                               >
                                 <Reply className="w-3 h-3" /> Reply Privately
@@ -472,5 +533,6 @@ export function HeartfeltLetters() {
 
       </div>
     </section>
+  </div>
   );
 }
