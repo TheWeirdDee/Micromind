@@ -31,7 +31,7 @@ function LetterPageInner() {
   const searchParams = useSearchParams();
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
-  const isFormValid = recipientEmail.includes('@') && senderName.trim().length > 0 && content.trim().length >= 20;
+  const isFormValid = recipientEmail.includes('@') && senderName.trim().length > 0 && content.trim().length >= 5;
 
   useEffect(() => {
     const historyId = searchParams.get('id');
@@ -207,13 +207,7 @@ function LetterPageInner() {
               <input
                 type="text"
                 value={recipientName}
-                onChange={(e) => {
-                  const name = e.target.value;
-                  setRecipientName(name);
-                  if (!content.trim() && name.trim()) {
-                    setContent(`Dear ${name.trim()},\n\n`);
-                  }
-                }}
+                onChange={(e) => setRecipientName(e.target.value)}
                 placeholder="Friend's Name"
                 disabled={freeSending || paidLoading}
                 className="w-full bg-surface-2 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:border-accent outline-none transition-colors"
@@ -237,7 +231,7 @@ function LetterPageInner() {
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Write your letter here (minimum 20 characters)..."
+              placeholder="Write your letter here..."
               disabled={freeSending || paidLoading}
               className="w-full bg-surface-2 border border-border rounded-xl p-4 font-mono text-sm min-h-[180px] focus:border-accent outline-none transition-colors resize-none"
             />
