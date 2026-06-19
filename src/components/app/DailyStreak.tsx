@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Flame, CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
+import { Flame, CheckCircle2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
@@ -42,7 +42,6 @@ export function DailyStreak() {
   const [isClaimedToday, setIsClaimedToday] = useState(false);
   const [showSpark, setShowSpark] = useState(false);
   const [sparkMessage, setSparkMessage] = useState('');
-  const [loading, setLoading] = useState(false);
   const [milestone, setMilestone] = useState<number | null>(null);
 
   const MILESTONES = [7, 14, 30];
@@ -110,55 +109,6 @@ export function DailyStreak() {
     };
   }, [refreshStreak]);
 
-  const handleCheckIn = useCallback(() => {
-    setLoading(true);
-    
-    // Simulate brief AI generator delay
-    setTimeout(() => {
-      const today = getLocalDateString();
-      const yesterdayDate = new Date();
-      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-      const yesterday = getLocalDateString(yesterdayDate);
-
-      let newStreakCount = streak.streakCount;
-      let newHistory = [...streak.history];
-
-      if (streak.lastCheckInDate === yesterday) {
-        newStreakCount += 1;
-      } else if (streak.lastCheckInDate !== today) {
-        newStreakCount = 1;
-        newHistory = []; // Reset history for broken streak
-      }
-
-      if (!newHistory.includes(today)) {
-        newHistory.push(today);
-      }
-
-      const updatedStreak: StreakData = {
-        streakCount: newStreakCount,
-        lastCheckInDate: today,
-        history: newHistory
-      };
-
-      // Select random quote
-      const randomIndex = Math.floor(Math.random() * SPARKS.length);
-      const quote = SPARKS[randomIndex];
-
-      localStorage.setItem(streakKey, JSON.stringify(updatedStreak));
-      localStorage.setItem(sparkKey, quote);
-
-      setStreak(updatedStreak);
-      setIsClaimedToday(true);
-      setSparkMessage(quote);
-      setShowSpark(true);
-      setLoading(false);
-
-      if (MILESTONES.includes(newStreakCount)) {
-        setMilestone(newStreakCount);
-        setTimeout(() => setMilestone(null), 4000);
-      }
-    }, 800);
-  }, [streak, streakKey, sparkKey]);
 
   // Generate last 7 days of activity dots
   const renderCalendarDots = () => {
@@ -247,28 +197,15 @@ export function DailyStreak() {
       </Link>
 
       <div className="relative z-10">
-        {!isClaimedToday ? (
-          <button
-            onClick={handleCheckIn}
-            disabled={loading}
-            className="pill-button w-full py-3 bg-accent text-bg hover:bg-white text-xs tracking-wider font-mono flex items-center justify-center gap-2 group-hover:scale-[1.01] transition-transform duration-200 disabled:opacity-50"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Checking in...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                <span>Check in for today</span>
-              </>
-            )}
-          </button>
-        ) : (
+        {isClaimedToday ? (
           <div className="flex items-center justify-center gap-1.5 py-2.5 text-accent-green font-mono text-[10px] tracking-widest uppercase border border-accent-green/20 bg-accent-green/5 rounded-xl">
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>Streak active today</span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-1.5 py-2.5 text-text-muted font-mono text-[10px] tracking-widest uppercase border border-border rounded-xl">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Write a journal entry to build your streak</span>
           </div>
         )}
       </div>
