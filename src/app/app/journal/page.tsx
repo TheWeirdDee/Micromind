@@ -30,7 +30,6 @@ const DAILY_PROMPTS = [
   "What are you proud of that no one else knows about?",
   "What's the difference between who you are and who you're becoming?",
   "Write about something you changed your mind about recently.",
-  "What do you wish people understood about you without you having to explain?",
   "Describe the last time you laughed until it hurt.",
   "What habit are you building, and is it actually working?",
   "What would a calmer version of yourself do differently today?",
