@@ -28,16 +28,16 @@ export function HeartfeltLetters() {
 
     const observer = new IntersectionObserver((entries) => {
       const [entry] = entries;
-      // Trigger when the top of the section enters the viewport (threshold 0.15 for high reliability on all screen sizes)
+      // Trigger when the section top is partially in view
       if (entry.isIntersecting && !hasPlayedInViewport) {
         setHasPlayedInViewport(true);
         setIsAutoPlaying(true);
         setIsLocked(true);
-        handleReset();
-        // Programmatically scroll the section into full center view smoothly
+        
+        // Smoothly scroll the card container into the center of the viewport
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-    }, { threshold: 0.15 });
+    }, { threshold: 0.1 });
 
     observer.observe(el);
     return () => {
@@ -45,20 +45,48 @@ export function HeartfeltLetters() {
     };
   }, [hasPlayedInViewport]);
 
-  // Handle body overflow styling when scroll lock state changes
+  // Handle body scroll lock via event prevention and overflow toggle
   useEffect(() => {
+    const preventDefault = (e: Event) => {
+      e.preventDefault();
+    };
+
+    const keysToPrevent = ['Space', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'End', 'Home'];
+    const preventKeyScroll = (e: KeyboardEvent) => {
+      if (keysToPrevent.includes(e.code)) {
+        e.preventDefault();
+      }
+    };
+
+    let overflowTimeout: NodeJS.Timeout;
+
     if (isLocked) {
-      // Prevent scroll
-      document.body.style.overflow = 'hidden';
-      // Calculate and apply scrollbar width to prevent page layout shift
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
+      // 1. Immediately block user scroll inputs (wheel, touch, keys)
+      // This allows the programmatic scrollIntoView to complete without interruption
+      window.addEventListener('wheel', preventDefault, { passive: false });
+      window.addEventListener('touchmove', preventDefault, { passive: false });
+      window.addEventListener('keydown', preventKeyScroll, { passive: false });
+
+      // 2. Set overflow hidden after a short delay so centering animation completes first
+      overflowTimeout = setTimeout(() => {
+        document.body.style.overflow = 'hidden';
+        const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }, 600);
     } else {
+      // Clean up locks
+      window.removeEventListener('wheel', preventDefault);
+      window.removeEventListener('touchmove', preventDefault);
+      window.removeEventListener('keydown', preventKeyScroll);
       document.body.style.overflow = '';
       document.body.style.paddingRight = '';
     }
 
     return () => {
+      clearTimeout(overflowTimeout);
+      window.removeEventListener('wheel', preventDefault);
+      window.removeEventListener('touchmove', preventDefault);
+      window.removeEventListener('keydown', preventKeyScroll);
       document.body.style.overflow = '';
       document.body.style.paddingRight = '';
     };
@@ -105,58 +133,66 @@ export function HeartfeltLetters() {
     setIsLocked(false);
   };
 
-  // Snappy autoplay flow logic
+  // Robust async flow to avoid useEffect timeout cleanups cancel-races
   useEffect(() => {
     if (!isAutoPlaying) {
       setIsLocked(false);
       return;
     }
 
-    let timer: NodeJS.Timeout;
+    let active = true;
 
-    if (step === 1 && !isPolishing && !isPolished) {
+    const runAutoplay = async () => {
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+      // Reset initially
+      if (!active) return;
+      handleReset();
+
       // Step 1: Draft shown. Progress goes 0 -> 35%
       setProgress(15);
-      timer = setTimeout(() => {
-        setIsPolishing(true);
-        setProgress(35);
-        timer = setTimeout(() => {
-          setIsPolishing(false);
-          setIsPolished(true);
-          setStep(2);
-        }, 500); // Polishing takes 500ms
-      }, 700); // Snappy reading time of draft
-    } else if (step === 2 && !isSending && !isSent) {
-      // Step 2: Polish comparison shown. Progress 35 -> 75%
-      setProgress(55);
-      timer = setTimeout(() => {
-        setIsSending(true);
-        setProgress(75);
-        timer = setTimeout(() => {
-          setIsSending(false);
-          setIsSent(true);
-          setStep(3);
-        }, 500); // Sending takes 500ms
-      }, 700); // Snappy reading time of polish comparison
-    } else if (step === 3 && isSent) {
-      // Step 3: Closed inbox shown. Progress 75 -> 90%
-      setProgress(90);
-      if (!openedEmail) {
-        timer = setTimeout(() => {
-          setOpenedEmail(true);
-        }, 500);
-      } else {
-        // Opened email shown. Progress 100% -> Unlock scroll
-        setProgress(100);
-        timer = setTimeout(() => {
-          setIsAutoPlaying(false);
-          setIsLocked(false);
-        }, 1200); // Snappy pause to let user view email before unlocking
-      }
-    }
+      await delay(700);
+      if (!active) return;
 
-    return () => clearTimeout(timer);
-  }, [step, isPolishing, isPolished, isSending, isSent, openedEmail, isAutoPlaying]);
+      setIsPolishing(true);
+      setProgress(35);
+      await delay(500);
+      if (!active) return;
+
+      setIsPolishing(false);
+      setIsPolished(true);
+      setStep(2);
+      setProgress(55);
+      await delay(700);
+      if (!active) return;
+
+      setIsSending(true);
+      setProgress(75);
+      await delay(500);
+      if (!active) return;
+
+      setIsSending(false);
+      setIsSent(true);
+      setStep(3);
+      setProgress(90);
+      await delay(500);
+      if (!active) return;
+
+      setOpenedEmail(true);
+      setProgress(100);
+      await delay(1200);
+      if (!active) return;
+
+      setIsAutoPlaying(false);
+      setIsLocked(false);
+    };
+
+    runAutoplay();
+
+    return () => {
+      active = false;
+    };
+  }, [isAutoPlaying]);
 
   return (
     <div ref={sectionRef}>
