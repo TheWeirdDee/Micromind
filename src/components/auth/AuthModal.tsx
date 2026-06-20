@@ -164,7 +164,7 @@ export function AuthModal() {
 
         <AnimatePresence mode="wait">
 
-          {/* ── LOGIN ── */}
+          {/* -- LOGIN -- */}
           {mode === 'login' && (
             <motion.form
               key="login"
@@ -250,7 +250,7 @@ export function AuthModal() {
             </motion.form>
           )}
 
-          {/* ── SIGNUP ── */}
+          {/* -- SIGNUP -- */}
           {mode === 'signup' && (
             <motion.form
               key="signup"
@@ -352,7 +352,7 @@ export function AuthModal() {
             </motion.form>
           )}
 
-          {/* ── FORGOT PASSWORD ── */}
+          {/* -- FORGOT PASSWORD -- */}
           {mode === 'forgot' && (
             <motion.div
               key="forgot"

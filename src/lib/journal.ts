@@ -3,7 +3,7 @@ import { Smile, Laugh, Meh, Angry, Frown } from 'lucide-react';
 const JOURNAL_KEY = "mm_journal";
 const FOLDERS_KEY = "mm_journal_folders";
 
-// ── Supabase sync helpers (fire-and-forget, never block the UI) ──────────────
+// -- Supabase sync helpers (fire-and-forget, never block the UI) --------------
 
 async function getSupabaseSession() {
   if (typeof window === 'undefined') return null;
@@ -136,7 +136,7 @@ function dispatch() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('journal_updated'));
 }
 
-// ── Entries
+// -- Entries
 
 /** Returns all journal entries sorted newest-first. Migrates legacy emoji moods. */
 export function getEntries(): JournalEntry[] {
@@ -200,7 +200,7 @@ export function deleteEntry(id: string): void {
   dispatch();
 }
 
-// ── Folders   
+// -- Folders   
 
 export function getFolders(): Folder[] {
   if (typeof window === 'undefined') return [];
@@ -231,7 +231,7 @@ export function deleteFolder(id: string): void {
   dispatch();
 }
 
-// ── Utilities  
+// -- Utilities  
 
 /** Returns the most recently created entry, or null if none exist. */
 export function getLastEntry(): JournalEntry | null {

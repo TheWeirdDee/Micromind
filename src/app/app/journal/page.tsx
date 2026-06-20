@@ -152,7 +152,7 @@ export default function JournalPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // ── Folder handlers ───────────────────────────────────────────────────────
+  // -- Folder handlers -------------------------------------------------------
 
   const handleCreateFolder = () => {
     if (!newFolderName.trim()) { setCreatingFolder(false); return; }
@@ -175,7 +175,7 @@ export default function JournalPage() {
     refresh();
   };
 
-  // ── Entry handlers ────────────────────────────────────────────────────────
+  // -- Entry handlers --------------------------------------------------------
 
   const handleSave = () => {
     if (!composeContent.trim()) return;
@@ -236,7 +236,7 @@ export default function JournalPage() {
     setExpandedId(prev => (prev === id ? null : id));
   };
 
-  // ── Shared sub-renders ────────────────────────────────────────────────────
+  // -- Shared sub-renders ----------------------------------------------------
 
   const MoodRow = ({
     value, onChange,
@@ -290,7 +290,7 @@ export default function JournalPage() {
     )
   );
 
-  // ── Sidebar folder item ───────────────────────────────────────────────────
+  // -- Sidebar folder item ---------------------------------------------------
 
   const renderSidebarFolder = (folder: Folder) => {
     const isActive   = activeFolderId === folder.id;
@@ -355,7 +355,7 @@ export default function JournalPage() {
     );
   };
 
-  // ── Active folder header label ─────────────────────────────────────────────
+  // -- Active folder header label ---------------------------------------------
 
   const activeFolderName = activeFolderId
     ? (folders.find(f => f.id === activeFolderId)?.name ?? 'Folder')
@@ -368,7 +368,7 @@ export default function JournalPage() {
       className="pb-24"
       onClick={() => { if (folderMenuId) setFolderMenuId(null); }}
     >
-      {/* ── Page header ─────────────────────────────────────────────────── */}
+      {/* -- Page header --------------------------------------------------- */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted font-mono">Journal</p>
@@ -383,7 +383,7 @@ export default function JournalPage() {
         </button>
       </div>
 
-      {/* ── Mobile folder tabs ──────────────────────────────────────────── */}
+      {/* -- Mobile folder tabs -------------------------------------------- */}
       <div className="lg:hidden mb-5">
         <div
           className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide"
@@ -455,7 +455,7 @@ export default function JournalPage() {
         </AnimatePresence>
       </div>
 
-      {/* ── Desktop two-panel layout ─────────────────────────────────────── */}
+      {/* -- Desktop two-panel layout --------------------------------------- */}
       <div className="lg:flex lg:gap-7">
 
         {/* Desktop sidebar */}
@@ -526,7 +526,7 @@ export default function JournalPage() {
           </div>
         </aside>
 
-        {/* ── Entries main panel ─────────────────────────────────────────── */}
+        {/* -- Entries main panel ------------------------------------------- */}
         <div className="flex-1 min-w-0 space-y-3">
 
           {/* Active folder label + reflect link */}

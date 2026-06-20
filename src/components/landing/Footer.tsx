@@ -8,7 +8,7 @@ export function Footer() {
     <footer className="bg-surface border-t border-border pt-16 px-6 pb-0 overflow-hidden relative">
       <div className="container mx-auto max-w-6xl relative z-10">
 
-        {/* ── Main columns ──────────────────────────────────────────── */}
+        {/* -- Main columns -- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12 pb-12 border-b border-border">
 
           {/* Brand — 2 cols */}
@@ -144,7 +144,7 @@ export function Footer() {
           </div>
         </div>
 
-        {/* ── Bottom bar ────────────────────────────────────────────── */}
+        {/* -- Bottom bar -- */}
         <div className="pt-8 pb-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="font-mono text-[10px] text-text-muted">
             © 2026 MicroMind. All rights reserved.
@@ -158,7 +158,7 @@ export function Footer() {
         </div>
       </div>
 
-      {/* ── Watermark wordmark — absolute, sits behind content ──── */}
+      {/* -- Watermark wordmark - absolute, sits behind content -- */}
       <div className="absolute bottom-0 inset-x-0 overflow-hidden leading-none select-none pointer-events-none z-0" aria-hidden>
         <p
           className="text-text-primary whitespace-nowrap text-center font-bold"
