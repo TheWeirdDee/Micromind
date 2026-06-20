@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 export function Footer() {
   return (
-    <footer className="bg-surface border-t border-border py-16 px-6">
+    <footer className="bg-surface border-t border-border pt-16 px-6 pb-0 overflow-hidden">
       <div className="container mx-auto max-w-6xl">
 
         {/* ── Main columns ──────────────────────────────────────────── */}
@@ -12,7 +13,10 @@ export function Footer() {
 
           {/* Brand — 2 cols */}
           <div className="lg:col-span-2 space-y-4">
-            <span className="font-serif text-xl text-text-primary tracking-tight">MicroMind</span>
+            <div className="flex items-center gap-2">
+              <Image src="/logo.svg" alt="MicroMind" width={20} height={20} />
+              <span className="font-serif text-xl text-text-primary tracking-tight">MicroMind</span>
+            </div>
             <p className="font-mono text-[11px] text-text-muted leading-relaxed max-w-xs">
               Your thoughts deserve a safe home. Journal freely, reflect deeply, and grow with AI-powered insights — built on Celo for everyone.
             </p>
@@ -141,7 +145,7 @@ export function Footer() {
         </div>
 
         {/* ── Bottom bar ────────────────────────────────────────────── */}
-        <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="pt-8 pb-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="font-mono text-[10px] text-text-muted">
             © 2026 MicroMind. All rights reserved.
           </p>
@@ -152,6 +156,16 @@ export function Footer() {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* ── Watermark wordmark ────────────────────────────────────── */}
+      <div className="w-full overflow-hidden leading-none select-none pointer-events-none" aria-hidden>
+        <p
+          className="font-serif text-text-primary whitespace-nowrap text-center"
+          style={{ fontSize: 'clamp(72px, 14vw, 200px)', opacity: 0.045, lineHeight: 1 }}
+        >
+          MicroMind
+        </p>
       </div>
     </footer>
   );
