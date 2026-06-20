@@ -1,8 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { Plus, Mail, ExternalLink } from 'lucide-react';
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0 },
+};
 
 const faqs = [
   {
@@ -38,7 +43,14 @@ export function FAQSection() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
 
             {/* Left — heading + CTA */}
-            <div className="lg:sticky lg:top-28 space-y-6">
+            <motion.div
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.3 }}
+              variants={fadeUp}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="lg:sticky lg:top-28 space-y-6"
+            >
               <div>
                 <h2 className="font-serif text-4xl md:text-5xl text-accent-gold leading-tight">
                   Any questions?
@@ -56,12 +68,20 @@ export function FAQSection() {
               >
                 Contact Us
               </a>
-            </div>
+            </motion.div>
 
             {/* Right — accordion */}
             <div className="divide-y divide-border">
               {faqs.map((faq, i) => (
-                <div key={i} className="py-5">
+                <motion.div
+                  key={i}
+                  initial="hidden"
+                  whileInView="show"
+                  viewport={{ once: true, amount: 0.2 }}
+                  variants={fadeUp}
+                  transition={{ duration: 0.5, delay: i * 0.07, ease: [0.16, 1, 0.3, 1] }}
+                  className="py-5"
+                >
                   <button
                     onClick={() => setOpen(open === i ? null : i)}
                     className="w-full flex items-center justify-between gap-4 text-left group"
@@ -88,7 +108,7 @@ export function FAQSection() {
                       {faq.a}
                     </p>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -116,45 +136,49 @@ export function FAQSection() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
             {/* Left */}
-            <div className="space-y-2">
+            <motion.div
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.3 }}
+              variants={fadeUp}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-2"
+            >
               <h2 className="font-serif text-4xl md:text-5xl text-accent-gold leading-tight">
                 How can we help?
               </h2>
               <p className="font-serif text-3xl md:text-4xl text-text-primary font-bold">
                 Contact us anytime.
               </p>
-            </div>
+            </motion.div>
 
             {/* Right — contact cards */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <a
-                href="https://github.com/TheWeirdDee/Micromind/issues"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 bg-surface-2 border border-border rounded-xl p-5 hover:border-accent-gold/50 transition-all group"
-              >
-                <p className="font-mono text-[9px] uppercase tracking-widest text-text-muted mb-2.5 flex items-center gap-1.5">
-                  <Mail size={9} />
-                  Report an issue
-                </p>
-                <p className="font-mono text-xs text-text-primary group-hover:text-accent-gold transition-colors">
-                  github.com/TheWeirdDee/Micromind
-                </p>
-              </a>
-              <a
-                href="https://github.com/TheWeirdDee/Micromind"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 bg-surface-2 border border-border rounded-xl p-5 hover:border-accent-gold/50 transition-all group"
-              >
-                <p className="font-mono text-[9px] uppercase tracking-widest text-text-muted mb-2.5 flex items-center gap-1.5">
-                  <ExternalLink size={9} />
-                  Open source
-                </p>
-                <p className="font-mono text-xs text-text-primary group-hover:text-accent-gold transition-colors">
-                  github.com/TheWeirdDee/Micromind
-                </p>
-              </a>
+              {[
+                { href: "https://github.com/TheWeirdDee/Micromind/issues", icon: <Mail size={9} />, label: "Report an issue" },
+                { href: "https://github.com/TheWeirdDee/Micromind", icon: <ExternalLink size={9} />, label: "Open source" },
+              ].map((card, i) => (
+                <motion.a
+                  key={card.label}
+                  href={card.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  initial="hidden"
+                  whileInView="show"
+                  viewport={{ once: true, amount: 0.3 }}
+                  variants={fadeUp}
+                  transition={{ duration: 0.5, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex-1 bg-surface-2 border border-border rounded-xl p-5 hover:border-accent-gold/50 transition-all group"
+                >
+                  <p className="font-mono text-[9px] uppercase tracking-widest text-text-muted mb-2.5 flex items-center gap-1.5">
+                    {card.icon}
+                    {card.label}
+                  </p>
+                  <p className="font-mono text-xs text-text-primary group-hover:text-accent-gold transition-colors">
+                    github.com/TheWeirdDee/Micromind
+                  </p>
+                </motion.a>
+              ))}
             </div>
           </div>
         </div>
