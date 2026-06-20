@@ -15,11 +15,11 @@ const faqs = [
   },
   {
     q: "What AI tools are available?",
-    a: "MicroMind includes AI Chat, Tweet Polish, Weekly Reflect, Pattern Analyst, and Heartfelt Letters — each optimized for a different kind of thinking and self-expression.",
+    a: "MicroMind includes AI Chat (0.005 cUSD), Tweet Polish (0.005 cUSD), Weekly Reflect (0.005 cUSD), Pattern Analyst (0.005 cUSD), and Heartfelt Letters AI Polish (0.01 cUSD) — each optimized for a different kind of thinking and self-expression.",
   },
   {
-    q: "Is my journal data private?",
-    a: "Absolutely. Your entries are stored locally on your device. We don't track users, sell data, or read your journal. Only hashed prompt references are recorded on-chain for verification.",
+    q: "What makes MicroMind different from other journaling apps?",
+    a: "MicroMind is built on Celo and designed for MiniPay — meaning no subscriptions, no vendor lock-in, and no account required. You own your wallet, you own your data, and you pay only for the AI you actually use.",
   },
   {
     q: "Do I need a crypto wallet to use MicroMind?",
@@ -128,15 +128,17 @@ export function FAQSection() {
             {/* Right — contact cards */}
             <div className="flex flex-col sm:flex-row gap-4">
               <a
-                href="mailto:divinenation1@gmail.com"
+                href="https://github.com/TheWeirdDee/Micromind/issues"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex-1 bg-surface-2 border border-border rounded-xl p-5 hover:border-accent-gold/50 transition-all group"
               >
                 <p className="font-mono text-[9px] uppercase tracking-widest text-text-muted mb-2.5 flex items-center gap-1.5">
                   <Mail size={9} />
-                  Send us a message
+                  Report an issue
                 </p>
-                <p className="font-mono text-xs text-text-primary group-hover:text-accent-gold transition-colors break-all">
-                  divinenation1@gmail.com
+                <p className="font-mono text-xs text-text-primary group-hover:text-accent-gold transition-colors">
+                  github.com/TheWeirdDee/Micromind
                 </p>
               </a>
               <a
@@ -150,7 +152,7 @@ export function FAQSection() {
                   Open source
                 </p>
                 <p className="font-mono text-xs text-text-primary group-hover:text-accent-gold transition-colors">
-                  github.com/TheWeirdDee
+                  github.com/TheWeirdDee/Micromind
                 </p>
               </a>
             </div>

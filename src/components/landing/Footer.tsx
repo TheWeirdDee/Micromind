@@ -79,10 +79,12 @@ export function Footer() {
             <ul className="space-y-3">
               <li>
                 <a
-                  href="mailto:divinenation1@gmail.com"
+                  href="https://github.com/TheWeirdDee/Micromind/issues"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors"
                 >
-                  divinenation1@gmail.com
+                  Report an Issue
                 </a>
               </li>
               <li>
@@ -121,7 +123,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors"
                 >
-                  GitHub
+                  MicroMind on GitHub
                 </a>
               </li>
               <li>
