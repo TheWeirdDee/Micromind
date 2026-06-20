@@ -40,7 +40,13 @@ export function WhySection() {
 
           {/* Left Column */}
           <div className="lg:col-span-7 space-y-12 text-left">
-            <div className="space-y-4">
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-4"
+            >
               <span className="font-mono text-[10px] tracking-widest uppercase text-accent-gold">Why MicroMind</span>
               <h2 className="text-3xl md:text-5xl font-serif leading-tight text-text-primary">
                 Privacy and AI together —<br className="hidden md:block" /> without compromise.
@@ -49,24 +55,38 @@ export function WhySection() {
                 Most AI journaling tools store your thoughts on their servers. MicroMind keeps everything on your device, only reaching the internet when you choose to pay for an AI insight.
               </p>
               <p className="font-mono text-[10px] text-text-muted/70 leading-relaxed">
-                Built in the open on Celo 
+                Built in the open on Celo
               </p>
-            </div>
+            </motion.div>
 
             {/* Stats strip */}
             <div className="grid grid-cols-3 gap-4">
-              {stats.map((s) => (
-                <div key={s.label} className="space-y-1 border border-border bg-surface rounded-xl px-4 py-3">
+              {stats.map((s, i) => (
+                <motion.div
+                  key={s.label}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ duration: 0.5, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-1 border border-border bg-surface rounded-xl px-4 py-3"
+                >
                   <p className="font-mono text-xl font-bold text-accent">{s.value}</p>
                   <p className="font-mono text-[9px] uppercase tracking-widest text-text-muted">{s.label}</p>
-                </div>
+                </motion.div>
               ))}
             </div>
 
             {/* Benefits grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {benefits.map((b) => (
-                <div key={b.title} className="space-y-3">
+              {benefits.map((b, i) => (
+                <motion.div
+                  key={b.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{ duration: 0.5, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-3"
+                >
                   <div className="flex items-center gap-3">
                     <div className="p-1.5 bg-accent/10 border border-accent/20 rounded-lg text-accent">
                       <b.icon className="w-4 h-4" />
@@ -76,7 +96,7 @@ export function WhySection() {
                   <p className="font-mono text-[11px] text-text-muted leading-relaxed">
                     {b.desc}
                   </p>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
