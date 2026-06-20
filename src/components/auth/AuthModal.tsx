@@ -19,7 +19,7 @@ export function AuthModal() {
   const [mode, setMode] = useState<Mode>('login');
 
   // login fields
-  const [loginUsername, setLoginUsername] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
   // signup fields
@@ -54,20 +54,24 @@ export function AuthModal() {
 
   const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginUsername.trim() || !loginPassword) {
+    if (!loginEmail.trim() || !loginPassword) {
       setError('Please fill in all fields.');
+      return;
+    }
+    if (!loginEmail.includes('@')) {
+      setError('Please enter a valid email address.');
       return;
     }
     setError('');
     setLoading(true);
     try {
-      await login(loginUsername, loginPassword, rememberMe);
+      await login(loginEmail, loginPassword, rememberMe);
     } catch (err: any) {
       setError(err.message ?? 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [loginUsername, loginPassword, rememberMe, login]);
+  }, [loginEmail, loginPassword, rememberMe, login]);
 
   const handleSignup = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,18 +175,18 @@ export function AuthModal() {
               onSubmit={handleLogin}
               className="space-y-4"
             >
-              {/* Username */}
+              {/* Email */}
               <div className="space-y-1.5">
-                <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted px-1">Username</label>
+                <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted px-1">Email</label>
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
                   <input
-                    type="text"
-                    value={loginUsername}
+                    type="email"
+                    value={loginEmail}
                     autoFocus
-                    autoComplete="username"
-                    onChange={(e) => setLoginUsername(e.target.value)}
-                    placeholder="your_username"
+                    autoComplete="email"
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="you@gmail.com"
                     className="w-full bg-surface border border-border rounded-2xl px-12 py-3.5 text-sm font-mono focus:border-accent outline-none transition-colors"
                   />
                 </div>

@@ -16,34 +16,34 @@ export function HeartfeltLetters() {
   const [isLocked, setIsLocked] = useState(false);
 
   const sectionRef = useRef<HTMLDivElement>(null);
-  const [hasPlayedInViewport, setHasPlayedInViewport] = useState(false);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const draftMessage = "Hey mom, just wanted to say thank you for always supporting me. Sorry I haven't called as much lately, I've been busy but I always think about you. You're the best.";
   const polishedMessage = "Dear Mom, I wanted to send a small note to let you know how much I appreciate you. Life has been moving fast lately, but your constant love and support are always on my mind. Thank you for being such an incredible presence in my life. With love, Alex.";
 
-  // Scroll pinning observer
+  // Scroll observer — replays every time the grid enters or leaves the viewport
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
 
     const observer = new IntersectionObserver((entries) => {
       const [entry] = entries;
-      // Trigger when the section top is partially in view
-      if (entry.isIntersecting && !hasPlayedInViewport) {
-        setHasPlayedInViewport(true);
+      if (entry.isIntersecting) {
+        // Scroll the interactive grid (not the header) to center of viewport
+        gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setIsAutoPlaying(true);
         setIsLocked(true);
-        
-        // Smoothly scroll the card container into the center of the viewport
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        // Reset when scrolled away so it replays next time
+        setIsAutoPlaying(false);
+        setIsLocked(false);
+        handleReset();
       }
-    }, { threshold: 0.1 });
+    }, { threshold: 0.25 });
 
     observer.observe(el);
-    return () => {
-      observer.disconnect();
-    };
-  }, [hasPlayedInViewport]);
+    return () => observer.disconnect();
+  }, []);
 
   // Handle body scroll lock via event prevention and overflow toggle
   useEffect(() => {
@@ -216,7 +216,7 @@ export function HeartfeltLetters() {
           </div>
 
           {/* Interactive Workspace Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+          <div ref={gridRef} className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
             
             {/* Left Column: Workflow Navigation & Explanations */}
             <div className="lg:col-span-5 space-y-6">

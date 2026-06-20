@@ -9,7 +9,7 @@ interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   signUp: (username: string, email: string, password: string, rememberMe: boolean) => Promise<void>;
-  login: (username: string, password: string, rememberMe: boolean) => Promise<void>;
+  login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   logout: () => Promise<void>;
   checkUsername: (username: string) => Promise<'available' | 'taken' | 'error'>;
   resetPassword: (email: string) => Promise<void>;
@@ -113,31 +113,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = useCallback(async (username: string, password: string, rememberMe: boolean) => {
-    const cleanUsername = username.trim().toLowerCase();
-
-    // Look up email from username
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('email')
-      .eq('username', cleanUsername)
-      .maybeSingle();
-
-    if (profileError || !profile) {
-      throw new Error('Username not found. Check your username or sign up.');
-    }
+  const login = useCallback(async (email: string, password: string, rememberMe: boolean) => {
+    const cleanEmail = email.trim().toLowerCase();
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: profile.email,
+      email: cleanEmail,
       password,
     });
-    if (error) throw new Error('Incorrect password. Please try again.');
+    if (error) throw new Error('Incorrect email or password. Please try again.');
 
     // Seed local profile if not already set (e.g. logging in on a new device)
     if (typeof window !== 'undefined' && !localStorage.getItem('mm_user_profile')) {
       localStorage.setItem('mm_user_profile', JSON.stringify({
-        name: cleanUsername,
-        email: profile.email,
+        name: cleanEmail.split('@')[0],
+        email: cleanEmail,
         goals: [],
         loginMethod: 'credentials',
         onboardedAt: Date.now(),
