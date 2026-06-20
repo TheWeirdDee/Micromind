@@ -28,13 +28,14 @@ export function HeartfeltLetters() {
 
     const observer = new IntersectionObserver((entries) => {
       const [entry] = entries;
+      const isDesktop = window.innerWidth >= 1024;
       if (entry.isIntersecting) {
-        // Scroll the interactive grid (not the header) to center of viewport
-        gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (isDesktop) {
+          gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
         setIsAutoPlaying(true);
-        setIsLocked(true);
+        if (isDesktop) setIsLocked(true);
       } else {
-        // Reset when scrolled away so it replays next time
         setIsAutoPlaying(false);
         setIsLocked(false);
         handleReset();
@@ -204,7 +205,13 @@ export function HeartfeltLetters() {
         <div className="container mx-auto max-w-6xl relative z-10">
           
           {/* Section Header */}
-          <div className="text-left max-w-3xl mb-16 space-y-4">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="text-left max-w-3xl mb-16 space-y-4"
+          >
             <span className="font-mono text-[10px] tracking-widest uppercase text-accent-gold">Expressive Tools</span>
             <h2 className="text-3xl md:text-5xl font-serif leading-tight text-text-primary">
               Send Heartfelt Letters. <br />
@@ -213,7 +220,7 @@ export function HeartfeltLetters() {
             <p className="font-mono text-xs md:text-sm text-text-muted leading-relaxed max-w-2xl">
               Some thoughts are meant to be shared. Write a personal letter to a parent, friend, or loved one. Send it as a raw draft for free, or use our AI Companion to gently polish your words into an eloquent keepsake before delivery.
             </p>
-          </div>
+          </motion.div>
 
           {/* Interactive Workspace Grid */}
           <div ref={gridRef} className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
