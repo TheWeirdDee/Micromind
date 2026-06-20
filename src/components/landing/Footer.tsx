@@ -4,94 +4,145 @@ import Link from 'next/link';
 
 export function Footer() {
   return (
-    <footer className="py-20 px-6 border-t border-border bg-bg text-left">
+    <footer className="bg-surface border-t border-border py-16 px-6">
       <div className="container mx-auto max-w-6xl">
-        {/* Main Columns Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-8 pb-16">
-          
-          {/* Column 1 — Brand info (4 cols) */}
-          <div className="lg:col-span-5 space-y-4">
-            <span className="font-serif text-2xl text-text-primary tracking-tight">MicroMind</span>
-            <p className="font-mono text-xs text-text-muted leading-relaxed max-w-sm">
+
+        {/* ── Main columns ──────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12 pb-12 border-b border-border">
+
+          {/* Brand — 2 cols */}
+          <div className="lg:col-span-2 space-y-4">
+            <span className="font-serif text-xl text-text-primary tracking-tight">MicroMind</span>
+            <p className="font-mono text-[11px] text-text-muted leading-relaxed max-w-xs">
               Your thoughts deserve a safe home. Journal freely, reflect deeply, and grow with AI-powered insights — built on Celo for everyone.
             </p>
           </div>
 
-          {/* Column 2 — Product Features (2 cols) */}
-          <div className="lg:col-span-2 space-y-4">
-            <h4 className="font-mono text-[10px] tracking-widest uppercase text-accent-gold font-bold">Product</h4>
-            <ul className="space-y-2.5 font-mono text-[11px] text-text-muted">
+          {/* About Us */}
+          <div className="space-y-4">
+            <h4 className="font-mono text-[10px] uppercase tracking-widest text-text-muted font-bold">
+              About Us
+            </h4>
+            <ul className="space-y-3">
               <li>
-                <Link href="/app/journal" className="hover:text-accent transition-colors">Journal</Link>
+                <Link href="/#how-it-works" className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors">
+                  How It Works
+                </Link>
               </li>
               <li>
-                <Link href="/app/chat" className="hover:text-accent transition-colors">AI Chat</Link>
+                <Link href="/#tools" className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors">
+                  AI Tools
+                </Link>
               </li>
               <li>
-                <Link href="/app/tweet" className="hover:text-accent transition-colors">Tweet Polish</Link>
+                <Link href="/#faq" className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors">
+                  FAQ
+                </Link>
               </li>
               <li>
-                <Link href="/app/reflect" className="hover:text-accent transition-colors">AI Reflect</Link>
-              </li>
-              <li>
-                <Link href="/app/pattern" className="hover:text-accent transition-colors">Pattern Analyst</Link>
-              </li>
-              <li>
-                <Link href="/app/letter" className="hover:text-accent transition-colors">Heartfelt Letters</Link>
+                <a
+                  href="https://celoscan.io/address/0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors"
+                >
+                  Smart Contract
+                </a>
               </li>
             </ul>
           </div>
 
-          {/* Column 3 — Privacy Highlights (2.5 cols) */}
-          <div className="lg:col-span-3 space-y-4">
-            <h4 className="font-mono text-[10px] tracking-widest uppercase text-accent-gold font-bold">Privacy by Design</h4>
-            <ul className="space-y-2.5 font-mono text-[11px] text-text-muted">
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
-                <span>End-to-End Encrypted</span>
+          {/* Legal */}
+          <div className="space-y-4">
+            <h4 className="font-mono text-[10px] uppercase tracking-widest text-text-muted font-bold">
+              Legal
+            </h4>
+            <ul className="space-y-3">
+              <li>
+                <Link href="/privacy" className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors">
+                  Privacy Policy
+                </Link>
               </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
-                <span>Cross-Device Sync</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
-                <span>No User Tracking</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-green" />
-                <span>Onchain Transaction Audits</span>
+              <li>
+                <Link href="/terms" className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors">
+                  Terms of Service
+                </Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 4 — Resources & Links (2.5 cols) */}
-          <div className="lg:col-span-2 space-y-4">
-            <h4 className="font-mono text-[10px] tracking-widest uppercase text-accent-gold font-bold">Developers</h4>
-            <ul className="space-y-2.5 font-mono text-[11px] text-text-muted">
+          {/* Keep In Touch */}
+          <div className="space-y-4">
+            <h4 className="font-mono text-[10px] uppercase tracking-widest text-text-muted font-bold">
+              Keep In Touch
+            </h4>
+            <ul className="space-y-3">
               <li>
-                <a href="https://celo.org" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">Celo Network</a>
+                <a
+                  href="mailto:divinenation1@gmail.com"
+                  className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors"
+                >
+                  divinenation1@gmail.com
+                </a>
               </li>
               <li>
-                <a href="https://talentprotocol.com" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">Talent Protocol</a>
+                <a
+                  href="https://celo.org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors"
+                >
+                  Celo Network
+                </a>
               </li>
               <li>
-                <a href="https://celoscan.io/address/0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">Smart Contract</a>
-              </li>
-              <li>
-                <a href="https://github.com/TheWeirdDee/Micromind" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">GitHub Repo</a>
+                <a
+                  href="https://talentprotocol.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors"
+                >
+                  Talent Protocol
+                </a>
               </li>
             </ul>
           </div>
 
+          {/* Follow Us */}
+          <div className="space-y-4">
+            <h4 className="font-mono text-[10px] uppercase tracking-widest text-text-muted font-bold">
+              Follow Us
+            </h4>
+            <ul className="space-y-3">
+              <li>
+                <a
+                  href="https://github.com/TheWeirdDee/Micromind"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors"
+                >
+                  GitHub
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://twitter.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors"
+                >
+                  Twitter / X
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        {/* Bottom row — Copyright & Badge */}
-        <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        {/* ── Bottom bar ────────────────────────────────────────────── */}
+        <div className="pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="font-mono text-[10px] text-text-muted">
             © 2026 MicroMind. All rights reserved.
           </p>
-
           <div className="flex items-center gap-2 bg-accent-green/5 border border-accent-green/20 px-3.5 py-1.5 rounded-full">
             <span className="w-2 h-2 rounded-full bg-accent-green animate-pulse" />
             <span className="font-mono text-[9px] uppercase tracking-wider text-accent-green font-bold">
