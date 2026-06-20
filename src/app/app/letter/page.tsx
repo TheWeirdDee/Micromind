@@ -9,7 +9,7 @@ import { useWallet } from '@/context/WalletContext';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { ResponseCard } from '@/components/app/ResponseCard';
 import { AgentWarning } from '@/components/app/AgentWarning';
-import { getHistory } from '@/lib/storage';
+import { getHistory, saveToHistory } from '@/lib/storage';
 import { updateStreak } from '@/lib/journal';
 import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 import { Suspense } from 'react';
@@ -151,6 +151,16 @@ function LetterPageInner() {
       }
 
       setFreeSent(true);
+      saveToHistory({
+        id: crypto.randomUUID(),
+        toolId: 5,
+        toolName: 'Letter',
+        prompt: JSON.stringify({ content: content.trim(), recipientEmail: recipientEmail.trim(), senderName: senderName.trim() }),
+        response: `Letter sent to ${recipientEmail.trim()}`,
+        cost: 'Free',
+        txHash: `free_${Date.now()}`,
+        timestamp: Date.now(),
+      });
       setContent('');
       setTimeout(() => setFreeSent(false), 5000);
     } catch (e: any) {
