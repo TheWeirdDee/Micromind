@@ -1,105 +1,151 @@
-# MicroMind — AI-Powered Journal on Celo
+# MicroMind — Privacy-First AI Journaling on Celo
 
-MicroMind is a mobile-first journaling app with cross-device sync, powered by AI on Celo. Write freely for free. Pay only when you want AI insight — a few cents at a time in cUSD, every interaction verifiable onchain.
+MicroMind is a mobile-first, privacy-first AI journaling app built on Celo and designed for MiniPay. Write freely with no cost. Pay only when you want an AI insight — a few cents at a time in cUSD, every transaction verifiable onchain.
 
-No subscriptions. Your journal syncs across all your devices and is only readable by you.
+**No subscriptions. No data harvesting. No vendor lock-in.**
 
-**Built for MiniPay users** in Nigeria, Kenya, Ghana, and beyond.
+Built for MiniPay users across Africa and beyond.
+
+> Live: [micromind-three.vercel.app](https://micromind-three.vercel.app)
 
 ---
 
 ## Features
 
-| Feature | Price | Description |
-|---------|-------|-------------|
-| Journal | Free | Write entries, track mood, organize into folders |
-| Reflect | 0.005 cUSD | AI reads your recent entries and writes a personal weekly reflection |
-| Pattern | 0.005 cUSD | AI surfaces 3 emotional patterns across all your entries |
-| Letter | Free / 0.01 cUSD | Write a letter and send it to any email — AI polish optional |
-| Tweet | 0.005 cUSD | Turn a journal entry or thought into a tweet |
-| Chat | 0.005 cUSD | General AI assistant |
+| Tool | Price | Description |
+|------|-------|-------------|
+| Journal | Free | Write entries, track mood, organize into folders, streak tracking |
+| Reflect | 0.005 cUSD | AI synthesizes your recent entries into a compassionate weekly reflection |
+| Pattern Analyst | 0.005 cUSD | AI surfaces 3 recurring emotional themes across your entire journal history |
+| Heartfelt Letter | Free + 0.01 cUSD | Write and email a letter to anyone — optional AI polish for 0.01 cUSD |
+| Tweet Gen | 0.005 cUSD | Turn a journal entry into a draft tweet |
+| Mind Chat | 0.005 cUSD | General AI companion for private conversations |
 
-### Journal Highlights
-- Accounts created with **username + email + password** — access from any device
+### Journal
+- Accounts via **email + password** — access from any device
 - Real-time username availability check during signup
-- Journal entries synced to Supabase, cached locally in `localStorage` for offline use
+- Entries synced to Supabase, cached locally for offline use
 - Mood tracking per entry (Happy, Excited, Neutral, Angry, Sad)
-- Folder system — create and name folders to organize entries
-- Edit entries inline, assign to folders, move between folders
+- Folder system — create named folders to organize entries
 - Reflect and Pattern tools can be scoped to a specific folder
-- Daily streak tracker — writing an entry counts toward your streak
+- Daily streak tracker
+- **Send as Letter** — pre-fill the letter page from any journal entry
 
-### Wallet Support
-- **MiniPay**: auto-detected and auto-connected — zero friction
+### Heartfelt Letters
+- Send a letter draft for free to any email address
+- Optional AI Polish (0.01 cUSD) rewrites your draft while preserving your voice
+- **Starred contacts** — save recipients for one-tap filling
+- All sends (free and paid) recorded in history
+- Powered by Resend; letters are delivered directly to the recipient's inbox
+
+### Wallet
+- **MiniPay**: auto-detected and connected — zero friction
 - **MetaMask**: manual connect, auto-switches to Celo Mainnet
-- Wallet is only required for AI tool payments — journaling is always free
-- Multi-provider conflict resolution — prefers MetaMask over other injected wallets
+- Wallet is only required for paid AI tools — journaling and basic letter sending are always free
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                        Browser (Next.js)                       │
-│                                                                │
-│  Auth (username/email/password)                                │
-│       ↓                                                        │
-│  Journal entries (write locally → sync to Supabase)           │
-│       ↓                                                        │
-│  AI Tools: pay in cUSD → MicroMindPayment contract on Celo    │
-└────────┬───────────────────────────┬──────────────────────────┘
-         │                           │
-         ▼                           ▼
-┌─────────────────┐        ┌──────────────────────┐
-│    Supabase      │        │  MicroMindPayment     │
-│  - profiles      │        │  contract (Celo)      │
-│  - journal_entries│       │  0xDdf2...D214c       │
-│  - journal_folders│       └──────────┬────────────┘
-└─────────────────┘                    │ PromptPaid event
-                                       ▼
-                              ┌──────────────────┐
-                              │   AI Agent        │
-                              │  (Express/Groq)   │
-                              │  Llama-3.3-70b    │
-                              └──────────────────┘
+Browser (Next.js 16 + React 19)
+│
+├── Auth: email + password via Supabase Auth
+├── Journal: write locally → sync to Supabase (RLS-protected)
+├── Letter send (free): Next.js API route → Resend (no agent needed)
+│
+└── AI Tools: user pays cUSD → MicroMindPayment contract on Celo
+                                        │
+                                        │ PromptPaid event
+                                        ▼
+                               AI Agent (Express + Groq)
+                               listens for on-chain events
+                               runs Llama-3.3-70b
+                               returns result to client
+
+Supabase
+├── profiles       (id, username, email)
+├── journal_entries
+└── journal_folders
+
+Smart Contracts (Celo Mainnet)
+└── MicroMindPayment  0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c
 ```
 
-Only the prompt hash and payment touch the chain. The agent reads the on-chain event to know which prompt to run.
+Only the prompt hash and payment touch the chain. The agent reads the on-chain `PromptPaid` event to know which prompt to execute.
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15, Tailwind CSS, Framer Motion, Viem
-- **Auth & Storage**: Supabase (PostgreSQL + Row Level Security)
-- **Backend**: Node.js, Express, Groq SDK (Llama-3.3-70b), Upstash Redis
-- **Email**: Resend
-- **Smart Contracts**: Solidity, Hardhat, deployed on Celo Mainnet
-- **Network**: Celo Mainnet (`chainId: 42220`)
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 16, React 19 |
+| Styling | Tailwind CSS v4, Framer Motion v12 |
+| Fonts | Playfair Display (serif), DM Mono (mono), Ultra (display) |
+| Auth & DB | Supabase (PostgreSQL + Row Level Security) |
+| Blockchain | Celo Mainnet (`chainId: 42220`), Viem, Wagmi |
+| AI Agent | Express.js, Groq SDK (Llama-3.3-70b) |
+| Email | Resend |
+| Dedup cache | Upstash Redis (optional) |
+| Deployment | Vercel (frontend), any Node host (agent) |
 
 ---
 
 ## Smart Contracts
 
-**MicroMindPayment (cUSD)** — `0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c`
+**MicroMindPayment (cUSD)** — `0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c`  
+[View on Celoscan](https://celoscan.io/address/0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c)
 
 **MicroMindPayment (CELO native)** — `0xeeEa78792266D3dE17Df648113c9eF6930AdbCE5`
 
-Tool IDs
+Tool IDs registered on-chain:
 ```
-1 = Chat
-2 = Tweet
-3 = Reflect
-4 = Pattern
-5 = Letter
+1 = Mind Chat
+2 = Tweet Gen
+3 = Weekly Reflect
+4 = Pattern Analyst
+5 = Heartfelt Letter (AI Polish)
 ```
 
 ---
 
-## Supabase Schema
+## Environment Variables
 
-Run this SQL in your Supabase project (**SQL Editor → New query**):
+### Frontend (`/.env.local`)
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_CONTRACT_ADDRESS=0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c
+NEXT_PUBLIC_AGENT_API_URL=http://localhost:8080
+
+# Required for letter sending via the Next.js API route
+RESEND_API_KEY=re_your_key_here
+
+# Optional: use a verified custom domain sender (recommended for production)
+# Without this, only emails to your Resend account email will be delivered (sandbox mode)
+RESEND_FROM_EMAIL=letters@yourdomain.com
+```
+
+### Agent (`/agent/.env`)
+
+```env
+CONTRACT_ADDRESS=0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c
+GROQ_API_KEY=your_groq_key
+RESEND_API_KEY=re_your_key_here
+RESEND_FROM_EMAIL=letters@yourdomain.com  # optional, defaults to onboarding@resend.dev
+
+# Optional — enables prompt deduplication to prevent double-execution
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
+```
+
+---
+
+## Supabase Setup
+
+Run the following SQL in your Supabase project under **SQL Editor → New query**:
 
 ```sql
 CREATE TABLE public.profiles (
@@ -143,40 +189,94 @@ CREATE POLICY "Users manage own folders" ON public.journal_folders FOR ALL USING
 
 ---
 
-## AI Agent
-
-- **8004 Agent ID**: `9054`
-- **Self Agent ID**: `0x0aa829dd2c57c7c94635951d3d3c85379a150dbdc05a59323b0a489179c89ca0`
-
----
-
 ## Run Locally
 
 ### Prerequisites
 - Node.js 18+
-- Supabase project (free tier works)
+- A Supabase project (free tier works)
+- A Groq API key (free at [console.groq.com](https://console.groq.com))
+- A Resend API key (free at [resend.com](https://resend.com)) for letter sending
 
 ### Setup
 
 ```bash
-# 1. Install dependencies
+# 1. Clone
+git clone https://github.com/TheWeirdDee/Micromind.git
+cd Micromind
+
+# 2. Install dependencies
 npm install
 cd agent && npm install && cd ..
-cd contracts && npm install && cd ..
 
-# 2. Environment — copy .env.local and fill in:
-#   NEXT_PUBLIC_SUPABASE_URL=...
-#   NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-#   NEXT_PUBLIC_CONTRACT_ADDRESS=...
-#   NEXT_PUBLIC_AGENT_API_URL=http://localhost:8080
-#   OPENAI_API_KEY=... (or GROQ_API_KEY)
+# 3. Create environment files
+cp .env.local.example .env.local     # fill in your values
+cp agent/.env.example agent/.env     # fill in your values
 
-# 3. Run everything
+# 4. Run frontend + agent together
 npm run dev:all
 ```
 
-Frontend runs on `http://localhost:3000`, agent on `http://localhost:8080`.
+- Frontend: `http://localhost:3000`
+- Agent: `http://localhost:8080`
+
+To run them separately:
+```bash
+npm run dev          # Next.js frontend only
+npm run agent        # AI agent only
+```
 
 ---
 
-Built for the **Celo Proof of Ship** competition.
+## Email Delivery Note
+
+Resend's free plan operates in **sandbox mode** — outbound emails only deliver to the email address registered on your Resend account. To send letters to any recipient, you need a custom domain:
+
+1. Buy a domain (e.g. via Vercel Domains, Namecheap, etc.)
+2. Add and verify the domain in your [Resend dashboard](https://resend.com/domains)
+3. Set `RESEND_FROM_EMAIL=letters@yourdomain.com` in both `.env.local` and your Vercel environment variables
+
+---
+
+## Deployment
+
+The frontend deploys to Vercel automatically on push to `main`.
+
+Required Vercel environment variables (same as `.env.local`):
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_CONTRACT_ADDRESS`
+- `NEXT_PUBLIC_AGENT_API_URL` — your hosted agent URL
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL` (if using a custom domain)
+
+The AI agent can be deployed to any Node.js host (Railway, Render, Fly.io, etc.) and must be publicly accessible for the on-chain event listener to work.
+
+---
+
+## Project Structure
+
+```
+micromind/
+├── src/
+│   ├── app/
+│   │   ├── app/           # Authenticated app routes (journal, chat, reflect, letter, etc.)
+│   │   ├── api/           # Next.js API routes (letter send, etc.)
+│   │   └── page.tsx       # Landing page
+│   ├── components/
+│   │   ├── landing/       # Landing page sections
+│   │   └── auth/          # Auth modal
+│   ├── context/           # WalletContext, AuthContext
+│   └── lib/               # journal.ts, supabase.ts, contract ABIs
+├── agent/
+│   └── src/index.ts       # Express AI agent (Groq + Resend + Viem)
+├── contracts/             # Solidity + Hardhat
+└── private/scripts/       # Wallet funding and validation scripts
+```
+
+---
+
+## License
+
+MIT — built for the Celo Proof of Ship competition.
+
+[GitHub](https://github.com/TheWeirdDee/Micromind) · [Report an Issue](https://github.com/TheWeirdDee/Micromind/issues) · [Celo Network](https://celo.org)
