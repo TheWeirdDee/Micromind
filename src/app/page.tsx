@@ -6,6 +6,7 @@ import { HeartfeltLetters } from "@/components/landing/HeartfeltLetters";
 import { NewFeatures } from "@/components/landing/NewFeatures";
 import { WhySection } from "@/components/landing/WhySection";
 import { AICompanions } from "@/components/landing/AICompanions";
+import { FAQSection } from "@/components/landing/FAQSection";
 import { Footer } from "@/components/landing/Footer";
 
 export default function Home() {
@@ -19,6 +20,7 @@ export default function Home() {
       <NewFeatures />
       <WhySection />
       <AICompanions />
+      <FAQSection />
       <Footer />
     </div>
   );
