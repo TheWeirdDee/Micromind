@@ -6,7 +6,7 @@ import {
   BookOpen, PenTool, Trash2, Pencil, Check, X, Plus,
   Smile, Laugh, Meh, Angry, Frown, ChevronRight,
   FolderPlus, Folder as FolderIcon, MoreHorizontal, Sparkles,
-  Copy, Command, CornerDownLeft,
+  Copy, Command, CornerDownLeft, Mail,
 } from 'lucide-react';
 
 import Link from 'next/link';
@@ -774,6 +774,12 @@ export default function JournalPage() {
                                   >
                                     <Pencil className="w-3 h-3" /> Edit
                                   </button>
+                                  <Link
+                                    href={`/app/letter?content=${encodeURIComponent(entry.content)}`}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors"
+                                  >
+                                    <Mail className="w-3 h-3" /> Send as Letter
+                                  </Link>
                                   <button
                                     onClick={() => handleDelete(entry.id)}
                                     className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/40 transition-colors"
