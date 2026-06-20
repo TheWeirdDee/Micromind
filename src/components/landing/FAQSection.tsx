@@ -19,7 +19,7 @@ const faqs = [
   },
   {
     q: "What makes MicroMind different from other journaling apps?",
-    a: "MicroMind is built on Celo and designed for MiniPay — meaning no subscriptions, no email signup, and no vendor lock-in. You connect with your wallet, own your data, and pay only for the AI you actually use.",
+    a: "MicroMind is built on Celo and designed for MiniPay — meaning no subscriptions, no vendor lock-in, and no data harvesting. You connect with your wallet, own your data, and pay only for the AI you actually use.",
   },
   {
     q: "Do I need a crypto wallet to use MicroMind?",
