@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { ChevronLeft, Loader2, Mail, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, Loader2, Mail, Sparkles, CheckCircle2, AlertTriangle, Star, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -12,8 +12,26 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 import { getHistory } from '@/lib/storage';
 import { updateStreak } from '@/lib/journal';
 import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
-
 import { Suspense } from 'react';
+
+// ── Starred contacts ─────────────────────────────────────────────────────────
+
+type Contact = { name: string; email: string };
+const CONTACTS_KEY = 'mm_starred_contacts';
+
+function loadContacts(): Contact[] {
+  try {
+    return JSON.parse(localStorage.getItem(CONTACTS_KEY) ?? '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveContacts(contacts: Contact[]) {
+  localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+}
+
+// ── Inner page ────────────────────────────────────────────────────────────────
 
 function LetterPageInner() {
   const { isConnected, address, celoBalance, isMiniPay } = useWallet();
@@ -27,14 +45,38 @@ function LetterPageInner() {
   const [polishedResponse, setPolishedResponse] = useState<string | null>(null);
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string }>(null);
 
+  // Starred contacts
+  const [starredContacts, setStarredContacts] = useState<Contact[]>([]);
+  const [showContacts, setShowContacts] = useState(false);
+  const contactsRef = useRef<HTMLDivElement>(null);
+
   const { payAndGenerate, loading: paidLoading, step: paidStep } = usePayForPrompt();
   const searchParams = useSearchParams();
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
   const isFormValid = recipientEmail.includes('@') && senderName.trim().length > 0 && content.trim().length >= 5;
 
+  // Load contacts from localStorage
+  useEffect(() => {
+    setStarredContacts(loadContacts());
+  }, []);
+
+  // Close contacts dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (contactsRef.current && !contactsRef.current.contains(e.target as Node)) {
+        setShowContacts(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Pre-fill from history id OR ?content= from journal
   useEffect(() => {
     const historyId = searchParams.get('id');
+    const contentParam = searchParams.get('content');
+
     if (historyId) {
       const history = getHistory();
       const item = history.find(h => h.txHash === historyId);
@@ -49,8 +91,43 @@ function LetterPageInner() {
           setContent(item.prompt);
         }
       }
+    } else if (contentParam) {
+      setContent(contentParam);
     }
   }, [searchParams]);
+
+  // ── Starred contact helpers ──────────────────────────────────────────────
+
+  const isCurrentStarred = starredContacts.some(
+    c => c.email === recipientEmail.trim() && c.name === recipientName.trim()
+  );
+
+  const toggleStar = () => {
+    const email = recipientEmail.trim();
+    const name = recipientName.trim();
+    if (!email.includes('@') || !name) return;
+
+    const updated = isCurrentStarred
+      ? starredContacts.filter(c => !(c.email === email && c.name === name))
+      : [...starredContacts, { email, name }];
+
+    setStarredContacts(updated);
+    saveContacts(updated);
+  };
+
+  const removeContact = (contact: Contact) => {
+    const updated = starredContacts.filter(c => !(c.email === contact.email && c.name === contact.name));
+    setStarredContacts(updated);
+    saveContacts(updated);
+  };
+
+  const applyContact = (contact: Contact) => {
+    setRecipientEmail(contact.email);
+    setRecipientName(contact.name);
+    setShowContacts(false);
+  };
+
+  // ── Send handlers ────────────────────────────────────────────────────────
 
   const handleFreeSend = async () => {
     if (!isFormValid || freeSending || paidLoading) return;
@@ -58,8 +135,7 @@ function LetterPageInner() {
     setFreeSent(false);
 
     try {
-      const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
-      const res = await fetch(`${agentUrl}/api/letter/send`, {
+      const res = await fetch('/api/letter/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -117,43 +193,37 @@ function LetterPageInner() {
 
   const handleRetry = async () => {
     if (!lastSubmission || paidLoading) return;
-
-    if (!isConnected || !address) {
-      setShowWalletModal(true);
-      return;
-    }
-
+    if (!isConnected || !address) { setShowWalletModal(true); return; }
     try {
       const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
       if (aiResponse) setPolishedResponse(aiResponse);
       setLastSubmission(null);
     } catch (e) {
-      console.error('Retry failed', e);
       alert('Retry failed. Check your wallet and try again.');
     }
   };
 
   const getStepMessage = () => {
     switch (paidStep) {
-      case 'checking': return 'Checking agent...';
-      case 'submitting': return 'Preparing prompt...';
-      case 'approving': return 'Approving cUSD spend...';
-      case 'paying': return 'Sending payment...';
-      case 'confirming': return 'Confirming on Celo...';
-      case 'generating': return 'AI is polishing & sending...';
-      case 'complete': return 'Sent!';
-      default: return 'Processing...';
+      case 'checking':    return 'Checking agent...';
+      case 'submitting':  return 'Preparing prompt...';
+      case 'approving':   return 'Approving cUSD spend...';
+      case 'paying':      return 'Sending payment...';
+      case 'confirming':  return 'Confirming on Celo...';
+      case 'generating':  return 'AI is polishing & sending...';
+      case 'complete':    return 'Sent!';
+      default:            return 'Processing...';
     }
   };
 
   return (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="space-y-8 pb-24"
     >
       <AgentWarning />
-      
+
       {/* Header */}
       <header className="flex justify-between items-center">
         <div className="flex items-center gap-4">
@@ -167,7 +237,6 @@ function LetterPageInner() {
         </span>
       </header>
 
-      {/* Celo Gas Warning */}
       {hasNoCelo && (
         <div className="p-4 rounded-xl bg-red-950/30 border border-red-900/60 text-xs text-red-200 font-mono leading-relaxed flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
@@ -188,15 +257,46 @@ function LetterPageInner() {
       {/* Form Card */}
       <div className="bg-surface border border-border p-6 rounded-2xl relative overflow-hidden">
         <div className="absolute inset-0 halftone-bg opacity-5 pointer-events-none" />
-        
+
         <div className="space-y-6 relative z-10">
+
+          {/* ── Starred contacts quick-select ── */}
+          {starredContacts.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-1">
+                Starred Contacts
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {starredContacts.map((c, i) => (
+                  <div key={i} className="flex items-center gap-1 group">
+                    <button
+                      onClick={() => applyContact(c)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-2 border border-border rounded-full text-xs font-mono text-text-muted hover:border-accent-gold/50 hover:text-text-primary transition-all"
+                    >
+                      <Star className="w-3 h-3 text-accent-gold fill-accent-gold" />
+                      {c.name}
+                    </button>
+                    <button
+                      onClick={() => removeContact(c)}
+                      className="opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center text-text-muted hover:text-red-400 transition-all"
+                      title="Remove"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Recipient + Sender fields ── */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-2">Recipient Email</label>
               <input
                 type="email"
                 value={recipientEmail}
-                onChange={(e) => setRecipientEmail(e.target.value)}
+                onChange={e => setRecipientEmail(e.target.value)}
                 placeholder="friend@example.com"
                 disabled={freeSending || paidLoading}
                 className="w-full bg-surface-2 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:border-accent outline-none transition-colors"
@@ -204,21 +304,36 @@ function LetterPageInner() {
             </div>
             <div className="space-y-2">
               <label className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-2">Recipient Name</label>
-              <input
-                type="text"
-                value={recipientName}
-                onChange={(e) => setRecipientName(e.target.value)}
-                placeholder="Friend's Name"
-                disabled={freeSending || paidLoading}
-                className="w-full bg-surface-2 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:border-accent outline-none transition-colors"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={recipientName}
+                  onChange={e => setRecipientName(e.target.value)}
+                  placeholder="Friend's Name"
+                  disabled={freeSending || paidLoading}
+                  className="flex-1 bg-surface-2 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:border-accent outline-none transition-colors"
+                />
+                {/* Star toggle */}
+                <button
+                  onClick={toggleStar}
+                  disabled={!recipientEmail.includes('@') || !recipientName.trim()}
+                  title={isCurrentStarred ? 'Remove from starred' : 'Star this contact'}
+                  className={`px-3 rounded-xl border transition-all disabled:opacity-30 ${
+                    isCurrentStarred
+                      ? 'border-accent-gold/60 bg-accent-gold/10 text-accent-gold'
+                      : 'border-border text-text-muted hover:border-accent-gold/40 hover:text-accent-gold'
+                  }`}
+                >
+                  <Star className={`w-4 h-4 ${isCurrentStarred ? 'fill-accent-gold' : ''}`} />
+                </button>
+              </div>
             </div>
             <div className="space-y-2">
               <label className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-2">Your Name</label>
               <input
                 type="text"
                 value={senderName}
-                onChange={(e) => setSenderName(e.target.value)}
+                onChange={e => setSenderName(e.target.value)}
                 placeholder="Your Name"
                 disabled={freeSending || paidLoading}
                 className="w-full bg-surface-2 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:border-accent outline-none transition-colors"
@@ -226,11 +341,12 @@ function LetterPageInner() {
             </div>
           </div>
 
+          {/* ── Letter content ── */}
           <div className="space-y-2 relative">
             <label className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-2">Letter Content</label>
             <textarea
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={e => setContent(e.target.value)}
               placeholder="Write your letter here..."
               disabled={freeSending || paidLoading}
               className="w-full bg-surface-2 border border-border rounded-xl p-4 font-mono text-sm min-h-[180px] focus:border-accent outline-none transition-colors resize-none"
@@ -240,6 +356,7 @@ function LetterPageInner() {
             </span>
           </div>
 
+          {/* ── Actions ── */}
           <div className="flex flex-col md:flex-row gap-4 pt-2">
             <button
               onClick={handleFreeSend}
@@ -305,6 +422,7 @@ function LetterPageInner() {
           <ResponseCard response={polishedResponse} />
         </div>
       )}
+
       <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </motion.div>
   );
@@ -312,7 +430,7 @@ function LetterPageInner() {
 
 export default function LetterPage() {
   return (
-    <Suspense fallback={<div className="h-full flex items-center justify-center animate-pulse font-mono text-accent uppercase tracking-widest">Loading context...</div>}>
+    <Suspense fallback={<div className="h-full flex items-center justify-center animate-pulse font-mono text-accent uppercase tracking-widest">Loading...</div>}>
       <LetterPageInner />
     </Suspense>
   );
