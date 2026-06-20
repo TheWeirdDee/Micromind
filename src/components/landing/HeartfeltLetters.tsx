@@ -307,7 +307,7 @@ export function HeartfeltLetters() {
                 onClick={handleRestartDemo}
                 className="font-mono text-[10px] text-accent hover:underline uppercase tracking-wider flex items-center gap-1.5"
               >
-                Replay Autoplay Demo
+                Replay Demo
               </button>
             </div>
 
