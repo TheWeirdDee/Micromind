@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Playfair_Display, DM_Mono } from "next/font/google";
+import { Playfair_Display, DM_Mono, Ultra } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -13,6 +13,12 @@ const dmMono = DM_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
   variable: "--font-mono",
+});
+
+const ultra = Ultra({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-display",
 });
 
 export const metadata: Metadata = {
@@ -81,7 +87,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${playfair.variable} ${dmMono.variable} antialiased selection:bg-accent selection:text-bg`}
+        className={`${playfair.variable} ${dmMono.variable} ${ultra.variable} antialiased selection:bg-accent selection:text-bg`}
       >
         <AuthProvider>
           <WalletProvider>
