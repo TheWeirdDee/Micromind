@@ -5,14 +5,14 @@ import Image from 'next/image';
 
 export function Footer() {
   return (
-    <footer className="bg-surface border-t border-border pt-16 px-6 pb-0 overflow-hidden relative">
+    <footer className="bg-surface border-t border-border lg:border-t-0 pt-16 px-6 pb-0 overflow-hidden relative">
       <div className="container mx-auto max-w-6xl relative z-10">
 
         {/* -- Main columns -- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12 pb-12 border-b border-border">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-x-6 gap-y-10 pb-12 border-b border-border">
 
-          {/* Brand — 2 cols */}
-          <div className="lg:col-span-2 space-y-4">
+          {/* Brand — full width on mobile, 2 cols on desktop */}
+          <div className="col-span-2 lg:col-span-2 space-y-4">
             <div className="flex items-center gap-2">
               <Image src="/logo.svg" alt="MicroMind" width={20} height={20} />
               <span className="font-serif text-xl text-text-primary tracking-tight">MicroMind</span>
@@ -162,7 +162,7 @@ export function Footer() {
       <div className="absolute bottom-0 inset-x-0 overflow-hidden leading-none select-none pointer-events-none z-0" aria-hidden>
         <p
           className="text-text-primary whitespace-nowrap text-center font-bold"
-          style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(72px, 13vw, 200px)', opacity: 0.05, lineHeight: 0.9 }}
+          style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(38px, 11vw, 200px)', opacity: 0.05, lineHeight: 0.9 }}
         >
           MicroMind
         </p>
