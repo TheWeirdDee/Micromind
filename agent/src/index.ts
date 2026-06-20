@@ -77,6 +77,11 @@ const SYSTEM_PROMPTS: Record<number, string> = {
   5: "You are a warm and eloquent writing assistant. Rewrite this letter to make it more heartfelt, emotionally resonant, and beautifully expressed — while keeping the original meaning and the authentic voice of the writer completely intact. Do not add information, events, or relationships that were not in the original. Do not change the tone from loving to formal or vice versa — enhance what is already there. Return only the rewritten letter text, nothing else.",
 };
 
+// RESEND_FROM_EMAIL must be set to an address on a domain you've verified in the
+// Resend dashboard (e.g. "MicroMind Letters <letters@yourdomain.com>").
+// Using onboarding@resend.dev only works for the Resend account owner's email.
+const RESEND_FROM = process.env.RESEND_FROM_EMAIL ?? 'MicroMind Letters <onboarding@resend.dev>';
+
 async function sendEmail(to: string, senderName: string, content: string, isPolished: boolean) {
   if (!resend) {
     console.warn('[EMAIL] Resend not configured. Skipping email send.');
@@ -84,12 +89,12 @@ async function sendEmail(to: string, senderName: string, content: string, isPoli
   }
 
   const subject = `A letter for you, from ${senderName}`;
-  const text = isPolished 
+  const text = isPolished
     ? `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app\n✨ This letter was enhanced with AI`
     : `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app`;
 
   await resend.emails.send({
-    from: 'MicroMind Letters <onboarding@resend.dev>',
+    from: RESEND_FROM,
     to,
     subject,
     text
