@@ -14,7 +14,7 @@ import { updateStreak } from '@/lib/journal';
 import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 import { Suspense } from 'react';
 
-// ── Starred contacts ─────────────────────────────────────────────────────────
+// -- Starred contacts ---------------------------------------------------------
 
 type Contact = { name: string; email: string };
 const CONTACTS_KEY = 'mm_starred_contacts';
@@ -31,7 +31,7 @@ function saveContacts(contacts: Contact[]) {
   localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
 }
 
-// ── Inner page ────────────────────────────────────────────────────────────────
+// -- Inner page ----------------------------------------------------------------
 
 function LetterPageInner() {
   const { isConnected, address, celoBalance, isMiniPay } = useWallet();
@@ -96,7 +96,7 @@ function LetterPageInner() {
     }
   }, [searchParams]);
 
-  // ── Starred contact helpers ──────────────────────────────────────────────
+  // -- Starred contact helpers ----------------------------------------------
 
   const isCurrentStarred = starredContacts.some(
     c => c.email === recipientEmail.trim() && c.name === recipientName.trim()
@@ -127,7 +127,7 @@ function LetterPageInner() {
     setShowContacts(false);
   };
 
-  // ── Send handlers ────────────────────────────────────────────────────────
+  // -- Send handlers --------------------------------------------------------
 
   const handleFreeSend = async () => {
     if (!isFormValid || freeSending || paidLoading) return;
@@ -270,7 +270,7 @@ function LetterPageInner() {
 
         <div className="space-y-6 relative z-10">
 
-          {/* ── Starred contacts quick-select ── */}
+          {/* -- Starred contacts quick-select -- */}
           {starredContacts.length > 0 && (
             <div className="space-y-2">
               <p className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-1">
@@ -299,7 +299,7 @@ function LetterPageInner() {
             </div>
           )}
 
-          {/* ── Recipient + Sender fields ── */}
+          {/* -- Recipient + Sender fields -- */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <label className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-2">Recipient Email</label>
@@ -351,7 +351,7 @@ function LetterPageInner() {
             </div>
           </div>
 
-          {/* ── Letter content ── */}
+          {/* -- Letter content -- */}
           <div className="space-y-2 relative">
             <label className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-2">Letter Content</label>
             <textarea
@@ -366,7 +366,7 @@ function LetterPageInner() {
             </span>
           </div>
 
-          {/* ── Actions ── */}
+          {/* -- Actions -- */}
           <div className="flex flex-col md:flex-row gap-4 pt-2">
             <button
               onClick={handleFreeSend}

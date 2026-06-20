@@ -32,7 +32,7 @@ export function FAQSection() {
 
   return (
     <>
-      {/* ── FAQ ─────────────────────────────────────────────────────── */}
+      {/* -- FAQ ------------------------------------------------------- */}
       <section id="faq" className="py-24 px-6 bg-bg border-t border-border">
         <div className="container mx-auto max-w-6xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
@@ -95,7 +95,7 @@ export function FAQSection() {
         </div>
       </section>
 
-      {/* ── Wave divider ────────────────────────────────────────────── */}
+      {/* -- Wave divider ---------------------------------------------- */}
       <div className="bg-bg overflow-hidden leading-none">
         <svg
           viewBox="0 0 1440 70"
@@ -110,7 +110,7 @@ export function FAQSection() {
         </svg>
       </div>
 
-      {/* ── Contact ─────────────────────────────────────────────────── */}
+      {/* -- Contact --------------------------------------------------- */}
       <section id="contact" className="bg-surface py-20 px-6">
         <div className="container mx-auto max-w-6xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
