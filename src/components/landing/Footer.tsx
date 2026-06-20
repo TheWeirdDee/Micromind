@@ -5,8 +5,8 @@ import Image from 'next/image';
 
 export function Footer() {
   return (
-    <footer className="bg-surface border-t border-border pt-16 px-6 pb-0 overflow-hidden">
-      <div className="container mx-auto max-w-6xl">
+    <footer className="bg-surface border-t border-border pt-16 px-6 pb-0 overflow-hidden relative">
+      <div className="container mx-auto max-w-6xl relative z-10">
 
         {/* ── Main columns ──────────────────────────────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12 pb-12 border-b border-border">
@@ -158,11 +158,11 @@ export function Footer() {
         </div>
       </div>
 
-      {/* ── Watermark wordmark ────────────────────────────────────── */}
-      <div className="w-full overflow-hidden leading-none select-none pointer-events-none" aria-hidden>
+      {/* ── Watermark wordmark — absolute, sits behind content ──── */}
+      <div className="absolute bottom-0 inset-x-0 overflow-hidden leading-none select-none pointer-events-none z-0" aria-hidden>
         <p
-          className="font-serif text-text-primary whitespace-nowrap text-center"
-          style={{ fontSize: 'clamp(72px, 14vw, 200px)', opacity: 0.045, lineHeight: 1 }}
+          className="text-text-primary whitespace-nowrap text-center font-bold"
+          style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(72px, 13vw, 200px)', opacity: 0.05, lineHeight: 0.9 }}
         >
           MicroMind
         </p>
