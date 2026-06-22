@@ -144,24 +144,27 @@ export function usePayForPrompt() {
           }, { feeCurrency: cUSD_ADDRESS as `0x${string}` })).catch(() => BigInt(100_000))
         : undefined;
 
-      const approveTx = await walletClient.writeContract({
+      const approveTx = await walletClient.writeContract(Object.assign({
         address: cUSD_ADDRESS as `0x${string}`,
         abi: erc20Abi,
-        functionName: 'approve',
-        args: [CONTRACT_ADDRESS as `0x${string}`, price],
+        functionName: 'approve' as const,
+        args: [CONTRACT_ADDRESS as `0x${string}`, price] as const,
         chain: celo,
         account: address as `0x${string}`,
         ...(gasPriceFetched !== undefined ? { gasPrice: gasPriceFetched } : {}),
         ...(approveNonce !== undefined ? { nonce: approveNonce } : {}),
         ...(approveGas !== undefined ? { gas: approveGas } : {}),
-        feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
-      });
+      }, isMiniPay ? { feeCurrency: cUSD_ADDRESS as `0x${string}` } : {}));
 
-      await publicClient.waitForTransactionReceipt({
+      const approveReceipt = await publicClient.waitForTransactionReceipt({
         hash: approveTx,
         confirmations: 1,
         timeout: 60_000,
       });
+
+      if (approveReceipt.status !== 'success') {
+        throw new Error('cUSD approval was rejected by the network. Please try again.');
+      }
 
       // STEP 2 — Submit payment to contract
       // Calls payForPrompt(toolId, promptHash) on the smart contract.
@@ -181,18 +184,17 @@ export function usePayForPrompt() {
           }, { feeCurrency: cUSD_ADDRESS as `0x${string}` })).catch(() => BigInt(200_000))
         : undefined;
 
-      const payTx = await walletClient.writeContract({
+      const payTx = await walletClient.writeContract(Object.assign({
         address: CONTRACT_ADDRESS as `0x${string}`,
         abi: MICROMIND_ABI,
-        functionName: 'payForPrompt',
-        args: [toolId, promptHash as `0x${string}`],
+        functionName: 'payForPrompt' as const,
+        args: [toolId, promptHash as `0x${string}`] as const,
         chain: celo,
         account: address as `0x${string}`,
         ...(gasPriceFetched !== undefined ? { gasPrice: gasPriceFetched } : {}),
         ...(payNonce !== undefined ? { nonce: payNonce } : {}),
         ...(payGas !== undefined ? { gas: payGas } : {}),
-        feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
-      });
+      }, isMiniPay ? { feeCurrency: cUSD_ADDRESS as `0x${string}` } : {}));
 
       // STEP 3 — Wait for on-chain confirmation
       setStep('confirming');
