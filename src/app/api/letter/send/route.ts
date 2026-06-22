@@ -24,8 +24,9 @@ export async function POST(req: NextRequest) {
       text: `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app`,
     });
     return NextResponse.json({ success: true });
-  } catch (e: any) {
-    console.error('[API/letter/send]', e.message);
-    return NextResponse.json({ error: e.message || 'Failed to send' }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Failed to send';
+    console.error('[API/letter/send]', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
