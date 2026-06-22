@@ -56,7 +56,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
             ? window.ethereum.providers
             : [window.ethereum];
           const options: WalletOption[] = providers.map((p) => {
-            const pe = p as Record<string, unknown>;
+            const pe = p as unknown as Record<string, unknown>;
             let name = 'Browser Wallet';
             if (pe.isCoinbaseWallet) name = 'Coinbase Wallet';
             else if (pe.isTrust) name = 'Trust Wallet';
