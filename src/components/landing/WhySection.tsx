@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { HardDrive, Coins, Shield, Smartphone } from 'lucide-react';
+import Image from 'next/image';
 
 const benefits = [
   {
@@ -110,10 +111,11 @@ export function WhySection() {
             className="lg:col-span-5 flex justify-center lg:justify-end"
           >
             <div className="relative w-full max-w-[340px] aspect-[4/5] rounded-[5rem] overflow-hidden border border-border shadow-2xl">
-              <img
+              <Image
                 src="/images/journal_reflection.webp"
                 alt="Personal reflection"
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-bg/30 to-transparent" />
             </div>
