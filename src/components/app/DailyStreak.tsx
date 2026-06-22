@@ -42,9 +42,7 @@ export function DailyStreak() {
   const [isClaimedToday, setIsClaimedToday] = useState(false);
   const [showSpark, setShowSpark] = useState(false);
   const [sparkMessage, setSparkMessage] = useState('');
-  const [milestone, setMilestone] = useState<number | null>(null);
-
-  const MILESTONES = [7, 14, 30];
+  const [milestone] = useState<number | null>(null);
 
   const getLocalDateString = (date: Date = new Date()) => {
     const year = date.getFullYear();
@@ -99,8 +97,7 @@ export function DailyStreak() {
 
   // Load streak state from localStorage on mount and listen to updates
   useEffect(() => {
-    refreshStreak();
-    
+    setTimeout(() => refreshStreak(), 0);
     window.addEventListener('streak_updated', refreshStreak);
     window.addEventListener('journal_updated', refreshStreak);
     return () => {
@@ -219,10 +216,10 @@ export function DailyStreak() {
             className="border-t border-border/60 pt-4 overflow-hidden relative z-10"
           >
             <p className="font-mono text-[9px] uppercase tracking-widest text-accent-gold/80 mb-1.5 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 fill-current" /> Today's Focus Spark
+              <Sparkles className="w-3 h-3 fill-current" /> Today&apos;s Focus Spark
             </p>
             <p className="font-serif text-sm text-text-primary leading-relaxed italic bg-surface-2 p-3 rounded-xl border border-border/40">
-              "{sparkMessage}"
+              &ldquo;{sparkMessage}&rdquo;
             </p>
           </motion.div>
         )}
