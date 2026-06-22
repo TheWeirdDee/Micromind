@@ -67,6 +67,13 @@ export const metadata: Metadata = {
   },
   other: {
     "talentapp:project_verification": "334059f5ad573814e422e6282d39f1342429b9110189011a0885598328c8c1c39acde285687b932add1fe18f82782008e8f9c5652eb2e8f2cb4d1cc7d62f9b41",
+    // MiniPay mini-app declaration — detected by Talent Protocol indexer
+    "minipay": "true",
+    "minipay:name": "MicroMind",
+    "minipay:description": "Privacy-first AI journaling on Celo. Pay per prompt with cUSD.",
+    "minipay:icon": "https://micromind-three.vercel.app/logo.svg",
+    "minipay:url": "https://micromind-three.vercel.app/app",
+    "minipay:fee_currency": "0x765DE816845861e75A25fCA122bb6898B8B1282a",
   },
 };
 
