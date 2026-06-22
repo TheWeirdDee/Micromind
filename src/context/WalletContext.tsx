@@ -176,7 +176,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
         try {
           const method = isMiniPayDetected ? 'eth_requestAccounts' : 'eth_accounts';
-          const accounts = await ethereum.request({ method });
+          const accounts = await ethereum.request({ method }) as string[];
 
           if (accounts && accounts.length > 0) {
             const addr = getAddress(accounts[0]);
