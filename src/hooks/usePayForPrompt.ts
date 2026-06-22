@@ -72,23 +72,26 @@ export function usePayForPrompt() {
     setTxHash(null);
 
     try {
-      // Ensure wallet is on Celo before any transaction
+      // MiniPay is always on Celo — skip the chain switch entirely.
+      // Non-MiniPay wallets (MetaMask, etc.) need the explicit switch.
       setStep('checking');
-      try {
-        await walletClient.switchChain({ id: 42220 });
-      } catch (switchErr: any) {
-        if (switchErr.code === 4902 || switchErr.code === -32603) {
-          try {
-            await walletClient.request({
-              method: 'wallet_addEthereumChain',
-              params: [CELO_MAINNET_PARAMS],
-            });
-            await walletClient.switchChain({ id: 42220 });
-          } catch {
-            throw new Error('Failed to add Celo network to your wallet.');
+      if (!isMiniPay) {
+        try {
+          await walletClient.switchChain({ id: 42220 });
+        } catch (switchErr: any) {
+          if (switchErr.code === 4902 || switchErr.code === -32603) {
+            try {
+              await walletClient.request({
+                method: 'wallet_addEthereumChain',
+                params: [CELO_MAINNET_PARAMS],
+              });
+              await walletClient.switchChain({ id: 42220 });
+            } catch {
+              throw new Error('Failed to add Celo network to your wallet.');
+            }
+          } else {
+            throw new Error('Please switch your wallet to the Celo network to proceed.');
           }
-        } else {
-          throw new Error('Please switch your wallet to the Celo network to proceed.');
         }
       }
 
@@ -123,10 +126,22 @@ export function usePayForPrompt() {
 
       // STEP 1 — Approve cUSD transfer
       // We must approve the contract to pull `price` worth of cUSD from the user's wallet.
-      // MiniPay requires explicit nonce management; MetaMask handles nonces internally.
+      // MiniPay: explicit nonce + feeCurrency (pay gas in cUSD, CIP-64 transaction type).
       setStep('approving');
       const approveNonce = isMiniPay
         ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
+        : undefined;
+
+      // MiniPay CIP-64 transactions sometimes need an explicit gas limit — estimate it.
+      const approveGas = isMiniPay
+        ? await publicClient.estimateContractGas({
+            address: cUSD_ADDRESS as `0x${string}`,
+            abi: erc20Abi,
+            functionName: 'approve',
+            args: [CONTRACT_ADDRESS as `0x${string}`, price],
+            account: address as `0x${string}`,
+            feeCurrency: cUSD_ADDRESS as `0x${string}`,
+          }).catch(() => BigInt(100_000))
         : undefined;
 
       const approveTx = await walletClient.writeContract({
@@ -138,12 +153,14 @@ export function usePayForPrompt() {
         account: address as `0x${string}`,
         ...(gasPriceFetched !== undefined ? { gasPrice: gasPriceFetched } : {}),
         ...(approveNonce !== undefined ? { nonce: approveNonce } : {}),
+        ...(approveGas !== undefined ? { gas: approveGas } : {}),
         feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
 
       await publicClient.waitForTransactionReceipt({
         hash: approveTx,
-        confirmations: 1
+        confirmations: 1,
+        timeout: 60_000,
       });
 
       // STEP 2 — Submit payment to contract
@@ -152,6 +169,17 @@ export function usePayForPrompt() {
       setStep('paying');
       const payNonce = isMiniPay
         ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
+        : undefined;
+
+      const payGas = isMiniPay
+        ? await publicClient.estimateContractGas({
+            address: CONTRACT_ADDRESS as `0x${string}`,
+            abi: MICROMIND_ABI,
+            functionName: 'payForPrompt',
+            args: [toolId, promptHash as `0x${string}`],
+            account: address as `0x${string}`,
+            feeCurrency: cUSD_ADDRESS as `0x${string}`,
+          }).catch(() => BigInt(200_000))
         : undefined;
 
       const payTx = await walletClient.writeContract({
@@ -163,6 +191,7 @@ export function usePayForPrompt() {
         account: address as `0x${string}`,
         ...(gasPriceFetched !== undefined ? { gasPrice: gasPriceFetched } : {}),
         ...(payNonce !== undefined ? { nonce: payNonce } : {}),
+        ...(payGas !== undefined ? { gas: payGas } : {}),
         feeCurrency: isMiniPay ? (cUSD_ADDRESS as `0x${string}`) : undefined,
       });
 
@@ -170,7 +199,8 @@ export function usePayForPrompt() {
       setStep('confirming');
       await publicClient.waitForTransactionReceipt({
         hash: payTx,
-        confirmations: 1
+        confirmations: 1,
+        timeout: 60_000,
       });
 
       setTxHash(payTx);
@@ -272,19 +302,22 @@ export function usePayForPrompt() {
 
     } catch (e: any) {
       console.error('Payment Error:', e);
-      
+
       let msg = e?.shortMessage || e?.message || 'Transaction failed';
-      
-      // Handle user rejection specifically
+
       if (e?.code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
-        msg = 'Transaction cancelled by user.';
+        msg = 'Transaction cancelled.';
+      } else if (isMiniPay && (msg.includes('insufficient') || msg.includes('funds') || msg.includes('gas'))) {
+        msg = 'Not enough cUSD for this transaction. You need at least 0.005 cUSD.';
+      } else if (!isMiniPay && msg.includes('insufficient')) {
+        msg = 'Not enough cUSD or CELO (gas). Top up your wallet and try again.';
       }
 
       setError(msg);
       setStep('error');
       throw e;
     }
-  }, [address, walletClient, publicClient]);
+  }, [address, walletClient, publicClient, isMiniPay]);
 
   const reset = useCallback(() => {
     setStep('idle');
