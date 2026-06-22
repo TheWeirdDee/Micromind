@@ -41,7 +41,7 @@ export function getHistory(): HistoryItem[] {
 }
 
 /** Returns history items for a specific wallet address. */
-export function getHistoryByWallet(address: string): HistoryItem[] {
+export function getHistoryByWallet(): HistoryItem[] {
   return getHistory();
 }
 
