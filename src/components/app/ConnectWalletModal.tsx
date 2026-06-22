@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, X, AlertCircle, ExternalLink } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
+import type { EthereumProvider } from '@/lib/viem';
 
 interface ConnectWalletModalProps {
   isOpen: boolean;
@@ -13,7 +14,7 @@ interface ConnectWalletModalProps {
 
 interface WalletOption {
   name: string;
-  provider: object;
+  provider: EthereumProvider;
   icon?: string | null;
 }
 
@@ -62,7 +63,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
             else if (pe.isTrust) name = 'Trust Wallet';
             else if (pe.isBraveWallet) name = 'Brave Wallet';
             else if (p.isMetaMask) name = 'MetaMask';
-            return { name, provider: p as object, icon: null };
+            return { name, provider: p, icon: null };
           });
           // dedupe by name
           const seen = new Set<string>();
