@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ChevronLeft, Loader2, BookOpen, Search, HelpCircle, AlertTriangle, Mail, CheckCircle, Share2, X } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, Loader2, Search, HelpCircle, AlertTriangle, Mail, CheckCircle, Share2, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -16,11 +16,20 @@ import ReactMarkdown from 'react-markdown';
 
 import { Suspense } from 'react';
 
-function PatternPageInner() {
+function PatternPageInner({ folderParam, historyId }: { folderParam: string | null; historyId: string | null }) {
   const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [response, setResponse] = useState<string | null>(null);
+  const [entries] = useState<JournalEntry[]>(() =>
+    typeof window !== 'undefined'
+      ? (folderParam ? getEntriesByFolder(folderParam) : getEntries())
+      : []
+  );
+  const [response, setResponse] = useState<string | null>(() => {
+    if (!historyId || typeof window === 'undefined') return null;
+    const hist = getHistory();
+    const item = hist.find(h => h.txHash === historyId);
+    return item && item.toolId === 4 ? item.response : null;
+  });
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string }>(null);
 
   const [emailSending, setEmailSending] = useState(false);
@@ -30,27 +39,9 @@ function PatternPageInner() {
   const [shareCopied, setShareCopied] = useState(false);
 
   const { payAndGenerate, loading, step } = usePayForPrompt();
-  const searchParams = useSearchParams();
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
-
-  const folderParam = searchParams.get('folder');
-  const folderName  = folderParam
-    ? getFolders().find(f => f.id === folderParam)?.name
-    : null;
-
-  useEffect(() => {
-    setEntries(folderParam ? getEntriesByFolder(folderParam) : getEntries());
-
-    const historyId = searchParams.get('id');
-    if (historyId) {
-      const history = getHistory();
-      const item = history.find(h => h.txHash === historyId);
-      if (item && item.toolId === 4) {
-        setResponse(item.response);
-      }
-    }
-  }, [searchParams]);
+  const folderName = folderParam ? getFolders().find(f => f.id === folderParam)?.name : null;
 
   const handleGenerate = async () => {
     if (entries.length < 5) return;
@@ -72,7 +63,7 @@ function PatternPageInner() {
         setResponse(aiResponse);
         updateStreak(address);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       alert('Transaction failed. Make sure you have enough cUSD and CELO in your wallet.');
     }
@@ -107,7 +98,7 @@ function PatternPageInner() {
       });
       setEmailSent(true);
       setShowEmailInput(false);
-    } catch (e) {
+    } catch {
       alert('Failed to send email. Please try again.');
     } finally {
       setEmailSending(false);
@@ -349,10 +340,17 @@ function PatternPageInner() {
   );
 }
 
+function PatternPageLoader() {
+  const searchParams = useSearchParams();
+  const folderParam = searchParams.get('folder');
+  const historyId = searchParams.get('id');
+  return <PatternPageInner key={`${folderParam ?? ''}_${historyId ?? ''}`} folderParam={folderParam} historyId={historyId} />;
+}
+
 export default function PatternPage() {
   return (
     <Suspense fallback={<div className="h-full flex items-center justify-center animate-pulse font-mono text-accent uppercase tracking-widest">Loading context...</div>}>
-      <PatternPageInner />
+      <PatternPageLoader />
     </Suspense>
   );
 }
