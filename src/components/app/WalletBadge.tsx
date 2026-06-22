@@ -6,7 +6,7 @@ import { ConnectWalletModal } from './ConnectWalletModal';
 import { Copy, Check } from 'lucide-react';
 
 export function WalletBadge() {
-  const { address, cusdBalance, celoBalance, isConnected } = useWallet();
+  const { address, cusdBalance, isConnected } = useWallet();
   const [copied, setCopied] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
 
