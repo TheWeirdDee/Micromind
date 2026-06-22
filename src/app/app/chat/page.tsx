@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Bot, User as UserIcon, Loader2, History as HistoryIcon, X, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
-import { TOOLS } from '@/constants/tools';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useSearchParams } from 'next/navigation';
@@ -28,41 +27,32 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 
 import { Suspense } from 'react';
 
-function ChatPageInner() {
+function ChatPageInner({ historyId }: { historyId: string | null }) {
   const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [prompt, setPrompt] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string; chatHistory?: any[] }>(null);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (historyId) {
+      const item = getHistory().find(h => h.txHash === historyId);
+      if (item && item.toolId === 1) {
+        return [
+          { role: 'user', content: item.prompt },
+          { role: 'assistant', content: item.response },
+        ];
+      }
+      return [];
+    }
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('micromind_chat_memory');
+      if (saved) { try { return JSON.parse(saved); } catch { /* ignore */ } }
+    }
+    return [];
+  });
+  const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string; chatHistory?: Message[] }>(null);
   const { payAndGenerate, loading, step } = usePayForPrompt();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const searchParams = useSearchParams();
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
-
-  useEffect(() => {
-    const historyId = searchParams.get('id');
-    if (historyId) {
-      const history = getHistory();
-      const item = history.find(h => h.txHash === historyId);
-      if (item && item.toolId === 1) {
-        setMessages([
-          { role: 'user', content: item.prompt },
-          { role: 'assistant', content: item.response }
-        ]);
-      }
-    } else {
-      // Load session memory
-      const saved = localStorage.getItem('micromind_chat_memory');
-      if (saved) {
-        try {
-          setMessages(JSON.parse(saved));
-        } catch (e) {
-          console.error('Failed to load chat memory', e);
-        }
-      }
-    }
-  }, [searchParams]);
 
   // Persist messages
   useEffect(() => {
@@ -306,10 +296,16 @@ function ChatPageInner() {
   );
 }
 
+function ChatPageLoader() {
+  const searchParams = useSearchParams();
+  const historyId = searchParams.get('id');
+  return <ChatPageInner key={historyId ?? 'new'} historyId={historyId} />;
+}
+
 export default function ChatPage() {
   return (
     <Suspense fallback={<div className="h-full flex items-center justify-center animate-pulse font-mono text-accent uppercase tracking-widest">Loading context...</div>}>
-      <ChatPageInner />
+      <ChatPageLoader />
     </Suspense>
   );
 }
