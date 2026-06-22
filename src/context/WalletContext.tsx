@@ -39,7 +39,7 @@ interface WalletContextType {
   /** Viem WalletClient instance for signing and sending transactions. */
   walletClient: ReturnType<typeof createWalletClient> | null;
   /** Viem PublicClient instance for reading chain state (balances, receipts). */
-  publicClient: ReturnType<typeof createPublicClient>;
+  publicClient: typeof publicClient;
   /** Prompts the user to connect a wallet. Accepts an optional injected provider. */
   connect: (provider?: EthereumProvider) => Promise<void>;
   /** Clears wallet state and redirects to /app. */
@@ -230,7 +230,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const ethereum = getPreferredProvider();
     if (!ethereum) return;
 
-    const onAccountsChanged = (accounts: string[]) => {
+    const onAccountsChanged = (...args: unknown[]) => {
+      const accounts = args[0] as string[];
       if (accounts.length === 0) {
         disconnect();
       } else {
@@ -247,8 +248,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const onChainChanged = () => window.location.reload();
 
-    ethereum.on('accountsChanged', onAccountsChanged);
-    ethereum.on('chainChanged', onChainChanged);
+    ethereum.on?.('accountsChanged', onAccountsChanged);
+    ethereum.on?.('chainChanged', onChainChanged);
 
     return () => {
       ethereum.removeListener?.('accountsChanged', onAccountsChanged);
