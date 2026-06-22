@@ -1,26 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Sparkles, BookOpen } from 'lucide-react';
 
 export default function SharedReflectionPage() {
   const params = useParams();
-  const [content, setContent] = useState<string | null>(null);
-  const [type, setType] = useState<'reflection' | 'pattern'>('reflection');
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
+  const [{ content, type, error }] = useState(() => {
     try {
       const raw = decodeURIComponent(params.id as string);
       const decoded = JSON.parse(atob(raw));
-      setContent(decoded.content);
-      setType(decoded.type || 'reflection');
+      return {
+        content: decoded.content as string,
+        type: (decoded.type || 'reflection') as 'reflection' | 'pattern',
+        error: false,
+      };
     } catch {
-      setError(true);
+      return { content: null as string | null, type: 'reflection' as const, error: true };
     }
-  }, [params.id]);
+  });
 
   if (error) {
     return (
