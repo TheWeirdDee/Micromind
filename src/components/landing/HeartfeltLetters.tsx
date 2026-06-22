@@ -21,6 +21,16 @@ export function HeartfeltLetters() {
   const draftMessage = "Hey mom, just wanted to say thank you for always supporting me. Sorry I haven't called as much lately, I've been busy but I always think about you. You're the best.";
   const polishedMessage = "Dear Mom, I wanted to send a small note to let you know how much I appreciate you. Life has been moving fast lately, but your constant love and support are always on my mind. Thank you for being such an incredible presence in my life. With love, Alex.";
 
+  const handleReset = () => {
+    setStep(1);
+    setIsPolished(false);
+    setIsPolishing(false);
+    setIsSending(false);
+    setIsSent(false);
+    setOpenedEmail(false);
+    setProgress(0);
+  };
+
   // Scroll observer — replays every time the grid enters or leaves the viewport
   useEffect(() => {
     const el = sectionRef.current;
@@ -113,16 +123,6 @@ export function HeartfeltLetters() {
     return () => clearTimeout(t);
   };
 
-  const handleReset = () => {
-    setStep(1);
-    setIsPolished(false);
-    setIsPolishing(false);
-    setIsSending(false);
-    setIsSent(false);
-    setOpenedEmail(false);
-    setProgress(0);
-  };
-
   const handleRestartDemo = () => {
     handleReset();
     setIsAutoPlaying(true);
@@ -137,7 +137,7 @@ export function HeartfeltLetters() {
   // Robust async flow to avoid useEffect timeout cleanups cancel-races
   useEffect(() => {
     if (!isAutoPlaying) {
-      setIsLocked(false);
+      setTimeout(() => setIsLocked(false), 0);
       return;
     }
 
@@ -429,7 +429,7 @@ export function HeartfeltLetters() {
                       <div className="space-y-4 font-mono text-xs">
                         <div className="opacity-55 border-l-2 border-border pl-3.5 space-y-1">
                           <span className="text-[9px] uppercase tracking-widest text-text-muted">Original draft:</span>
-                          <p className="line-clamp-2 leading-relaxed italic">"{draftMessage}"</p>
+                          <p className="line-clamp-2 leading-relaxed italic">&ldquo;{draftMessage}&rdquo;</p>
                         </div>
                         
                         <div className="space-y-1.5 bg-accent-gold/3 border border-accent-gold/15 p-4 rounded-2xl relative">
@@ -489,7 +489,7 @@ export function HeartfeltLetters() {
                       <div className="flex items-center gap-2 border-b border-border/60 pb-3">
                         <Inbox className="w-4 h-4 text-accent" />
                         <span className="font-mono text-[10px] text-text-muted uppercase tracking-widest">
-                          Mom's Email Inbox (via MicroMind)
+                          Mom&apos;s Email Inbox (via MicroMind)
                         </span>
                         <span className="ml-auto w-2 h-2 rounded-full bg-accent-green animate-pulse" />
                       </div>
