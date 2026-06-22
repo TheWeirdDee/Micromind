@@ -35,7 +35,7 @@ export function NewFeatures() {
           </div>
           <h2 className="text-4xl md:text-5xl font-serif tracking-tight">Meet Your New Cognitive Insights</h2>
           <p className="text-text-muted leading-relaxed">
-            We've upgraded MicroMind with local-first mental analytics and cognitive visualization tools to help you understand your emotional trends better.
+            We&apos;ve upgraded MicroMind with local-first mental analytics and cognitive visualization tools to help you understand your emotional trends better.
           </p>
         </motion.div>
 
