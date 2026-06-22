@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useWallet } from '@/context/WalletContext';
 import { parseEther } from 'viem';
 import { celo, celoAlfajores } from 'viem/chains';
-import { ArrowUp, Send, CheckCircle2, ExternalLink } from 'lucide-react';
+import { ArrowUp, CheckCircle2, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function SendPage() {
@@ -32,9 +32,9 @@ export default function SendPage() {
       });
 
       setTxHash(hash);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || 'Transaction failed');
+      setError(err instanceof Error ? err.message : 'Transaction failed');
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ export default function SendPage() {
       if (text.startsWith('0x')) {
         setRecipient(text);
       }
-    } catch (err) {
+    } catch {
       console.error('Failed to read clipboard');
     }
   };
