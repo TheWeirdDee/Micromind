@@ -3,7 +3,7 @@ import { parseUnits, erc20Abi, keccak256, toBytes } from 'viem';
 import { celo } from 'viem/chains';
 import { useWallet } from '@/context/WalletContext';
 import { CONTRACT_ADDRESS, MICROMIND_ABI } from '@/lib/contract';
-import { cUSD_ADDRESS, PAYMENT_TOKEN_DECIMALS, CELO_MAINNET_PARAMS, CHAIN_ID_HEX } from '@/constants/chains';
+import { cUSD_ADDRESS, PAYMENT_TOKEN_DECIMALS, CELO_MAINNET_PARAMS } from '@/constants/chains';
 import { TOOLS } from '@/constants/tools';
 import { saveToHistory } from '@/lib/storage';
 
@@ -46,7 +46,7 @@ export function usePayForPrompt() {
     toolId: number,
     toolName: string,
     prompt: string,
-    chatHistory?: any[]
+    chatHistory?: { role: string; content: string }[]
   ) => {
     if (!address || !walletClient) {
       setError('Wallet not connected');
@@ -78,8 +78,9 @@ export function usePayForPrompt() {
       if (!isMiniPay) {
         try {
           await walletClient.switchChain({ id: 42220 });
-        } catch (switchErr: any) {
-          if (switchErr.code === 4902 || switchErr.code === -32603) {
+        } catch (switchErr: unknown) {
+          const switchCode = (switchErr as { code?: number }).code;
+          if (switchCode === 4902 || switchCode === -32603) {
             try {
               await walletClient.request({
                 method: 'wallet_addEthereumChain',
@@ -300,12 +301,13 @@ export function usePayForPrompt() {
       setStep('complete');
       return fallbackMsg;
 
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Payment Error:', e);
 
-      let msg = e?.shortMessage || e?.message || 'Transaction failed';
+      const err = e as { shortMessage?: string; message?: string; code?: number };
+      let msg = err.shortMessage || err.message || 'Transaction failed';
 
-      if (e?.code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
+      if (err.code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
         msg = 'Transaction cancelled.';
       } else if (isMiniPay && (msg.includes('insufficient') || msg.includes('funds') || msg.includes('gas'))) {
         msg = 'Not enough cUSD for this transaction. You need at least 0.005 cUSD.';
