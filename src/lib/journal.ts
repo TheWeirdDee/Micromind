@@ -1,3 +1,4 @@
+import type { ComponentType } from 'react';
 import { Smile, Laugh, Meh, Angry, Frown } from 'lucide-react';
 
 const JOURNAL_KEY = "mm_journal";
@@ -49,7 +50,7 @@ export async function loadEntriesFromSupabase(): Promise<void> {
 
   if (!data || data.length === 0) return;
 
-  const remote: JournalEntry[] = data.map((row: any) => ({
+  const remote: JournalEntry[] = data.map((row) => ({
     id: row.id,
     date: row.date,
     content: row.content,
@@ -110,7 +111,7 @@ export interface Folder {
   createdAt: number;
 }
 
-export const MOOD_ICONS: Record<string, any> = {
+export const MOOD_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   happy: Smile,
   excited: Laugh,
   neutral: Meh,
@@ -267,7 +268,7 @@ export function updateStreak(walletAddress: string | null): void {
     try {
       const historyItems = JSON.parse(storedHistory);
       if (Array.isArray(historyItems)) {
-        historyDates = historyItems.map((item: any) => getLocalDateString(new Date(item.timestamp)));
+        historyDates = historyItems.map((item: { timestamp: number }) => getLocalDateString(new Date(item.timestamp)));
       }
     } catch { /* ignore */ }
   }
@@ -294,7 +295,7 @@ export function updateStreak(walletAddress: string | null): void {
   const hasYesterday = allDatesSet.has(yesterdayStr);
 
   if (hasToday || hasYesterday) {
-    let currentCheckDate = hasToday ? new Date() : yesterday;
+    const currentCheckDate = hasToday ? new Date() : yesterday;
     while (true) {
       const checkStr = getLocalDateString(currentCheckDate);
       if (allDatesSet.has(checkStr)) {

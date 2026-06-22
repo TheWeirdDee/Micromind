@@ -59,12 +59,71 @@ const MOOD_STYLES: Record<string, { border: string; bg: string; text: string; bg
   }
 };
 
+function MoodRow({ value, onChange }: { value: string; onChange: (m: string) => void }) {
+  return (
+    <div className="flex gap-2">
+      {MOODS.map(m => (
+        <motion.button
+          key={m.mood}
+          type="button"
+          whileHover={{ scale: 1.15, rotate: value === m.mood ? 0 : [0, -5, 5, 0] }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => onChange(m.mood)}
+          title={m.label}
+          className={`w-9 h-9 rounded-2xl flex items-center justify-center border transition-all ${
+            value === m.mood
+              ? 'bg-accent/15 border-accent shadow-sm shadow-accent/10'
+              : 'border-border hover:bg-surface-2 hover:border-text-muted/30'
+          }`}
+        >
+          <m.icon className={`w-4 h-4 transition-colors ${value === m.mood ? 'text-accent' : 'text-text-muted'}`} />
+        </motion.button>
+      ))}
+    </div>
+  );
+}
+
+function FolderPills({
+  folders,
+  value,
+  onChange,
+}: { folders: Folder[]; value: string | undefined; onChange: (id: string | undefined) => void }) {
+  if (folders.length === 0) return null;
+  return (
+    <div className="flex gap-2 flex-wrap">
+      <button
+        onClick={() => onChange(undefined)}
+        className={`px-3 py-1 rounded-full text-xs font-mono border transition-all ${
+          !value ? 'bg-accent/15 border-accent text-accent' : 'border-border text-text-muted hover:bg-surface-2'
+        }`}
+      >
+        No folder
+      </button>
+      {folders.map(f => (
+        <button
+          key={f.id}
+          onClick={() => onChange(f.id)}
+          className={`px-3 py-1 rounded-full text-xs font-mono border transition-all ${
+            value === f.id ? 'bg-accent/15 border-accent text-accent' : 'border-border text-text-muted hover:bg-surface-2'
+          }`}
+        >
+          {f.name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function JournalPage() {
   const { address } = useWallet();
 
   // Data
-  const [folders, setFolders]   = useState<Folder[]>([]);
-  const [entries, setEntries]   = useState<JournalEntry[]>([]);
+  const [folders, setFolders] = useState<Folder[]>(() =>
+    typeof window !== 'undefined' ? getFolders() : []
+  );
+  const [entries, setEntries] = useState<JournalEntry[]>(() =>
+    typeof window !== 'undefined' ? getEntries() : []
+  );
 
   // Folder UI
   const [activeFolderId, setActiveFolderId]     = useState<string | null>(null);
@@ -86,7 +145,9 @@ export default function JournalPage() {
   const [composeContent, setComposeContent] = useState('');
   const [composeMood, setComposeMood]       = useState('happy');
   const [composeFolder, setComposeFolder]   = useState<string | undefined>(undefined);
-  const [hasDraft, setHasDraft]             = useState(false);
+  const [hasDraft, setHasDraft] = useState<boolean>(() =>
+    typeof window !== 'undefined' && !!localStorage.getItem('mm_journal_draft')
+  );
 
   const [toast, setToast] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -106,7 +167,6 @@ export default function JournalPage() {
   };
 
   useEffect(() => {
-    refresh();
     window.addEventListener('journal_updated', refresh);
     return () => window.removeEventListener('journal_updated', refresh);
   }, []);
@@ -120,7 +180,7 @@ export default function JournalPage() {
   }, [showCompose]);
 
   useEffect(() => {
-    setComposeFolder(activeFolderId ?? undefined);
+    setTimeout(() => setComposeFolder(activeFolderId ?? undefined), 0);
   }, [activeFolderId]);
 
   useEffect(() => {
@@ -134,14 +194,6 @@ export default function JournalPage() {
     }
   }, [composeContent, composeMood, composeFolder, showCompose]);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const draft = localStorage.getItem('mm_journal_draft');
-      if (draft) {
-        setHasDraft(true);
-      }
-    }
-  }, []);
 
   const filteredEntries = activeFolderId === null
     ? entries
@@ -199,7 +251,7 @@ export default function JournalPage() {
         if (draft.folderId) setComposeFolder(draft.folderId);
         setShowCompose(true);
       }
-    } catch (e) {}
+    } catch {}
     setHasDraft(false);
   };
 
@@ -235,60 +287,6 @@ export default function JournalPage() {
     if (editingId) setEditingId(null);
     setExpandedId(prev => (prev === id ? null : id));
   };
-
-  // -- Shared sub-renders ----------------------------------------------------
-
-  const MoodRow = ({
-    value, onChange,
-  }: { value: string; onChange: (m: string) => void }) => (
-    <div className="flex gap-2">
-      {MOODS.map(m => (
-        <motion.button
-          key={m.mood}
-          type="button"
-          whileHover={{ scale: 1.15, rotate: value === m.mood ? 0 : [0, -5, 5, 0] }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onChange(m.mood)}
-          title={m.label}
-          className={`w-9 h-9 rounded-2xl flex items-center justify-center border transition-all ${
-            value === m.mood
-              ? 'bg-accent/15 border-accent shadow-sm shadow-accent/10'
-              : 'border-border hover:bg-surface-2 hover:border-text-muted/30'
-          }`}
-        >
-          <m.icon className={`w-4 h-4 transition-colors ${value === m.mood ? 'text-accent' : 'text-text-muted'}`} />
-        </motion.button>
-      ))}
-    </div>
-  );
-
-  const FolderPills = ({
-    value, onChange,
-  }: { value: string | undefined; onChange: (id: string | undefined) => void }) => (
-    folders.length === 0 ? null : (
-      <div className="flex gap-2 flex-wrap">
-        <button
-          onClick={() => onChange(undefined)}
-          className={`px-3 py-1 rounded-full text-xs font-mono border transition-all ${
-            !value ? 'bg-accent/15 border-accent text-accent' : 'border-border text-text-muted hover:bg-surface-2'
-          }`}
-        >
-          No folder
-        </button>
-        {folders.map(f => (
-          <button
-            key={f.id}
-            onClick={() => onChange(f.id)}
-            className={`px-3 py-1 rounded-full text-xs font-mono border transition-all ${
-              value === f.id ? 'bg-accent/15 border-accent text-accent' : 'border-border text-text-muted hover:bg-surface-2'
-            }`}
-          >
-            {f.name}
-          </button>
-        ))}
-      </div>
-    )
-  );
 
   // -- Sidebar folder item ---------------------------------------------------
 
@@ -613,7 +611,7 @@ export default function JournalPage() {
                     </span>
                   </div>
 
-                  <FolderPills value={composeFolder} onChange={v => setComposeFolder(v)} />
+                  <FolderPills folders={folders} value={composeFolder} onChange={v => setComposeFolder(v)} />
 
                   <div className="flex items-center gap-2">
                     <button
@@ -727,7 +725,7 @@ export default function JournalPage() {
                                   </span>
                                 </div>
 
-                                <FolderPills value={editFolder} onChange={v => setEditFolder(v)} />
+                                <FolderPills folders={folders} value={editFolder} onChange={v => setEditFolder(v)} />
 
                                 <div className="flex gap-2">
                                   <button

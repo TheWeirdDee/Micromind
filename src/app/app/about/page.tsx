@@ -35,7 +35,7 @@ export default function AboutPage() {
             <div>
               <h4 className="font-mono text-sm tracking-wider text-white mb-2">Lightning Fast Inference</h4>
               <p className="text-sm text-text-muted">
-                Powered by Groq's Llama-3.3-70b inference engine, MicroMind delivers instant AI capabilities. Say goodbye to loading spinners and hello to real-time, fluid conversations.
+                Powered by Groq&apos;s Llama-3.3-70b inference engine, MicroMind delivers instant AI capabilities. Say goodbye to loading spinners and hello to real-time, fluid conversations.
               </p>
             </div>
           </div>
@@ -71,7 +71,7 @@ export default function AboutPage() {
             <div>
               <h4 className="font-mono text-sm tracking-wider text-white mb-2">Global Accessibility</h4>
               <p className="text-sm text-text-muted">
-                Designed for the next billion users, MicroMind's mobile-first UI ensures anyone with a smartphone can leverage cutting-edge AI tools to build their resume, craft bios, and explore ideas.
+                Designed for the next billion users, MicroMind&apos;s mobile-first UI ensures anyone with a smartphone can leverage cutting-edge AI tools to build their resume, craft bios, and explore ideas.
               </p>
             </div>
           </div>
@@ -79,7 +79,7 @@ export default function AboutPage() {
 
         <div className="pt-8 border-t border-border/50">
           <p className="text-sm text-text-muted italic text-center">
-            "Empowering the next generation with decentralized, permissionless intelligence."
+            &ldquo;Empowering the next generation with decentralized, permissionless intelligence.&rdquo;
           </p>
         </div>
       </section>

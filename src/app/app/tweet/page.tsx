@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ChevronLeft, Loader2, PenTool, AlertTriangle, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { TOOLS } from '@/constants/tools';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { ResponseCard } from '@/components/app/ResponseCard';
 import { getHistory } from '@/lib/storage';
@@ -16,32 +15,27 @@ import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 
 import { Suspense } from 'react';
 
-function TweetPageInner() {
+function TweetPageInner({ historyId }: { historyId: string | null }) {
   const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const [topic, setTopic] = useState('');
-  const [response, setResponse] = useState<string | null>(null);
-  const [lastEntry, setLastEntry] = useState<JournalEntry | null>(null);
+  const [topic, setTopic] = useState<string>(() => {
+    if (!historyId) return '';
+    const item = getHistory().find(h => h.txHash === historyId);
+    return (item && item.toolId === 2) ? item.prompt : '';
+  });
+  const [response, setResponse] = useState<string | null>(() => {
+    if (!historyId) return null;
+    const item = getHistory().find(h => h.txHash === historyId);
+    return (item && item.toolId === 2) ? item.response : null;
+  });
+  const [lastEntry] = useState<JournalEntry | null>(() =>
+    typeof window !== 'undefined' ? getLastEntry() : null
+  );
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string }>(null);
 
   const { payAndGenerate, loading, step } = usePayForPrompt();
-  const searchParams = useSearchParams();
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
-
-  useEffect(() => {
-    setLastEntry(getLastEntry());
-    
-    const historyId = searchParams.get('id');
-    if (historyId) {
-      const history = getHistory();
-      const item = history.find(h => h.txHash === historyId);
-      if (item && item.toolId === 2) {
-        setResponse(item.response);
-        setTopic(item.prompt);
-      }
-    }
-  }, [searchParams]);
 
   const handleGenerate = async () => {
     if (!isConnected || !address) {
@@ -57,7 +51,7 @@ function TweetPageInner() {
         setResponse(aiResponse);
         updateStreak(address);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       alert('Transaction failed. Make sure you have enough cUSD and CELO in your wallet.');
     }
@@ -186,10 +180,16 @@ function TweetPageInner() {
   );
 }
 
+function TweetPageLoader() {
+  const searchParams = useSearchParams();
+  const historyId = searchParams.get('id');
+  return <TweetPageInner key={historyId ?? 'new'} historyId={historyId} />;
+}
+
 export default function TweetPage() {
   return (
     <Suspense fallback={<div className="h-full flex items-center justify-center animate-pulse font-mono text-accent uppercase tracking-widest">Loading context...</div>}>
-      <TweetPageInner />
+      <TweetPageLoader />
     </Suspense>
   );
 }

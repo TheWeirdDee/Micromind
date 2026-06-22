@@ -22,6 +22,7 @@ import {
   CELO_MAINNET_PARAMS,
   CHAIN_ID_HEX
 } from '@/constants/chains';
+import type { EthereumProvider } from '@/lib/viem';
 
 /** Shape of the global wallet context shared across the app. */
 interface WalletContextType {
@@ -36,11 +37,11 @@ interface WalletContextType {
   /** Human-readable CELO balance of the connected address (4 decimal places). */
   celoBalance: string;
   /** Viem WalletClient instance for signing and sending transactions. */
-  walletClient: any;
+  walletClient: ReturnType<typeof createWalletClient> | null;
   /** Viem PublicClient instance for reading chain state (balances, receipts). */
-  publicClient: any;
+  publicClient: ReturnType<typeof createPublicClient>;
   /** Prompts the user to connect a wallet. Accepts an optional injected provider. */
-  connect: (provider?: any) => Promise<void>;
+  connect: (provider?: EthereumProvider) => Promise<void>;
   /** Clears wallet state and redirects to /app. */
   disconnect: () => void;
   /** Fetches and updates cUSD + CELO balances for a given address. */
@@ -51,16 +52,17 @@ const WalletContext = createContext<WalletContextType | null>(null);
 
 // Prefer MetaMask over Zerion/other injected wallets when multiple providers are present.
 // MiniPay always wins. Returns null if nothing is available.
-function getPreferredProvider(): any {
+function getPreferredProvider(): EthereumProvider | null {
   if (typeof window === 'undefined') return null;
-  const eth = (window as any).ethereum;
+  const eth = window.ethereum;
   if (!eth) return null;
   if (eth.isMiniPay) return eth;
   if (eth.providers && Array.isArray(eth.providers)) {
+    const ps = eth.providers;
     return (
-      eth.providers.find((p: any) => p.isMetaMask && !p.isZerion) ||
-      eth.providers.find((p: any) => p.isMetaMask) ||
-      eth.providers[0] ||
+      ps.find(p => p.isMetaMask && !(p as { isZerion?: boolean }).isZerion) ||
+      ps.find(p => p.isMetaMask) ||
+      ps[0] ||
       eth
     );
   }
@@ -78,7 +80,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [isMiniPay, setIsMiniPay] = useState(false);
   const [cusdBalance, setCusdBalance] = useState('0');
   const [celoBalance, setCeloBalance] = useState('0');
-  const [walletClient, setWalletClient] = useState<any>(null);
+  const [walletClient, setWalletClient] = useState<ReturnType<typeof createWalletClient> | null>(null);
 
   const fetchBalances = useCallback(async (addr: string) => {
     try {
@@ -127,27 +129,29 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const storedConnected = localStorage.getItem('micromind_connected');
 
     if (storedAddress && storedConnected === 'true') {
-      try {
-        const checksummed = getAddress(storedAddress);
-        setAddress(checksummed);
-        setIsConnected(true);
-        fetchBalances(checksummed);
-      } catch {
-        setAddress(storedAddress);
-        setIsConnected(true);
-        fetchBalances(storedAddress);
-      }
-      
-      // Initialize wallet client early using the preferred provider
-      const provider = getPreferredProvider();
-      if (provider) {
-        const client = createWalletClient({
-          chain: celo,
-          transport: custom(provider)
-        });
-        setWalletClient(client);
-        if (provider.isMiniPay) setIsMiniPay(true);
-      }
+      setTimeout(() => {
+        try {
+          const checksummed = getAddress(storedAddress);
+          setAddress(checksummed);
+          setIsConnected(true);
+          fetchBalances(checksummed);
+        } catch {
+          setAddress(storedAddress);
+          setIsConnected(true);
+          fetchBalances(storedAddress);
+        }
+
+        // Initialize wallet client early using the preferred provider
+        const provider = getPreferredProvider();
+        if (provider) {
+          const client = createWalletClient({
+            chain: celo,
+            transport: custom(provider)
+          });
+          setWalletClient(client);
+          if (provider.isMiniPay) setIsMiniPay(true);
+        }
+      }, 0);
     }
   }, [fetchBalances]);
 
@@ -155,7 +159,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    let checkInterval: NodeJS.Timeout;
     let attempts = 0;
 
     const checkAndConnect = async () => {
@@ -204,8 +207,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    const checkInterval = setInterval(checkAndConnect, 100);
     checkAndConnect();
-    checkInterval = setInterval(checkAndConnect, 100);
 
     // Also fire immediately when the DOM reaches interactive/complete state,
     // catching late-injected window.ethereum on some Android webviews.
@@ -253,20 +256,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
   }, [fetchBalances, disconnect]);
 
-  const connect = useCallback(async (provider?: any) => {
+  const connect = useCallback(async (provider?: EthereumProvider) => {
     // Clear disconnect flag so auto-connect can resume for future sessions
     try { sessionStorage.removeItem('mm_wallet_disconnected'); } catch {}
 
-    const win = window as any;
-    let ethereum = provider || win.ethereum;
+    let ethereum: EthereumProvider | undefined = provider || window.ethereum;
 
     if (!ethereum) {
       alert('Please install MetaMask or open in MiniPay');
       return;
     }
 
-    if (!provider && ethereum?.providers && Array.isArray(ethereum.providers)) {
-      const metaMaskProvider = ethereum.providers.find((item: any) => item.isMetaMask);
+    if (!provider && ethereum.providers && Array.isArray(ethereum.providers)) {
+      const metaMaskProvider = ethereum.providers.find(item => item.isMetaMask);
       ethereum = metaMaskProvider || ethereum.providers[0] || ethereum;
     }
 
@@ -282,21 +284,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const accounts: string[] = await ethereum.request({
-        method: 'eth_requestAccounts'
-      });
+      const accounts = await ethereum.request({ method: 'eth_requestAccounts' }) as string[];
 
       if (!accounts?.[0]) return;
 
-      const isMiniPayDetected = ethereum?.isMiniPay === true;
+      const isMiniPayDetected = ethereum.isMiniPay === true;
       if (!isMiniPayDetected) {
         try {
           await ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: CHAIN_ID_HEX }]
           });
-        } catch (switchError: any) {
-          if (switchError.code === 4902) {
+        } catch (switchError: unknown) {
+          if ((switchError as { code?: number }).code === 4902) {
             await ethereum.request({
               method: 'wallet_addEthereumChain',
               params: [CELO_MAINNET_PARAMS]
@@ -336,9 +336,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         });
       } catch { /* non-critical */ }
 
-    } catch (e: any) {
-      if (e.code !== 4001) {
-        console.error('Connect failed:', e?.message || e);
+    } catch (e: unknown) {
+      const code = (e as { code?: number }).code;
+      if (code !== 4001) {
+        console.error('Connect failed:', e instanceof Error ? e.message : e);
       }
     }
   }, [fetchBalances]);

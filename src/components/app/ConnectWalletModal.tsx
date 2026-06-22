@@ -13,16 +13,14 @@ interface ConnectWalletModalProps {
 
 interface WalletOption {
   name: string;
-  provider: any;
+  provider: object;
   icon?: string | null;
 }
 
 export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps) {
   const { isConnected, connect } = useWallet();
   const [walletOptions, setWalletOptions] = useState<WalletOption[]>([]);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
+  const [mounted] = useState(() => typeof window !== 'undefined');
 
   useEffect(() => {
     if (isConnected && isOpen) onClose();
@@ -34,8 +32,8 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
 
     const discovered: Map<string, WalletOption> = new Map();
 
-    const handleAnnounce = (event: any) => {
-      const { info, provider } = event.detail ?? {};
+    const handleAnnounce = (event: Event) => {
+      const { info, provider } = (event as CustomEvent).detail ?? {};
       if (!info?.uuid || !provider) return;
       if (discovered.has(info.uuid)) return;
       discovered.set(info.uuid, {
@@ -53,18 +51,18 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
     // Fallback for wallets that don't support EIP-6963 (older MetaMask, Trust, etc.)
     const fallbackTimer = setTimeout(() => {
       if (discovered.size === 0) {
-        const win = window as any;
-        if (win.ethereum) {
-          const providers: any[] = Array.isArray(win.ethereum.providers)
-            ? win.ethereum.providers
-            : [win.ethereum];
-          const options: WalletOption[] = providers.map((p: any) => {
+        if (window.ethereum) {
+          const providers = Array.isArray(window.ethereum.providers)
+            ? window.ethereum.providers
+            : [window.ethereum];
+          const options: WalletOption[] = providers.map((p) => {
+            const pe = p as Record<string, unknown>;
             let name = 'Browser Wallet';
-            if (p.isCoinbaseWallet) name = 'Coinbase Wallet';
-            else if (p.isTrust) name = 'Trust Wallet';
-            else if (p.isBraveWallet) name = 'Brave Wallet';
+            if (pe.isCoinbaseWallet) name = 'Coinbase Wallet';
+            else if (pe.isTrust) name = 'Trust Wallet';
+            else if (pe.isBraveWallet) name = 'Brave Wallet';
             else if (p.isMetaMask) name = 'MetaMask';
-            return { name, provider: p, icon: null };
+            return { name, provider: p as object, icon: null };
           });
           // dedupe by name
           const seen = new Set<string>();

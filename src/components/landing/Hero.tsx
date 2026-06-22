@@ -2,7 +2,8 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Sparkles, BookOpen, Lock, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
+import { Sparkles, Lock, ArrowRight } from 'lucide-react';
 
 export function Hero() {
   const container = {
@@ -18,7 +19,7 @@ export function Hero() {
 
   const item = {
     hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] as any } },
+    show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] } },
   };
 
   return (
@@ -58,7 +59,7 @@ export function Hero() {
                 initial={{ opacity: 0, scale: 0.92 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] as any }}
+                transition={{ duration: 0.5, delay: 0.3, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }}
               >
                 <Link
                   href="/app"
@@ -83,10 +84,11 @@ export function Hero() {
             className="lg:col-span-5 relative flex justify-center lg:justify-end"
           >
             <div className="relative w-full max-w-[380px] aspect-[4/5] rounded-[3rem] overflow-hidden border border-border shadow-2xl">
-              <img 
-                src="/images/journal_hero.jpg" 
-                alt="Mindful journaling" 
-                className="w-full h-full object-cover"
+              <Image
+                src="/images/journal_hero.jpg"
+                alt="Mindful journaling"
+                fill
+                className="object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-bg/40 to-transparent" />
             </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { ChevronLeft, Loader2, Mail, Sparkles, CheckCircle2, AlertTriangle, Star, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -33,68 +33,39 @@ function saveContacts(contacts: Contact[]) {
 
 // -- Inner page ----------------------------------------------------------------
 
-function LetterPageInner() {
+function LetterPageInner({ historyId, contentParam }: { historyId: string | null; contentParam: string | null }) {
   const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const [recipientEmail, setRecipientEmail] = useState('');
+  const [starredContacts, setStarredContacts] = useState<Contact[]>(() =>
+    typeof window !== 'undefined' ? loadContacts() : []
+  );
+
+  const [initialData] = useState(() => {
+    if (!historyId || typeof window === 'undefined') return null;
+    const hist = getHistory();
+    const item = hist.find(h => h.txHash === historyId);
+    if (!item || item.toolId !== 5) return null;
+    try {
+      const parsed = JSON.parse(item.prompt) as { content?: string; recipientEmail?: string; senderName?: string };
+      return { content: parsed.content ?? '', recipientEmail: parsed.recipientEmail ?? '', senderName: parsed.senderName ?? '', polishedResponse: item.response };
+    } catch {
+      return { content: item.prompt, recipientEmail: '', senderName: '', polishedResponse: item.response };
+    }
+  });
+
+  const [recipientEmail, setRecipientEmail] = useState(initialData?.recipientEmail ?? '');
   const [recipientName, setRecipientName] = useState('');
-  const [senderName, setSenderName] = useState('');
-  const [content, setContent] = useState('');
+  const [senderName, setSenderName] = useState(initialData?.senderName ?? '');
+  const [content, setContent] = useState(initialData?.content ?? contentParam ?? '');
   const [freeSending, setFreeSending] = useState(false);
   const [freeSent, setFreeSent] = useState(false);
-  const [polishedResponse, setPolishedResponse] = useState<string | null>(null);
+  const [polishedResponse, setPolishedResponse] = useState<string | null>(initialData?.polishedResponse ?? null);
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string }>(null);
 
-  // Starred contacts
-  const [starredContacts, setStarredContacts] = useState<Contact[]>([]);
-  const [showContacts, setShowContacts] = useState(false);
-  const contactsRef = useRef<HTMLDivElement>(null);
-
   const { payAndGenerate, loading: paidLoading, step: paidStep } = usePayForPrompt();
-  const searchParams = useSearchParams();
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
   const isFormValid = recipientEmail.includes('@') && senderName.trim().length > 0 && content.trim().length >= 5;
-
-  // Load contacts from localStorage
-  useEffect(() => {
-    setStarredContacts(loadContacts());
-  }, []);
-
-  // Close contacts dropdown on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (contactsRef.current && !contactsRef.current.contains(e.target as Node)) {
-        setShowContacts(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  // Pre-fill from history id OR ?content= from journal
-  useEffect(() => {
-    const historyId = searchParams.get('id');
-    const contentParam = searchParams.get('content');
-
-    if (historyId) {
-      const history = getHistory();
-      const item = history.find(h => h.txHash === historyId);
-      if (item && item.toolId === 5) {
-        setPolishedResponse(item.response);
-        try {
-          const parsed = JSON.parse(item.prompt);
-          setContent(parsed.content || '');
-          setRecipientEmail(parsed.recipientEmail || '');
-          setSenderName(parsed.senderName || '');
-        } catch {
-          setContent(item.prompt);
-        }
-      }
-    } else if (contentParam) {
-      setContent(contentParam);
-    }
-  }, [searchParams]);
 
   // -- Starred contact helpers ----------------------------------------------
 
@@ -124,7 +95,6 @@ function LetterPageInner() {
   const applyContact = (contact: Contact) => {
     setRecipientEmail(contact.email);
     setRecipientName(contact.name);
-    setShowContacts(false);
   };
 
   // -- Send handlers --------------------------------------------------------
@@ -163,9 +133,9 @@ function LetterPageInner() {
       });
       setContent('');
       setTimeout(() => setFreeSent(false), 5000);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      alert(`Failed to send letter: ${e.message}`);
+      alert(`Failed to send letter: ${e instanceof Error ? e.message : 'Unknown error'}`);
     } finally {
       setFreeSending(false);
     }
@@ -195,7 +165,7 @@ function LetterPageInner() {
         updateStreak(address);
         setContent('');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       alert('Transaction failed. Make sure you have enough cUSD and CELO in your wallet.');
     }
@@ -208,7 +178,7 @@ function LetterPageInner() {
       const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
       if (aiResponse) setPolishedResponse(aiResponse);
       setLastSubmission(null);
-    } catch (e) {
+    } catch {
       alert('Retry failed. Check your wallet and try again.');
     }
   };
@@ -438,10 +408,17 @@ function LetterPageInner() {
   );
 }
 
+function LetterPageLoader() {
+  const searchParams = useSearchParams();
+  const historyId = searchParams.get('id');
+  const contentParam = searchParams.get('content');
+  return <LetterPageInner key={historyId ?? 'new'} historyId={historyId} contentParam={contentParam} />;
+}
+
 export default function LetterPage() {
   return (
     <Suspense fallback={<div className="h-full flex items-center justify-center animate-pulse font-mono text-accent uppercase tracking-widest">Loading...</div>}>
-      <LetterPageInner />
+      <LetterPageLoader />
     </Suspense>
   );
 }

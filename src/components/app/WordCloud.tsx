@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { getEntries } from '@/lib/journal';
 
 const STOP_WORDS = new Set([
@@ -17,25 +17,16 @@ type WordFreq = {
 };
 
 export function WordCloud() {
-  const [words, setWords] = useState<WordFreq[]>([]);
-  const [hasEntries, setHasEntries] = useState(false);
-
-  useEffect(() => {
-    const entries = getEntries();
-    if (!entries.length) {
-      setHasEntries(false);
-      return;
-    }
-    setHasEntries(true);
+  const [{ words, hasEntries }] = useState(() => {
+    const entries = typeof window !== 'undefined' ? getEntries() : [];
+    if (!entries.length) return { words: [] as WordFreq[], hasEntries: false };
 
     const freq: Record<string, number> = {};
     for (const e of entries) {
-      // Clean and split words
       const tokens = e.content
         .toLowerCase()
         .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, '')
         .split(/\s+/);
-
       for (const t of tokens) {
         const word = t.trim();
         if (word && word.length > 2 && !STOP_WORDS.has(word)) {
@@ -44,27 +35,18 @@ export function WordCloud() {
       }
     }
 
-    // Colors to rotate through
     const colors = [
-      'text-amber-200',
-      'text-blue-300',
-      'text-emerald-300',
-      'text-rose-300',
-      'text-purple-300',
-      'text-cyan-300',
+      'text-amber-200', 'text-blue-300', 'text-emerald-300',
+      'text-rose-300', 'text-purple-300', 'text-cyan-300',
     ];
 
     const topWords = Object.entries(freq)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 15)
-      .map(([text, count], index) => ({
-        text,
-        count,
-        color: colors[index % colors.length]
-      }));
+      .map(([text, count], index) => ({ text, count, color: colors[index % colors.length] }));
 
-    setWords(topWords);
-  }, []);
+    return { words: topWords, hasEntries: true };
+  });
 
   if (!hasEntries) {
     return (

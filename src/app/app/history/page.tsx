@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { History, ExternalLink, MessageSquare, BookOpen, Search, Mail, PenTool, Smile, Laugh, Meh, Angry, Frown, Flame, Sparkles, ArrowUpRight, ArrowRight, Copy, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -34,44 +34,32 @@ const MOODS = [
 function HistoryPageInner() {
   const { address } = useWallet();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'journal' | 'prompts'>('journal');
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [streakCount, setStreakCount] = useState(0);
+  const tabParam = searchParams.get('tab');
+
+  const [history, setHistory] = useState<HistoryItem[]>(() => getHistory());
+  const [entries, setEntries] = useState<JournalEntry[]>(() => getEntries());
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
-
-  const copyTxHash = (hash: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(hash);
-    setCopiedHash(hash);
-    setTimeout(() => setCopiedHash(null), 2000);
-  };
-
   const [searchQuery, setSearchQuery] = useState('');
   const [moodFilter, setMoodFilter] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [activeTab, setActiveTab] = useState<'journal' | 'prompts'>(() => {
+    if (tabParam === 'journal' || tabParam === 'prompts') return tabParam;
     const hist = getHistory();
     const jEnts = getEntries();
-    setHistory(hist);
-    setEntries(jEnts);
+    return (hist[0]?.timestamp || 0) > (jEnts[0]?.timestamp || 0) ? 'prompts' : 'journal';
+  });
 
-    // Streak
-    const streakKey = address ? `micromind_streak_data_${address}` : 'micromind_streak_data';
-    const stored = localStorage.getItem(streakKey);
-    if (stored) {
-      try { setStreakCount(JSON.parse(stored).streakCount || 0); } catch {}
-    }
+  const streakCount = useMemo(() => {
+    if (typeof window === 'undefined') return 0;
+    const key = address ? `micromind_streak_data_${address}` : 'micromind_streak_data';
+    try { return JSON.parse(localStorage.getItem(key) ?? '{}').streakCount || 0; } catch { return 0; }
+  }, [address]);
 
-    const tabParam = searchParams.get('tab');
-    if (tabParam === 'journal' || tabParam === 'prompts') {
-      setActiveTab(tabParam);
-    } else {
-      const newestPromptTime = hist[0]?.timestamp || 0;
-      const newestEntryTime = jEnts[0]?.timestamp || 0;
-      setActiveTab(newestPromptTime > newestEntryTime ? 'prompts' : 'journal');
-    }
-  }, [address, searchParams]);
+  useEffect(() => {
+    const refresh = () => { setHistory(getHistory()); setEntries(getEntries()); };
+    window.addEventListener('journal_updated', refresh);
+    return () => window.removeEventListener('journal_updated', refresh);
+  }, []);
 
   const totalSpent = history.reduce((acc, curr) => acc + parseFloat(curr.cost), 0).toFixed(3);
 
@@ -83,6 +71,13 @@ function HistoryPageInner() {
     }
     return true;
   });
+
+  const copyTxHash = (hash: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(hash).catch(() => {});
+    setCopiedHash(hash);
+    setTimeout(() => setCopiedHash(null), 2000);
+  };
 
   const filteredHistory = history.filter(h => {
     if (searchQuery) {
@@ -302,7 +297,7 @@ function HistoryPageInner() {
                     </div>
                   </div>
                   <p className="text-sm font-mono text-text-muted line-clamp-2 px-2 italic">
-                    "{displayPrompt}"
+                    &ldquo;{displayPrompt}&rdquo;
                   </p>
                 </div>
               );

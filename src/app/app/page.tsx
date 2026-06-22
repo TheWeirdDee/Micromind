@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MessageSquare, BookOpen, Lock, Bird, Sparkles, Search, Mail, HelpCircle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
@@ -23,7 +23,7 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 90, damping: 14 } },
 } as const;
 
-const TOOL_ICONS: Record<string, any> = {
+const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   chat: MessageSquare,
   tweet: Bird,
   reflect: Sparkles,
@@ -32,19 +32,27 @@ const TOOL_ICONS: Record<string, any> = {
 };
 
 export default function AppHome() {
-  const { address } = useWallet();
-  const [recentPrompt, setRecentPrompt] = useState<HistoryItem | null>(null);
-  const [entriesCount, setEntriesCount] = useState(0);
-  const [lastEntry, setLastEntry] = useState<JournalEntry | null>(null);
+  useWallet();
+  const [recentPrompt, setRecentPrompt] = useState<HistoryItem | null>(() => {
+    const hist = typeof window !== 'undefined' ? getHistory() : [];
+    return hist.length > 0 ? hist[0] : null;
+  });
+  const [entriesCount, setEntriesCount] = useState<number>(() =>
+    typeof window !== 'undefined' ? getEntries().length : 0
+  );
+  const [lastEntry, setLastEntry] = useState<JournalEntry | null>(() =>
+    typeof window !== 'undefined' ? getLastEntry() : null
+  );
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const entries = getEntries();
-      setEntriesCount(entries.length);
+    const refresh = () => {
+      setEntriesCount(getEntries().length);
       setLastEntry(getLastEntry());
       const hist = getHistory();
-      if (hist && hist.length > 0) setRecentPrompt(hist[0]);
-    }
+      setRecentPrompt(hist.length > 0 ? hist[0] : null);
+    };
+    window.addEventListener('journal_updated', refresh);
+    return () => window.removeEventListener('journal_updated', refresh);
   }, []);
 
   const todayLabel = new Date().toLocaleDateString('en-US', {
@@ -152,7 +160,7 @@ export default function AppHome() {
                     <h4 className="font-serif text-base">{recentPrompt.toolName || 'Prompt'}</h4>
                     <span className="font-mono text-[10px] text-text-muted">{recentPrompt.cost}</span>
                   </div>
-                  <p className="text-sm font-mono text-text-muted leading-relaxed italic line-clamp-2">"{recentPrompt.prompt}"</p>
+                  <p className="text-sm font-mono text-text-muted leading-relaxed italic line-clamp-2">&ldquo;{recentPrompt.prompt}&rdquo;</p>
                 </div>
               </Link>
             </motion.section>
