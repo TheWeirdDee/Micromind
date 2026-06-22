@@ -17,33 +17,41 @@ const GOALS = [
 ];
 
 export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
-  const [step, setStep] = useState(1);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [step, setStep] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1;
+    try {
+      const raw = localStorage.getItem('mm_user_profile');
+      return raw && JSON.parse(raw).name ? 2 : 1;
+    } catch { return 1; }
+  });
+  const [name, setName] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const raw = localStorage.getItem('mm_user_profile');
+      return raw ? (JSON.parse(raw).name ?? '') : '';
+    } catch { return ''; }
+  });
+  const [email, setEmail] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const raw = localStorage.getItem('mm_user_profile');
+      return raw ? (JSON.parse(raw).email ?? '') : '';
+    } catch { return ''; }
+  });
   const [error, setError] = useState('');
-  const [goals, setGoals] = useState<string[]>([]);
+  const [goals, setGoals] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem('mm_user_profile');
+      return raw ? (JSON.parse(raw).goals ?? []) : [];
+    } catch { return []; }
+  });
 
   useEffect(() => {
     if (step !== 3) return;
     const t = setTimeout(() => setStep(4), 2500);
     return () => clearTimeout(t);
   }, [step]);
-
-  // Resume from where the user left off if a partial profile already exists
-  // (e.g. they filled in their name on a previous visit but never finished).
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('mm_user_profile');
-      if (!raw) return;
-      const profile = JSON.parse(raw);
-      if (profile.name) {
-        setName(profile.name);
-        setEmail(profile.email || '');
-        setGoals(profile.goals || []);
-        setStep(2);
-      }
-    } catch { /* ignore corrupt profile */ }
-  }, []);
 
   const submitProfile = (e: React.FormEvent) => {
     e.preventDefault();
