@@ -42,9 +42,11 @@ export function AuthModal() {
   useEffect(() => {
     if (mode !== 'signup') return;
     const trimmed = username.trim();
-    if (trimmed.length < 3) { setUsernameStatus('idle'); return; }
-
-    setUsernameStatus('checking');
+    if (trimmed.length < 3) {
+      setTimeout(() => setUsernameStatus('idle'), 0);
+      return;
+    }
+    setTimeout(() => setUsernameStatus('checking'), 0);
     const timer = setTimeout(async () => {
       const result = await checkUsername(trimmed);
       setUsernameStatus(result === 'available' ? 'available' : 'taken');
@@ -66,8 +68,8 @@ export function AuthModal() {
     setLoading(true);
     try {
       await login(loginEmail, loginPassword, rememberMe);
-    } catch (err: any) {
-      setError(err.message ?? 'Login failed. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -99,8 +101,8 @@ export function AuthModal() {
     setLoading(true);
     try {
       await signUp(username, email, password, rememberMe);
-    } catch (err: any) {
-      setError(err.message ?? 'Signup failed. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Signup failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -117,8 +119,8 @@ export function AuthModal() {
     try {
       await resetPassword(forgotEmail);
       setForgotSent(true);
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to send reset email. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to send reset email. Please try again.');
     } finally {
       setLoading(false);
     }
