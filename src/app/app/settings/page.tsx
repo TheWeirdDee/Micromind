@@ -173,30 +173,29 @@ function ConfirmDialog({ action, userEmail, onConfirm, onCancel }: ConfirmDialog
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [displayName, setDisplayName] = useState('');
-  const [goals, setGoals] = useState<string[]>([]);
-  const [goalsSaved, setGoalsSaved] = useState(false);
-  const [remindersEnabled, setRemindersEnabled] = useState(false);
-  const [pendingAction, setPendingAction] = useState<DestructiveAction | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setRemindersEnabled(localStorage.getItem('mm_daily_reminder') === 'true');
-    }
-  }, []);
-
-  useEffect(() => {
+  const [profile, setProfile] = useState<UserProfile | null>(() => {
+    if (typeof window === 'undefined') return null;
     const raw = localStorage.getItem('mm_user_profile');
-    if (raw) {
-      try {
-        const p: UserProfile = JSON.parse(raw);
-        setProfile(p);
-        setDisplayName(p.name || '');
-        setGoals(p.goals || []);
-      } catch {}
-    }
-  }, []);
+    if (!raw) return null;
+    try { return JSON.parse(raw) as UserProfile; } catch { return null; }
+  });
+  const [displayName, setDisplayName] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    const raw = localStorage.getItem('mm_user_profile');
+    if (!raw) return '';
+    try { const p = JSON.parse(raw); return p.name || ''; } catch { return ''; }
+  });
+  const [goals, setGoals] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [];
+    const raw = localStorage.getItem('mm_user_profile');
+    if (!raw) return [];
+    try { const p = JSON.parse(raw); return p.goals || []; } catch { return []; }
+  });
+  const [goalsSaved, setGoalsSaved] = useState(false);
+  const [remindersEnabled, setRemindersEnabled] = useState<boolean>(
+    () => typeof window !== 'undefined' && localStorage.getItem('mm_daily_reminder') === 'true'
+  );
+  const [pendingAction, setPendingAction] = useState<DestructiveAction | null>(null);
 
   // If display name is still empty, fetch username from Supabase profiles
   useEffect(() => {
@@ -259,14 +258,14 @@ export default function SettingsPage() {
           return;
         }
         const currentEntries = JSON.parse(localStorage.getItem('mm_journal') || '[]');
-        const entryIds = new Set(currentEntries.map((entry: any) => entry.id));
+        const entryIds = new Set(currentEntries.map((entry: { id: string }) => entry.id));
         const mergedEntries = [...currentEntries];
-        data.entries.forEach((entry: any) => { if (!entryIds.has(entry.id)) mergedEntries.push(entry); });
+        data.entries.forEach((entry: { id: string }) => { if (!entryIds.has(entry.id)) mergedEntries.push(entry); });
 
         const currentFolders = JSON.parse(localStorage.getItem('mm_journal_folders') || '[]');
-        const folderIds = new Set(currentFolders.map((f: any) => f.id));
+        const folderIds = new Set(currentFolders.map((f: { id: string }) => f.id));
         const mergedFolders = [...currentFolders];
-        data.folders.forEach((f: any) => { if (!folderIds.has(f.id)) mergedFolders.push(f); });
+        data.folders.forEach((f: { id: string }) => { if (!folderIds.has(f.id)) mergedFolders.push(f); });
 
         localStorage.setItem('mm_journal', JSON.stringify(mergedEntries));
         localStorage.setItem('mm_journal_folders', JSON.stringify(mergedFolders));
