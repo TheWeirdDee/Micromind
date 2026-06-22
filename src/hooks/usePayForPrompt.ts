@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
-import { parseUnits, erc20Abi, keccak256, toBytes } from 'viem';
+import { erc20Abi, keccak256, toBytes } from 'viem';
 import { celo } from 'viem/chains';
 import { useWallet } from '@/context/WalletContext';
 import { CONTRACT_ADDRESS, MICROMIND_ABI } from '@/lib/contract';
-import { cUSD_ADDRESS, PAYMENT_TOKEN_DECIMALS, CELO_MAINNET_PARAMS } from '@/constants/chains';
+import { cUSD_ADDRESS, CELO_MAINNET_PARAMS } from '@/constants/chains';
 import { TOOLS } from '@/constants/tools';
 import { saveToHistory } from '@/lib/storage';
 
@@ -115,7 +115,14 @@ export function usePayForPrompt() {
         }).catch(() => { /* agent offline — payment still proceeds */ });
       }
 
-      const price = parseUnits(tool.price, PAYMENT_TOKEN_DECIMALS);
+      // Read the exact price the contract will pull — avoids approve/transferFrom mismatch
+      // if setToolPrice was ever called or the frontend constants drift from the contract.
+      const price = await publicClient.readContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: MICROMIND_ABI,
+        functionName: 'getPrice',
+        args: [toolId],
+      }) as bigint;
 
       if (price <= BigInt(0)) {
         throw new Error('Invalid payment amount: Price must be greater than zero.');
