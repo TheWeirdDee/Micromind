@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ChevronLeft, Loader2, BookOpen, Sparkles, HelpCircle, AlertTriangle, Smile, Mail, CheckCircle, Share2, X } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, Loader2, Sparkles, HelpCircle, AlertTriangle, Smile, Mail, CheckCircle, Share2, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -15,11 +15,19 @@ import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 
 import { Suspense } from 'react';
 
-function ReflectPageInner() {
+function ReflectPageInner({ folderParam, historyId }: { folderParam: string | null; historyId: string | null }) {
   const { isConnected, address, celoBalance, isMiniPay } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [response, setResponse] = useState<string | null>(null);
+  const [entries] = useState<JournalEntry[]>(() => {
+    if (typeof window === 'undefined') return [];
+    return folderParam ? getEntriesByFolder(folderParam).slice(0, 10) : getRecentEntries(7);
+  });
+  const [response, setResponse] = useState<string | null>(() => {
+    if (!historyId || typeof window === 'undefined') return null;
+    const hist = getHistory();
+    const item = hist.find(h => h.txHash === historyId);
+    return item && item.toolId === 3 ? item.response : null;
+  });
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string }>(null);
 
   const [emailSending, setEmailSending] = useState(false);
@@ -29,31 +37,9 @@ function ReflectPageInner() {
   const [shareCopied, setShareCopied] = useState(false);
 
   const { payAndGenerate, loading, step } = usePayForPrompt();
-  const searchParams = useSearchParams();
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
-
-  const folderParam = searchParams.get('folder');
-  const folderName  = folderParam
-    ? getFolders().find(f => f.id === folderParam)?.name
-    : null;
-
-  useEffect(() => {
-    if (folderParam) {
-      setEntries(getEntriesByFolder(folderParam).slice(0, 10));
-    } else {
-      setEntries(getRecentEntries(7));
-    }
-
-    const historyId = searchParams.get('id');
-    if (historyId) {
-      const history = getHistory();
-      const item = history.find(h => h.txHash === historyId);
-      if (item && item.toolId === 3) {
-        setResponse(item.response);
-      }
-    }
-  }, [searchParams]);
+  const folderName = folderParam ? getFolders().find(f => f.id === folderParam)?.name : null;
 
   const handleGenerate = async () => {
     if (entries.length < 2) return;
@@ -75,7 +61,7 @@ function ReflectPageInner() {
         setResponse(aiResponse);
         updateStreak(address);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       alert('Transaction failed. Make sure you have enough cUSD and CELO in your wallet.');
     }
@@ -110,7 +96,7 @@ function ReflectPageInner() {
       });
       setEmailSent(true);
       setShowEmailInput(false);
-    } catch (e) {
+    } catch {
       alert('Failed to send email. Please try again.');
     } finally {
       setEmailSending(false);
@@ -139,8 +125,8 @@ function ReflectPageInner() {
       const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
       if (aiResponse) setResponse(aiResponse);
       setLastSubmission(null);
-    } catch (e) {
-      console.error('Retry failed', e);
+    } catch (err: unknown) {
+      console.error('Retry failed', err);
       alert('Retry failed. Check your wallet and try again.');
     }
   };
@@ -245,7 +231,7 @@ function ReflectPageInner() {
                     <span className="text-text-muted">{e.date}</span>
                   </div>
                   <span className="text-text-muted/60 line-clamp-1 max-w-[150px] italic">
-                    "{e.content.slice(0, 30)}..."
+                    &ldquo;{e.content.slice(0, 30)}&hellip;&rdquo;
                   </span>
                 </div>
               ))}
@@ -328,10 +314,17 @@ function ReflectPageInner() {
   );
 }
 
+function ReflectPageLoader() {
+  const searchParams = useSearchParams();
+  const folderParam = searchParams.get('folder');
+  const historyId = searchParams.get('id');
+  return <ReflectPageInner key={`${folderParam ?? ''}_${historyId ?? ''}`} folderParam={folderParam} historyId={historyId} />;
+}
+
 export default function ReflectPage() {
   return (
     <Suspense fallback={<div className="h-full flex items-center justify-center animate-pulse font-mono text-accent uppercase tracking-widest">Loading context...</div>}>
-      <ReflectPageInner />
+      <ReflectPageLoader />
     </Suspense>
   );
 }
