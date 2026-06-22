@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Smile, Laugh, Meh, Angry, Frown } from 'lucide-react';
 import { getEntries } from '@/lib/journal';
 
@@ -19,28 +19,16 @@ const LAST_7_DAYS = Array.from({ length: 7 }, (_, i) => {
 });
 
 export function MoodChart() {
-  const [counts, setCounts]   = useState<Record<string, number>>({});
-  const [total, setTotal]     = useState(0);
-  const [trend, setTrend]     = useState<(string | null)[]>([]);
-  const [trendDates, setTrendDates] = useState<string[]>([]);
-  const [topMood, setTopMood] = useState<string | null>(null);
-  const [positivity, setPositivity] = useState(0);
-  const [stability, setStability] = useState(0);
-
-  useEffect(() => {
-    const entries = getEntries();
-    if (!entries.length) return;
-
-    // Mood distribution
-    const c: Record<string, number> = {};
-    for (const e of entries) {
-      c[e.mood] = (c[e.mood] || 0) + 1;
+  const [{ counts, total, trend, trendDates, topMood, positivity, stability }] = useState(() => {
+    const entries = typeof window !== 'undefined' ? getEntries() : [];
+    if (!entries.length) {
+      return { counts: {} as Record<string, number>, total: 0, trend: [] as (string | null)[], trendDates: [] as string[], topMood: null as string | null, positivity: 0, stability: 0 };
     }
-    setCounts(c);
-    setTotal(entries.length);
-    setTopMood(Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null);
 
-    // 7-day mood trend — last mood written each day
+    const c: Record<string, number> = {};
+    for (const e of entries) c[e.mood] = (c[e.mood] || 0) + 1;
+    const top = Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
     const now = new Date();
     const trend7: (string | null)[] = [];
     const dates7: string[] = [];
@@ -52,30 +40,21 @@ export function MoodChart() {
       trend7.push(dayEntries.length > 0 ? dayEntries[0].mood : null);
       dates7.push(dateStr);
     }
-    setTrend(trend7);
-    setTrendDates(dates7);
 
-    // Positivity ratio
     const happyCount = c['happy'] || 0;
     const excitedCount = c['excited'] || 0;
-    setPositivity(Math.round(((happyCount + excitedCount) / entries.length) * 100));
+    const pos = Math.round(((happyCount + excitedCount) / entries.length) * 100);
 
-    // Stability ratio (based on switches in daily mood)
     let changes = 0;
     let lastMood: string | null = null;
     let activeDays = 0;
     for (const m of trend7) {
-      if (m) {
-        activeDays++;
-        if (lastMood && m !== lastMood) {
-          changes++;
-        }
-        lastMood = m;
-      }
+      if (m) { activeDays++; if (lastMood && m !== lastMood) changes++; lastMood = m; }
     }
-    const stabilityPct = activeDays <= 1 ? 100 : Math.max(10, 100 - (changes * 20));
-    setStability(stabilityPct);
-  }, []);
+    const stab = activeDays <= 1 ? 100 : Math.max(10, 100 - (changes * 20));
+
+    return { counts: c, total: entries.length, trend: trend7, trendDates: dates7, topMood: top, positivity: pos, stability: stab };
+  });
 
   const topConfig = MOOD_CONFIG.find(m => m.mood === topMood);
 
