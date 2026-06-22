@@ -23,12 +23,16 @@ export function AppContentWrapper({ children }: AppContentWrapperProps) {
     const dismissedToday = localStorage.getItem('mm_reminder_dismissed') === new Date().toDateString();
     if (dismissedToday) return;
 
+    let shouldShow = false;
     try {
       const entries = JSON.parse(localStorage.getItem('mm_journal') || '[]');
-      if (entries.length === 0) { setShowReminder(true); return; }
-      const newestTimestamp = Math.max(...entries.map((e: any) => e.timestamp || 0));
-      if ((Date.now() - newestTimestamp) / (1000 * 60 * 60) > 24) setShowReminder(true);
+      if (entries.length === 0) { shouldShow = true; }
+      else {
+        const newestTimestamp = Math.max(...entries.map((e: { timestamp?: number }) => e.timestamp || 0));
+        if ((Date.now() - newestTimestamp) / (1000 * 60 * 60) > 24) shouldShow = true;
+      }
     } catch { /* ignore */ }
+    if (shouldShow) setTimeout(() => setShowReminder(true), 0);
   }, [user]);
 
   const dismissReminder = () => {
@@ -60,7 +64,7 @@ export function AppContentWrapper({ children }: AppContentWrapperProps) {
             </div>
             <div className="flex-1">
               <h4 className="font-serif text-sm">Time to reflect?</h4>
-              <p className="text-xs text-text-muted font-mono mt-1">You haven't journaled yet today. Want to take 2 minutes?</p>
+              <p className="text-xs text-text-muted font-mono mt-1">You haven&apos;t journaled yet today. Want to take 2 minutes?</p>
               <div className="flex items-center gap-3 mt-3">
                 <Link href="/app/journal" onClick={dismissReminder} className="text-xs font-mono font-bold text-bg bg-accent px-3 py-1.5 rounded-lg">
                   Write now
