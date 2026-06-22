@@ -82,7 +82,7 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
 
     try {
       // Send the last 5 messages as context for memory
-      const historyContext = [
+      const historyContext: Message[] = [
         ...messages.slice(-5),
         { role: 'user', content: userPrompt }
       ];
