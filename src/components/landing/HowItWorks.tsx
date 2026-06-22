@@ -2,7 +2,8 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { BookOpen, Play } from 'lucide-react';
+import Image from 'next/image';
+import { Play } from 'lucide-react';
 
 export function HowItWorks() {
   return (
@@ -19,10 +20,11 @@ export function HowItWorks() {
             className="lg:col-span-6 relative group"
           >
             <div className="relative aspect-[16/10] rounded-[2rem] overflow-hidden border border-border shadow-2xl">
-              <img 
-                src="/images/journal_workspace.jpg" 
-                alt="Mindful Workspace" 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              <Image
+                src="/images/journal_workspace.jpg"
+                alt="Mindful Workspace"
+                fill
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
               />
               {/* Overlay with HOW IT WORKS text */}
               <div className="absolute inset-0 bg-bg/25 flex flex-col justify-end p-8">
