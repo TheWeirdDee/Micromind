@@ -135,14 +135,13 @@ export function usePayForPrompt() {
 
       // MiniPay CIP-64 transactions sometimes need an explicit gas limit — estimate it.
       const approveGas = isMiniPay
-        ? await publicClient.estimateContractGas({
+        ? await publicClient.estimateContractGas(Object.assign({
             address: cUSD_ADDRESS as `0x${string}`,
             abi: erc20Abi,
-            functionName: 'approve',
-            args: [CONTRACT_ADDRESS as `0x${string}`, price],
+            functionName: 'approve' as const,
+            args: [CONTRACT_ADDRESS as `0x${string}`, price] as const,
             account: address as `0x${string}`,
-            feeCurrency: cUSD_ADDRESS as `0x${string}`,
-          }).catch(() => BigInt(100_000))
+          }, { feeCurrency: cUSD_ADDRESS as `0x${string}` })).catch(() => BigInt(100_000))
         : undefined;
 
       const approveTx = await walletClient.writeContract({
@@ -173,14 +172,13 @@ export function usePayForPrompt() {
         : undefined;
 
       const payGas = isMiniPay
-        ? await publicClient.estimateContractGas({
+        ? await publicClient.estimateContractGas(Object.assign({
             address: CONTRACT_ADDRESS as `0x${string}`,
             abi: MICROMIND_ABI,
-            functionName: 'payForPrompt',
-            args: [toolId, promptHash as `0x${string}`],
+            functionName: 'payForPrompt' as const,
+            args: [toolId, promptHash as `0x${string}`] as const,
             account: address as `0x${string}`,
-            feeCurrency: cUSD_ADDRESS as `0x${string}`,
-          }).catch(() => BigInt(200_000))
+          }, { feeCurrency: cUSD_ADDRESS as `0x${string}` })).catch(() => BigInt(200_000))
         : undefined;
 
       const payTx = await walletClient.writeContract({

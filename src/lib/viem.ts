@@ -5,7 +5,7 @@ import { celo, celoSepolia } from 'viem/chains';
 export const IS_TESTNET = process.env.NEXT_PUBLIC_IS_TESTNET === 'true';
 
 export interface EthereumProvider {
-  request(args: { method: string; params?: unknown[] }): Promise<unknown>;
+  request(args: { method: string; params?: unknown }): Promise<unknown>;
   on?(event: string, handler: (...args: unknown[]) => void): void;
   removeListener?(event: string, handler: (...args: unknown[]) => void): void;
   isMiniPay?: boolean;
