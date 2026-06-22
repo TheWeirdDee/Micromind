@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { X, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { useWallet } from '@/context/WalletContext';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { OnboardingWizard } from '@/components/app/OnboardingWizard';
 
 interface AppContentWrapperProps {
   children: React.ReactNode;
@@ -12,10 +14,17 @@ interface AppContentWrapperProps {
 
 export function AppContentWrapper({ children }: AppContentWrapperProps) {
   const { user, loading } = useAuth();
+  const { isMiniPay } = useWallet();
   const [showReminder, setShowReminder] = useState(false);
+  const [miniPayOnboarded, setMiniPayOnboarded] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('mm_onboarding_completed') === 'true';
+  });
+
+  const isAuthed = isMiniPay ? miniPayOnboarded : !!user;
 
   useEffect(() => {
-    if (!user || typeof window === 'undefined') return;
+    if (!isAuthed || typeof window === 'undefined') return;
 
     const remindersEnabled = localStorage.getItem('mm_daily_reminder') === 'true';
     if (!remindersEnabled) return;
@@ -33,13 +42,50 @@ export function AppContentWrapper({ children }: AppContentWrapperProps) {
       }
     } catch { /* ignore */ }
     if (shouldShow) setTimeout(() => setShowReminder(true), 0);
-  }, [user]);
+  }, [isAuthed]);
 
   const dismissReminder = () => {
     localStorage.setItem('mm_reminder_dismissed', new Date().toDateString());
     setShowReminder(false);
   };
 
+  const reminderBanner = showReminder && (
+    <div className="fixed bottom-24 right-4 left-4 sm:left-auto sm:w-80 bg-surface border border-accent/40 rounded-2xl p-4 shadow-xl shadow-accent/5 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+      <div className="flex gap-3">
+        <div className="p-2 bg-accent/10 rounded-xl h-fit">
+          <Bell className="w-4 h-4 text-accent" />
+        </div>
+        <div className="flex-1">
+          <h4 className="font-serif text-sm">Time to reflect?</h4>
+          <p className="text-xs text-text-muted font-mono mt-1">You haven&apos;t journaled yet today. Want to take 2 minutes?</p>
+          <div className="flex items-center gap-3 mt-3">
+            <Link href="/app/journal" onClick={dismissReminder} className="text-xs font-mono font-bold text-bg bg-accent px-3 py-1.5 rounded-lg">
+              Write now
+            </Link>
+            <button onClick={dismissReminder} className="text-xs font-mono text-text-muted hover:text-text-primary transition-colors">
+              Later
+            </button>
+          </div>
+        </div>
+        <button onClick={dismissReminder} className="h-fit p-1 text-text-muted hover:text-text-primary transition-colors">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+
+  // MiniPay: wallet-based onboarding gate — must complete wizard before accessing /app
+  if (isMiniPay) {
+    if (!miniPayOnboarded) {
+      return <OnboardingWizard onComplete={() => {
+        localStorage.setItem('mm_onboarding_completed', 'true');
+        setMiniPayOnboarded(true);
+      }} />;
+    }
+    return <>{children}{reminderBanner}</>;
+  }
+
+  // Non-MiniPay: Supabase auth gate
   if (loading) {
     return (
       <div className="h-[60vh] flex flex-col items-center justify-center space-y-4">
@@ -53,33 +99,5 @@ export function AppContentWrapper({ children }: AppContentWrapperProps) {
     return <AuthModal />;
   }
 
-  return (
-    <>
-      {children}
-      {showReminder && (
-        <div className="fixed bottom-24 right-4 left-4 sm:left-auto sm:w-80 bg-surface border border-accent/40 rounded-2xl p-4 shadow-xl shadow-accent/5 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
-          <div className="flex gap-3">
-            <div className="p-2 bg-accent/10 rounded-xl h-fit">
-              <Bell className="w-4 h-4 text-accent" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-serif text-sm">Time to reflect?</h4>
-              <p className="text-xs text-text-muted font-mono mt-1">You haven&apos;t journaled yet today. Want to take 2 minutes?</p>
-              <div className="flex items-center gap-3 mt-3">
-                <Link href="/app/journal" onClick={dismissReminder} className="text-xs font-mono font-bold text-bg bg-accent px-3 py-1.5 rounded-lg">
-                  Write now
-                </Link>
-                <button onClick={dismissReminder} className="text-xs font-mono text-text-muted hover:text-text-primary transition-colors">
-                  Later
-                </button>
-              </div>
-            </div>
-            <button onClick={dismissReminder} className="h-fit p-1 text-text-muted hover:text-text-primary transition-colors">
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
-    </>
-  );
+  return <>{children}{reminderBanner}</>;
 }
