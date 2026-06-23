@@ -116,7 +116,11 @@ export function usePayForPrompt() {
       }
 
       // Read the exact price the contract will pull so the approve amount always matches.
-      // Falls back to the frontend constant if the RPC call fails (offline, wrong address, etc.)
+      // Strategy: try getPrice() first (new contract), then fall back to reading the
+      // toolPrices(toolId) mapping directly — that is the EXACT storage slot that
+      // payForPrompt reads at execution time. Never fall back to a hardcoded constant,
+      // because a mismatch between the approved amount and the contract's stored price
+      // is the sole cause of "ERC20: insufficient allowance" on payForPrompt.
       let price: bigint;
       try {
         price = await publicClient.readContract({
@@ -125,24 +129,36 @@ export function usePayForPrompt() {
           functionName: 'getPrice',
           args: [toolId],
         }) as bigint;
-        if (price <= BigInt(0)) price = BigInt(tool.priceWei);
       } catch {
-        price = BigInt(tool.priceWei);
+        // getPrice() not present in this contract version — read the mapping directly.
+        try {
+          price = await publicClient.readContract({
+            address: CONTRACT_ADDRESS as `0x${string}`,
+            abi: [{ name: 'toolPrices', type: 'function', stateMutability: 'view', inputs: [{ name: '', type: 'uint8' }], outputs: [{ name: '', type: 'uint256' }] }] as const,
+            functionName: 'toolPrices',
+            args: [toolId],
+          }) as bigint;
+        } catch {
+          price = BigInt(0);
+        }
       }
 
       if (price <= BigInt(0)) {
-        throw new Error('Invalid payment amount: Price must be greater than zero.');
+        throw new Error(
+          `Could not read the payment amount for this tool from the contract. ` +
+          `If this error persists, the contract at ${CONTRACT_ADDRESS} may not be the correct MicroMindPayment deployment. ` +
+          `Please contact support.`
+        );
       }
 
       // STEP 1 — Approve cUSD transfer
       // We must approve the contract to pull `price` worth of cUSD from the user's wallet.
-      // MiniPay: explicit nonce + feeCurrency (pay gas in cUSD, CIP-64 transaction type).
+      // MiniPay: CIP-64 feeCurrency so gas is paid in cUSD (MiniPay users cannot hold CELO).
       setStep('approving');
       const approveNonce = isMiniPay
         ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
         : undefined;
 
-      // MiniPay CIP-64 transactions sometimes need an explicit gas limit — estimate it.
       const approveGas = isMiniPay
         ? await publicClient.estimateContractGas(Object.assign({
             address: cUSD_ADDRESS as `0x${string}`,
