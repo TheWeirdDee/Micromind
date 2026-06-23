@@ -49,7 +49,7 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
     return [];
   });
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string; chatHistory?: Message[] }>(null);
-  const { payAndGenerate, loading, step } = usePayForPrompt();
+  const { payAndGenerate, loading, step, error, reset } = usePayForPrompt();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
@@ -80,26 +80,16 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
     setPrompt('');
     setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
 
-    try {
-      // Send the last 5 messages as context for memory
-      const historyContext: Message[] = [
-        ...messages.slice(-5),
-        { role: 'user', content: userPrompt }
-      ];
-      setLastSubmission({ toolId: 1, toolName: 'Chat', prompt: userPrompt, chatHistory: historyContext });
-      const aiResponse = await payAndGenerate(1, 'Chat', userPrompt, historyContext);
-      if (aiResponse) {
-        setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-        updateStreak(address);
-      }
-    } catch (err) {
-      console.error(err);
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: isMiniPay
-          ? 'Error: Transaction failed. Make sure you have enough cUSD in your wallet.'
-          : 'Error: Transaction failed. Make sure you have enough cUSD and CELO (for gas) in your wallet.'
-      }]);
+    // Send the last 5 messages as context for memory
+    const historyContext: Message[] = [
+      ...messages.slice(-5),
+      { role: 'user', content: userPrompt }
+    ];
+    setLastSubmission({ toolId: 1, toolName: 'Chat', prompt: userPrompt, chatHistory: historyContext });
+    const aiResponse = await payAndGenerate(1, 'Chat', userPrompt, historyContext);
+    if (aiResponse) {
+      setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+      updateStreak(address);
     }
   };
 
@@ -111,14 +101,11 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
       return;
     }
 
-    try {
-      setMessages(prev => [...prev, { role: 'user', content: lastSubmission.prompt }] );
-      const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt, lastSubmission.chatHistory);
-      if (aiResponse) setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+    setMessages(prev => [...prev, { role: 'user', content: lastSubmission.prompt }]);
+    const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt, lastSubmission.chatHistory);
+    if (aiResponse) {
+      setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
       setLastSubmission(null);
-    } catch (e) {
-      console.error('Retry failed', e);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Retry failed. Check your wallet and try again.' }]);
     }
   };
 
@@ -176,11 +163,11 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
         className="flex-1 overflow-y-auto space-y-6 mb-6 pr-2 scrollbar-hide"
       >
         {step === 'error' && (
-          <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-700 text-sm text-red-100 flex items-center justify-between">
-            <div>Payment failed or cancelled. You can retry the last submission.</div>
-            <div className="flex gap-2">
-              <button onClick={handleRetry} disabled={loading} className="px-3 py-1 rounded bg-accent text-bg text-xs">Retry</button>
-              <button onClick={() => { setLastSubmission(null); }} className="px-3 py-1 rounded border border-border text-xs">Dismiss</button>
+          <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-700 text-xs text-red-100 flex items-center justify-between font-mono">
+            <div>{error || 'Payment failed. You can retry.'}</div>
+            <div className="flex gap-2 ml-3 shrink-0">
+              <button onClick={handleRetry} disabled={loading} className="px-3 py-1 rounded bg-accent text-bg font-bold">Retry</button>
+              <button onClick={() => { setLastSubmission(null); reset(); }} className="px-3 py-1 rounded border border-border">Dismiss</button>
             </div>
           </div>
         )}

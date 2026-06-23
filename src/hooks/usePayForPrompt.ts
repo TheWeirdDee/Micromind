@@ -115,14 +115,20 @@ export function usePayForPrompt() {
         }).catch(() => { /* agent offline — payment still proceeds */ });
       }
 
-      // Read the exact price the contract will pull — avoids approve/transferFrom mismatch
-      // if setToolPrice was ever called or the frontend constants drift from the contract.
-      const price = await publicClient.readContract({
-        address: CONTRACT_ADDRESS as `0x${string}`,
-        abi: MICROMIND_ABI,
-        functionName: 'getPrice',
-        args: [toolId],
-      }) as bigint;
+      // Read the exact price the contract will pull so the approve amount always matches.
+      // Falls back to the frontend constant if the RPC call fails (offline, wrong address, etc.)
+      let price: bigint;
+      try {
+        price = await publicClient.readContract({
+          address: CONTRACT_ADDRESS as `0x${string}`,
+          abi: MICROMIND_ABI,
+          functionName: 'getPrice',
+          args: [toolId],
+        }) as bigint;
+        if (price <= BigInt(0)) price = BigInt(tool.priceWei);
+      } catch {
+        price = BigInt(tool.priceWei);
+      }
 
       if (price <= BigInt(0)) {
         throw new Error('Invalid payment amount: Price must be greater than zero.');
@@ -307,18 +313,21 @@ export function usePayForPrompt() {
 
       const err = e as { shortMessage?: string; message?: string; code?: number };
       let msg = err.shortMessage || err.message || 'Transaction failed';
+      const msgL = msg.toLowerCase();
 
-      if (err.code === 4001 || msg.includes('rejected') || msg.includes('denied')) {
+      if (err.code === 4001 || msgL.includes('user rejected') || msgL.includes('rejected the request') || msgL.includes('denied')) {
         msg = 'Transaction cancelled.';
-      } else if (isMiniPay && (msg.includes('insufficient') || msg.includes('funds') || msg.includes('gas'))) {
+      } else if (msgL.includes('insufficient allowance')) {
+        msg = 'Approval step failed — the contract could not move your cUSD. Please try again.';
+      } else if (isMiniPay && (msgL.includes('insufficient funds') || msgL.includes('insufficient balance'))) {
         msg = 'Not enough cUSD for this transaction. You need at least 0.005 cUSD.';
-      } else if (!isMiniPay && msg.includes('insufficient')) {
+      } else if (!isMiniPay && (msgL.includes('insufficient funds') || msgL.includes('insufficient balance'))) {
         msg = 'Not enough cUSD or CELO (gas). Top up your wallet and try again.';
       }
 
       setError(msg);
       setStep('error');
-      throw e;
+      // No re-throw — hook owns the error state. Pages use step/error from the hook.
     }
   }, [address, walletClient, publicClient, isMiniPay]);
 
