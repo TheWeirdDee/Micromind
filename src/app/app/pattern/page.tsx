@@ -38,7 +38,7 @@ function PatternPageInner({ folderParam, historyId }: { folderParam: string | nu
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
-  const { payAndGenerate, loading, step } = usePayForPrompt();
+  const { payAndGenerate, loading, step, error, reset } = usePayForPrompt();
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
   const folderName = folderParam ? getFolders().find(f => f.id === folderParam)?.name : null;
@@ -51,21 +51,16 @@ function PatternPageInner({ folderParam, historyId }: { folderParam: string | nu
       return;
     }
 
-    try {
-      const formattedPrompt = entries
-        .map(e => `Date: ${e.date} | Mood: ${e.mood}\nEntry: ${e.content}`)
-        .join('\n\n---\n\n');
+    const formattedPrompt = entries
+      .map(e => `Date: ${e.date} | Mood: ${e.mood}\nEntry: ${e.content}`)
+      .join('\n\n---\n\n');
 
-      setLastSubmission({ toolId: 4, toolName: 'Pattern', prompt: formattedPrompt });
+    setLastSubmission({ toolId: 4, toolName: 'Pattern', prompt: formattedPrompt });
 
-      const aiResponse = await payAndGenerate(4, 'Pattern', formattedPrompt);
-      if (aiResponse) {
-        setResponse(aiResponse);
-        updateStreak(address);
-      }
-    } catch (err: unknown) {
-      console.error(err);
-      alert('Transaction failed. Make sure you have enough cUSD and CELO in your wallet.');
+    const aiResponse = await payAndGenerate(4, 'Pattern', formattedPrompt);
+    if (aiResponse) {
+      setResponse(aiResponse);
+      updateStreak(address);
     }
   };
 
@@ -123,13 +118,10 @@ function PatternPageInner({ folderParam, historyId }: { folderParam: string | nu
       return;
     }
 
-    try {
-      const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
-      if (aiResponse) setResponse(aiResponse);
+    const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
+    if (aiResponse) {
+      setResponse(aiResponse);
       setLastSubmission(null);
-    } catch (e) {
-      console.error('Retry failed', e);
-      alert('Retry failed. Check your wallet and try again.');
     }
   };
 
@@ -246,11 +238,11 @@ function PatternPageInner({ folderParam, historyId }: { folderParam: string | nu
           )}
 
           {step === 'error' && (
-            <div className="p-3 rounded-lg bg-red-900/40 border border-red-700 text-sm text-red-100 flex items-center justify-between font-mono text-xs">
-              <div>Payment failed. You can retry submission.</div>
-              <div className="flex gap-2">
+            <div className="p-3 rounded-lg bg-red-900/40 border border-red-700 text-xs text-red-100 flex items-center justify-between font-mono">
+              <div>{error || 'Payment failed. You can retry.'}</div>
+              <div className="flex gap-2 ml-3 shrink-0">
                 <button onClick={handleRetry} disabled={loading} className="px-3 py-1 rounded bg-accent text-bg font-bold">Retry</button>
-                <button onClick={() => setLastSubmission(null)} className="px-3 py-1 rounded border border-border">Dismiss</button>
+                <button onClick={() => { setLastSubmission(null); reset(); }} className="px-3 py-1 rounded border border-border">Dismiss</button>
               </div>
             </div>
           )}
