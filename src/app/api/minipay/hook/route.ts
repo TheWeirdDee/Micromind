@@ -31,38 +31,38 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     name: 'MicroMind',
-    description: 'Privacy-first AI journaling on Celo. Pay per prompt with cUSD — no subscriptions.',
+    description: 'Privacy-first AI journaling on Celo. Pay per prompt with USDm — no subscriptions.',
     url: 'https://micromind-three.vercel.app/app',
     icon: 'https://micromind-three.vercel.app/logo.svg',
     network: 'celo',
     chainId: 42220,
-    // cUSD (Celo Dollar) is the payment token for all AI tool prompts
+    // USDm (Celo Dollar) is the payment token for all AI tool prompts
     paymentToken: {
-      symbol: 'cUSD',
+      symbol: 'USDm',
       name: 'Celo Dollar',
       address: '0x765DE816845861e75A25fCA122bb6898B8B1282a',
       decimals: 18,
     },
-    // feeCurrency: pay gas in cUSD (CIP-64) — users never need native CELO
+    // feeCurrency: pay gas in USDm (CIP-64) — users never need native CELO
     feeCurrency: '0x765DE816845861e75A25fCA122bb6898B8B1282a',
     contracts: [
       {
         name: 'MicroMindPayment',
         address: '0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c',
         network: 'celo',
-        paymentToken: 'cUSD',
+        paymentToken: 'USDm',
       }
     ],
     pricing: {
-      chat: '0.005 cUSD',
-      tweet: '0.005 cUSD',
-      reflect: '0.005 cUSD',
-      pattern: '0.005 cUSD',
-      letter_polish: '0.01 cUSD',
+      chat: '0.005 USDm',
+      tweet: '0.005 USDm',
+      reflect: '0.005 USDm',
+      pattern: '0.005 USDm',
+      letter_polish: '0.01 USDm',
       journal: 'free',
       letter_send: 'free',
     },
     category: 'productivity',
-    tags: ['AI', 'journaling', 'cUSD', 'MiniPay', 'Celo'],
+    tags: ['AI', 'journaling', 'USDm', 'MiniPay', 'Celo'],
   });
 }

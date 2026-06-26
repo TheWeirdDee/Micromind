@@ -167,7 +167,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
       }
     } catch (err: unknown) {
       console.error(err);
-      alert('Transaction failed. Make sure you have enough cUSD and CELO in your wallet.');
+      alert('Transaction failed. Make sure you have enough USDm and CELO in your wallet.');
     }
   };
 
@@ -187,7 +187,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     switch (paidStep) {
       case 'checking':    return 'Checking agent...';
       case 'submitting':  return 'Preparing prompt...';
-      case 'approving':   return 'Approving cUSD spend...';
+      case 'approving':   return 'Approving USDm spend...';
       case 'paying':      return 'Sending payment...';
       case 'confirming':  return 'Confirming on Celo...';
       case 'generating':  return 'AI is polishing & sending...';
@@ -213,7 +213,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
           <h2 className="text-2xl font-serif">Send a Letter</h2>
         </div>
         <span className="text-[10px] font-mono text-accent px-3 py-1 rounded-full bg-accent/10 border border-accent/20">
-          Free + 0.01 cUSD
+          Free + 0.01 USDm
         </span>
       </header>
 
@@ -369,7 +369,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>AI Polish & Send (0.01 cUSD)</span>
+                  <span>AI Polish & Send (0.01 USDm)</span>
                 </>
               )}
             </button>

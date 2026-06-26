@@ -13,7 +13,7 @@ const benefits = [
   {
     icon: Coins,
     title: 'Pay Only for AI, Never a Subscription',
-    desc: 'Write as much as you want, for free, forever. Only pay tiny fractions (0.01 cUSD ≈ $0.01) when you want AI to read and analyze your writing.',
+    desc: 'Write as much as you want, for free, forever. Only pay tiny fractions (0.01 USDm ≈ $0.01) when you want AI to read and analyze your writing.',
   },
   {
     icon: Shield,
@@ -29,7 +29,7 @@ const benefits = [
 
 const stats = [
   { value: '0', label: 'Cloud databases' },
-  { value: '~0.01', label: 'cUSD per AI insight' },
+  { value: '~0.01', label: 'USDm per AI insight' },
   { value: '100%', label: 'Local-first storage' },
 ];
 

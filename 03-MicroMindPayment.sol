@@ -7,32 +7,32 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /**
  * @title MicroMindPayment
  * @notice Handles pay-per-prompt payments for MicroMind journal app on Celo.
- *         Users pay cUSD for AI features. Payment is verified onchain by the
+ *         Users pay USDm for AI features. Payment is verified onchain by the
  *         agent backend before returning AI responses.
  *
  * Tool IDs:
- *   1 = Chat        (0.005 cUSD)
- *   2 = Tweet       (0.005 cUSD)
- *   3 = Reflect     (0.005 cUSD)
- *   4 = Pattern     (0.005 cUSD)
- *   5 = Letter      (0.010 cUSD)
+ *   1 = Chat        (0.005 USDm)
+ *   2 = Tweet       (0.005 USDm)
+ *   3 = Reflect     (0.005 USDm)
+ *   4 = Pattern     (0.005 USDm)
+ *   5 = Letter      (0.010 USDm)
  *
  * Deployment: Celo Mainnet
- * cUSD address: 0x765DE816845861e75A25fCA122bb6898B8B1282a
+ * USDm address: 0x765DE816845861e75A25fCA122bb6898B8B1282a
  */
 contract MicroMindPayment is Ownable {
 
     // ─── State ────────────────────────────────────────────────────────────────
 
-    IERC20 public immutable cUSD;
+    IERC20 public immutable USDm;
 
-    /// @notice Prices in cUSD (6 decimals — cUSD uses 18 but we store as wei)
+    /// @notice Prices in USDm (6 decimals — USDm uses 18 but we store as wei)
     mapping(uint8 => uint256) public toolPrices;
 
     /// @notice Total collected per tool
     mapping(uint8 => uint256) public totalCollected;
 
-    /// @notice All-time total cUSD collected
+    /// @notice All-time total USDm collected
     uint256 public grandTotal;
 
     // ─── Events ───────────────────────────────────────────────────────────────
@@ -59,12 +59,12 @@ contract MicroMindPayment is Ownable {
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
-    constructor(address _cUSD) Ownable(msg.sender) {
-        cUSD = IERC20(_cUSD);
+    constructor(address _USDm) Ownable(msg.sender) {
+        USDm = IERC20(_USDm);
 
-        // 0.005 cUSD = 5_000_000_000_000_000 wei (18 decimals)
+        // 0.005 USDm = 5_000_000_000_000_000 wei (18 decimals)
         uint256 fiveMilli  = 5_000_000_000_000_000;
-        // 0.010 cUSD = 10_000_000_000_000_000 wei
+        // 0.010 USDm = 10_000_000_000_000_000 wei
         uint256 tenMilli   = 10_000_000_000_000_000;
 
         toolPrices[1] = fiveMilli;  // Chat
@@ -78,7 +78,7 @@ contract MicroMindPayment is Ownable {
 
     /**
      * @notice Pay for a prompt. User must have approved this contract to spend
-     *         at least `toolPrices[toolId]` cUSD before calling.
+     *         at least `toolPrices[toolId]` USDm before calling.
      *
      * @param toolId     ID of the tool being used (1–5)
      * @param promptHash keccak256 hash of the prompt string (for verification)
@@ -87,7 +87,7 @@ contract MicroMindPayment is Ownable {
         uint256 price = toolPrices[toolId];
         if (price == 0) revert InvalidTool(toolId);
 
-        bool ok = cUSD.transferFrom(msg.sender, address(this), price);
+        bool ok = USDm.transferFrom(msg.sender, address(this), price);
         if (!ok) revert TransferFailed();
 
         totalCollected[toolId] += price;
@@ -101,7 +101,7 @@ contract MicroMindPayment is Ownable {
     /**
      * @notice Update price for a tool. Price must be > 0.
      * @param toolId   Tool ID to update
-     * @param newPrice New price in cUSD wei (18 decimals)
+     * @param newPrice New price in USDm wei (18 decimals)
      */
     function setToolPrice(uint8 toolId, uint256 newPrice) external onlyOwner {
         if (newPrice == 0) revert ZeroPrice();
@@ -110,20 +110,20 @@ contract MicroMindPayment is Ownable {
     }
 
     /**
-     * @notice Withdraw all collected cUSD to owner wallet.
+     * @notice Withdraw all collected USDm to owner wallet.
      */
     function withdraw() external onlyOwner {
-        uint256 balance = cUSD.balanceOf(address(this));
-        bool ok = cUSD.transfer(owner(), balance);
+        uint256 balance = USDm.balanceOf(address(this));
+        bool ok = USDm.transfer(owner(), balance);
         if (!ok) revert TransferFailed();
         emit Withdrawn(owner(), balance);
     }
 
     /**
-     * @notice Withdraw specific amount of cUSD to owner wallet.
+     * @notice Withdraw specific amount of USDm to owner wallet.
      */
     function withdrawAmount(uint256 amount) external onlyOwner {
-        bool ok = cUSD.transfer(owner(), amount);
+        bool ok = USDm.transfer(owner(), amount);
         if (!ok) revert TransferFailed();
         emit Withdrawn(owner(), amount);
     }
@@ -138,10 +138,10 @@ contract MicroMindPayment is Ownable {
     }
 
     /**
-     * @notice Get current cUSD balance held by contract.
+     * @notice Get current USDm balance held by contract.
      */
     function contractBalance() external view returns (uint256) {
-        return cUSD.balanceOf(address(this));
+        return USDm.balanceOf(address(this));
     }
 
     /**
@@ -160,7 +160,7 @@ contract MicroMindPayment is Ownable {
  *
  * Network:      Celo Mainnet (Chain ID: 42220)
  * RPC:          https://forno.celo.org
- * cUSD address: 0x765DE816845861e75A25fCA122bb6898B8B1282a
+ * USDm address: 0x765DE816845861e75A25fCA122bb6898B8B1282a
  *
  * Deploy steps (Hardhat):
  *   npx hardhat run scripts/deploy.js --network celo
@@ -201,16 +201,16 @@ contract MicroMindPayment is Ownable {
  * Users pay gas in CELO (native token). This is intentional.
  *
  * Talent Protocol tracks CELO gas spend as a core onchain activity signal.
- * If users pay gas in cUSD via feeCurrency, their CELO activity score stays
+ * If users pay gas in USDm via feeCurrency, their CELO activity score stays
  * at zero and they rank lower on the leaderboard.
  *
  * Payment flow per prompt:
  *   1. User signs approve() — pays CELO gas
- *   2. User signs payForPrompt() — pays CELO gas + spends cUSD to contract
+ *   2. User signs payForPrompt() — pays CELO gas + spends USDm to contract
  *   3. Agent verifies PromptPaid event, returns AI response
  *
  * Required user wallet balance:
- *   - cUSD: enough for the tool price (0.005–0.010 cUSD per prompt)
+ *   - USDm: enough for the tool price (0.005–0.010 USDm per prompt)
  *   - CELO: small amount for gas (~0.001 CELO per transaction, negligible)
  *
  * Frontend must check CELO balance on wallet connect and warn if zero:

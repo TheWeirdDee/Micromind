@@ -399,7 +399,7 @@ export function HeartfeltLetters() {
                         ) : (
                           <>
                             <Sparkles className="w-3.5 h-3.5" />
-                            <span>Apply AI Polish (0.01 cUSD)</span>
+                            <span>Apply AI Polish (0.01 USDm)</span>
                           </>
                         )}
                       </button>

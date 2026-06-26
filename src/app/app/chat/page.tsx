@@ -113,7 +113,7 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
     switch (step) {
       case 'checking': return 'Checking agent...';
       case 'submitting': return 'Preparing prompt...';
-      case 'approving': return 'Approving cUSD spend...';
+      case 'approving': return 'Approving USDm spend...';
       case 'paying': return 'Sending payment...';
       case 'confirming': return 'Confirming on Celo...';
       case 'generating': return 'AI is generating...';
@@ -133,7 +133,7 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
         <div>
           <h1 className="text-3xl font-serif">AI Chat</h1>
           <p className="text-text-muted font-mono text-xs uppercase tracking-widest mt-1">
-            0.005 cUSD per prompt
+            0.005 USDm per prompt
           </p>
         </div>
         <div className="flex gap-2">

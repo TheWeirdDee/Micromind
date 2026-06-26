@@ -51,7 +51,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "MicroMind | AI That Costs What You Use",
-    description: "Premium AI journaling tools on Celo. Pay per prompt with cUSD. No subscriptions.",
+    description: "Premium AI journaling tools on Celo. Pay per prompt with USDm. No subscriptions.",
     images: ["/logo.svg"],
     creator: "@MicroMind_AI",
     site: "@MicroMind_AI",
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
     // MiniPay mini-app declaration — detected by Talent Protocol indexer
     "minipay": "true",
     "minipay:name": "MicroMind",
-    "minipay:description": "Privacy-first AI journaling on Celo. Pay per prompt with cUSD.",
+    "minipay:description": "Privacy-first AI journaling on Celo. Pay per prompt with USDm.",
     "minipay:icon": "https://micromind-three.vercel.app/logo.svg",
     "minipay:url": "https://micromind-three.vercel.app/app",
     "minipay:fee_currency": "0x765DE816845861e75A25fCA122bb6898B8B1282a",

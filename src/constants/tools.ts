@@ -2,14 +2,14 @@
  * MicroMind Tool Registry
  *
  * Each tool maps to an on-chain tool ID in the MicroMindPayment contract.
- * Prices are denominated in cUSD (18 decimals).
+ * Prices are denominated in USDm (18 decimals).
  *
  * Tool ID reference (matches contract):
- *   1 = Chat    — 0.005 cUSD
- *   2 = Tweet   — 0.005 cUSD
- *   3 = Reflect — 0.005 cUSD
- *   4 = Pattern — 0.005 cUSD
- *   5 = Letter  — 0.010 cUSD (has free mode)
+ *   1 = Chat    — 0.005 USDm
+ *   2 = Tweet   — 0.005 USDm
+ *   3 = Reflect — 0.005 USDm
+ *   4 = Pattern — 0.005 USDm
+ *   5 = Letter  — 0.010 USDm (has free mode)
  */
 export interface Tool {
   id: number;

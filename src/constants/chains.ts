@@ -7,12 +7,12 @@ export const CHAIN_ID_HEX = '0xA4EC';
 export const RPC_URL = 'https://forno.celo.org';
 export const EXPLORER = 'https://celoscan.io';
 
-// cUSD on Celo Mainnet
-export const cUSD_ADDRESS = '0x765DE816845861e75A25fCA122bb6898B8B1282a';
+// USDm on Celo Mainnet
+export const USDm_ADDRESS = '0x765DE816845861e75A25fCA122bb6898B8B1282a';
 
 // Payment token info
-export const PAYMENT_TOKEN_SYMBOL = 'cUSD';
-export const PAYMENT_TOKEN_DECIMALS = 18; // cUSD uses 18 decimals
+export const PAYMENT_TOKEN_SYMBOL = 'USDm';
+export const PAYMENT_TOKEN_DECIMALS = 18; // USDm uses 18 decimals
 
 // MiniPay fee currency (pay gas in USDm)
 export const USDm_ADDRESS = '0x765DE816845861e75A25fCA122bb6898B8B1282a';

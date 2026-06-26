@@ -17,7 +17,7 @@ import {
 } from 'viem';
 import { celo } from 'viem/chains';
 import {
-  cUSD_ADDRESS,
+  USDm_ADDRESS,
   PAYMENT_TOKEN_DECIMALS,
   CELO_MAINNET_PARAMS,
   CHAIN_ID_HEX
@@ -32,8 +32,8 @@ interface WalletContextType {
   isConnected: boolean;
   /** True when the app is running inside the Opera MiniPay wallet browser. */
   isMiniPay: boolean;
-  /** Human-readable cUSD balance of the connected address (2 decimal places). */
-  cusdBalance: string;
+  /** Human-readable USDm balance of the connected address (2 decimal places). */
+  USDmBalance: string;
   /** Human-readable CELO balance of the connected address (4 decimal places). */
   celoBalance: string;
   /** Viem WalletClient instance for signing and sending transactions. */
@@ -44,7 +44,7 @@ interface WalletContextType {
   connect: (provider?: EthereumProvider) => Promise<void>;
   /** Clears wallet state and redirects to /app. */
   disconnect: () => void;
-  /** Fetches and updates cUSD + CELO balances for a given address. */
+  /** Fetches and updates USDm + CELO balances for a given address. */
   fetchBalances: (addr: string) => Promise<void>;
 }
 
@@ -78,7 +78,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isMiniPay, setIsMiniPay] = useState(false);
-  const [cusdBalance, setCusdBalance] = useState('0');
+  const [USDmBalance, setUSDmBalance] = useState('0');
   const [celoBalance, setCeloBalance] = useState('0');
   const [walletClient, setWalletClient] = useState<ReturnType<typeof createWalletClient> | null>(null);
 
@@ -91,22 +91,22 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } catch { setCeloBalance('0'); }
 
     try {
-      const cusdRaw = await publicClient.readContract({
-        address: cUSD_ADDRESS as `0x${string}`,
+      const USDmRaw = await publicClient.readContract({
+        address: USDm_ADDRESS as `0x${string}`,
         abi: erc20Abi,
         functionName: 'balanceOf',
         args: [addr as `0x${string}`]
       });
-      setCusdBalance(
-        (Number(cusdRaw) / 10 ** PAYMENT_TOKEN_DECIMALS).toFixed(2)
+      setUSDmBalance(
+        (Number(USDmRaw) / 10 ** PAYMENT_TOKEN_DECIMALS).toFixed(2)
       );
-    } catch { setCusdBalance('0'); }
+    } catch { setUSDmBalance('0'); }
   }, []);
 
   const disconnect = useCallback(() => {
     setAddress(null);
     setIsConnected(false);
-    setCusdBalance('0');
+    setUSDmBalance('0');
     setCeloBalance('0');
     setWalletClient(null);
     setIsMiniPay(false);
@@ -329,7 +329,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           params: {
             type: 'ERC20',
             options: {
-              address: cUSD_ADDRESS,
+              address: USDm_ADDRESS,
               symbol: 'USDm',
               decimals: 18,
             }
@@ -350,7 +350,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       address,
       isConnected,
       isMiniPay,
-      cusdBalance,
+      USDmBalance,
       celoBalance,
       walletClient,
       publicClient,
