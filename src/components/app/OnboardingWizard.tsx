@@ -279,7 +279,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 <div className="absolute inset-0 halftone-bg opacity-[0.03] pointer-events-none" />
                 {[
                   { n: 1, title: 'Start Journaling', desc: 'Write daily thoughts, track moods. Stored locally — 100% private and free.' },
-                  { n: 2, title: 'Unlock AI Insights', desc: 'Pay tiny amounts in cUSD only when requesting patterns or reflections.' },
+                  { n: 2, title: 'Unlock AI Insights', desc: 'Pay tiny amounts in USDm only when requesting patterns or reflections.' },
                   { n: 3, title: 'Disconnect Anytime', desc: 'Swap wallets freely — your journal stays right here.' },
                 ].map(({ n, title, desc }) => (
                   <div key={n} className="flex gap-4 items-start">

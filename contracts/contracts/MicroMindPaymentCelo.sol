@@ -5,9 +5,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title MicroMindPaymentCelo
- * @notice CELO-native version of MicroMindPayment. Same interface as the cUSD
+ * @notice CELO-native version of MicroMindPayment. Same interface as the USDm
  *         contract (tool IDs 1-5, getPrice, same events) but accepts native
- *         CELO instead of cUSD transferFrom.
+ *         CELO instead of USDm transferFrom.
  *
  * Tool IDs:
  *   1 = Chat     (0.01 CELO)

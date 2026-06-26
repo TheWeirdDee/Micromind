@@ -124,7 +124,7 @@ export function Hero() {
                 <Sparkles className="w-5 h-5 shrink-0 text-accent/60" />
                 <span>0.005</span>
               </div>
-              <p className="font-mono text-[9px] uppercase tracking-wider text-text-muted">cUSD per prompt</p>
+              <p className="font-mono text-[9px] uppercase tracking-wider text-text-muted">USDm per prompt</p>
             </div>
             <div className="space-y-1">
               <div className="text-2xl md:text-3xl font-serif text-accent">0</div>
@@ -135,7 +135,7 @@ export function Hero() {
           {/* Stat description block */}
           <div className="lg:col-span-5 space-y-4 text-left">
             <p className="font-mono text-xs text-text-muted leading-relaxed">
-              Your journal, your voice — own your thoughts and express them fully. When you want AI to reflect on your week, surface emotional patterns, or polish a letter to a loved one, it costs just a fraction of a cent in cUSD on Celo.
+              Your journal, your voice — own your thoughts and express them fully. When you want AI to reflect on your week, surface emotional patterns, or polish a letter to a loved one, it costs just a fraction of a cent in USDm on Celo.
             </p>
             <Link 
               href="#features" 

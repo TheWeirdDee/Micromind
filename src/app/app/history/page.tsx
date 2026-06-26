@@ -110,7 +110,7 @@ function HistoryPageInner() {
           </div>
           <div className="flex items-center gap-1.5 font-mono text-[10px] text-text-muted bg-surface border border-border px-3 py-1.5 rounded-full">
             <Sparkles className="w-3 h-3 text-accent" />
-            <span>{history.length} AI prompts · {totalSpent} cUSD</span>
+            <span>{history.length} AI prompts · {totalSpent} USDm</span>
           </div>
         </div>
       </header>

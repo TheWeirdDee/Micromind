@@ -6,7 +6,7 @@ import { ConnectWalletModal } from './ConnectWalletModal';
 import { Copy, Check } from 'lucide-react';
 
 export function WalletBadge() {
-  const { address, cusdBalance, isConnected } = useWallet();
+  const { address, USDmBalance, isConnected } = useWallet();
   const [copied, setCopied] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
 
@@ -49,10 +49,10 @@ export function WalletBadge() {
       </div>
       
       <div
-        aria-label={`cUSD balance: ${Number(cusdBalance).toFixed(2)}`}
+        aria-label={`USDm balance: ${Number(USDmBalance).toFixed(2)}`}
         className="text-[9px] font-mono px-2 py-0.5 rounded border flex-shrink-0 border-[#35D07F]/50 text-[#35D07F] bg-[#35D07F]/10 whitespace-nowrap"
       >
-        {Number(cusdBalance).toFixed(2)} cUSD
+        {Number(USDmBalance).toFixed(2)} USDm
       </div>
 
     </div>

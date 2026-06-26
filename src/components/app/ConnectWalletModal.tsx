@@ -124,7 +124,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
               <div className="text-center space-y-3 mb-6">
                 <h3 className="text-2xl font-serif text-white leading-tight">Connect Wallet</h3>
                 <p className="font-mono text-xs text-white/50 leading-relaxed">
-                  To unlock paid AI features, connect your wallet. Payments are processed in cUSD via tiny micro-transactions on the Celo network.
+                  To unlock paid AI features, connect your wallet. Payments are processed in USDm via tiny micro-transactions on the Celo network.
                 </p>
                 <div className="p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-2xl text-[10px] text-yellow-400/80 font-mono leading-relaxed text-center">
                   <AlertCircle className="w-3.5 h-3.5 inline-block mr-1.5 align-middle" />

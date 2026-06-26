@@ -12,15 +12,15 @@ const fadeUp = {
 const faqs = [
   {
     q: "What is MicroMind?",
-    a: "MicroMind is a privacy-first AI journaling app built on Celo. Write freely, reflect deeply, and use AI-powered tools with small cUSD micropayments — no subscriptions required.",
+    a: "MicroMind is a privacy-first AI journaling app built on Celo. Write freely, reflect deeply, and use AI-powered tools with small USDm micropayments — no subscriptions required.",
   },
   {
     q: "How does pay-per-prompt work?",
-    a: "Each AI tool costs just 0.005 cUSD per use, paid directly from your wallet on Celo. No monthly fees, no lock-in. You pay only for what you actually use.",
+    a: "Each AI tool costs just 0.005 USDm per use, paid directly from your wallet on Celo. No monthly fees, no lock-in. You pay only for what you actually use.",
   },
   {
     q: "What AI tools are available?",
-    a: "MicroMind includes AI Chat (0.005 cUSD), Tweet Polish (0.005 cUSD), Weekly Reflect (0.005 cUSD), Pattern Analyst (0.005 cUSD), and Heartfelt Letters AI Polish (0.01 cUSD) — each optimized for a different kind of thinking and self-expression.",
+    a: "MicroMind includes AI Chat (0.005 USDm), Tweet Polish (0.005 USDm), Weekly Reflect (0.005 USDm), Pattern Analyst (0.005 USDm), and Heartfelt Letters AI Polish (0.01 USDm) — each optimized for a different kind of thinking and self-expression.",
   },
   {
     q: "What makes MicroMind different from other journaling apps?",
@@ -28,7 +28,7 @@ const faqs = [
   },
   {
     q: "Do I need a crypto wallet to use MicroMind?",
-    a: "MicroMind is designed for MiniPay on Celo — a lightweight mobile wallet. You just need a small amount of cUSD (Celo's stablecoin) to start using AI features.",
+    a: "MicroMind is designed for MiniPay on Celo — a lightweight mobile wallet. You just need a small amount of USDm (Celo's stablecoin) to start using AI features.",
   },
 ];
 

@@ -3,7 +3,7 @@ import { erc20Abi, keccak256, toBytes } from 'viem';
 import { celo } from 'viem/chains';
 import { useWallet } from '@/context/WalletContext';
 import { CONTRACT_ADDRESS, MICROMIND_ABI } from '@/lib/contract';
-import { cUSD_ADDRESS, CELO_MAINNET_PARAMS } from '@/constants/chains';
+import { USDm_ADDRESS, CELO_MAINNET_PARAMS } from '@/constants/chains';
 import { TOOLS } from '@/constants/tools';
 import { saveToHistory } from '@/lib/storage';
 
@@ -151,9 +151,9 @@ export function usePayForPrompt() {
         );
       }
 
-      // STEP 1 — Approve cUSD transfer
-      // We must approve the contract to pull `price` worth of cUSD from the user's wallet.
-      // MiniPay: CIP-64 feeCurrency so gas is paid in cUSD (MiniPay users cannot hold CELO).
+      // STEP 1 — Approve USDm transfer
+      // We must approve the contract to pull `price` worth of USDm from the user's wallet.
+      // MiniPay: CIP-64 feeCurrency so gas is paid in USDm (MiniPay users cannot hold CELO).
       setStep('approving');
       const approveNonce = isMiniPay
         ? await publicClient.getTransactionCount({ address: address as `0x${string}`, blockTag: 'pending' })
@@ -161,16 +161,16 @@ export function usePayForPrompt() {
 
       const approveGas = isMiniPay
         ? await publicClient.estimateContractGas(Object.assign({
-            address: cUSD_ADDRESS as `0x${string}`,
+            address: USDm_ADDRESS as `0x${string}`,
             abi: erc20Abi,
             functionName: 'approve' as const,
             args: [CONTRACT_ADDRESS as `0x${string}`, price] as const,
             account: address as `0x${string}`,
-          }, { feeCurrency: cUSD_ADDRESS as `0x${string}` })).catch(() => BigInt(100_000))
+          }, { feeCurrency: USDm_ADDRESS as `0x${string}` })).catch(() => BigInt(100_000))
         : undefined;
 
       const approveTx = await walletClient.writeContract(Object.assign({
-        address: cUSD_ADDRESS as `0x${string}`,
+        address: USDm_ADDRESS as `0x${string}`,
         abi: erc20Abi,
         functionName: 'approve' as const,
         args: [CONTRACT_ADDRESS as `0x${string}`, price] as const,
@@ -178,7 +178,7 @@ export function usePayForPrompt() {
         account: address as `0x${string}`,
         ...(approveNonce !== undefined ? { nonce: approveNonce } : {}),
         ...(approveGas !== undefined ? { gas: approveGas } : {}),
-      }, isMiniPay ? { feeCurrency: cUSD_ADDRESS as `0x${string}` } : {}));
+      }, isMiniPay ? { feeCurrency: USDm_ADDRESS as `0x${string}` } : {}));
 
       const approveReceipt = await publicClient.waitForTransactionReceipt({
         hash: approveTx,
@@ -187,7 +187,7 @@ export function usePayForPrompt() {
       });
 
       if (approveReceipt.status !== 'success') {
-        throw new Error('cUSD approval was rejected by the network. Please try again.');
+        throw new Error('USDm approval was rejected by the network. Please try again.');
       }
 
       // STEP 2 — Submit payment to contract
@@ -205,7 +205,7 @@ export function usePayForPrompt() {
             functionName: 'payForPrompt' as const,
             args: [toolId, promptHash as `0x${string}`] as const,
             account: address as `0x${string}`,
-          }, { feeCurrency: cUSD_ADDRESS as `0x${string}` })).catch(() => BigInt(200_000))
+          }, { feeCurrency: USDm_ADDRESS as `0x${string}` })).catch(() => BigInt(200_000))
         : undefined;
 
       const payTx = await walletClient.writeContract(Object.assign({
@@ -217,7 +217,7 @@ export function usePayForPrompt() {
         account: address as `0x${string}`,
         ...(payNonce !== undefined ? { nonce: payNonce } : {}),
         ...(payGas !== undefined ? { gas: payGas } : {}),
-      }, isMiniPay ? { feeCurrency: cUSD_ADDRESS as `0x${string}` } : {}));
+      }, isMiniPay ? { feeCurrency: USDm_ADDRESS as `0x${string}` } : {}));
 
       // STEP 3 — Wait for on-chain confirmation
       setStep('confirming');
@@ -262,7 +262,7 @@ export function usePayForPrompt() {
               toolName,
               prompt,
               response: directRes.response,
-              cost: `${tool.price} cUSD`,
+              cost: `${tool.price} USDm`,
               timestamp: Date.now()
             });
             setResponse(directRes.response);
@@ -288,7 +288,7 @@ export function usePayForPrompt() {
                 toolName,
                 prompt,
                 response: data.response,
-                cost: `${tool.price} cUSD`,
+                cost: `${tool.price} USDm`,
                 timestamp: Date.now()
               });
               setResponse(data.response);
@@ -317,7 +317,7 @@ export function usePayForPrompt() {
         toolName,
         prompt,
         response: fallbackMsg,
-        cost: `${tool.price} cUSD`,
+        cost: `${tool.price} USDm`,
         timestamp: Date.now()
       });
       setResponse(fallbackMsg);
@@ -334,11 +334,11 @@ export function usePayForPrompt() {
       if (err.code === 4001 || msgL.includes('user rejected') || msgL.includes('rejected the request') || msgL.includes('denied')) {
         msg = 'Transaction cancelled.';
       } else if (msgL.includes('insufficient allowance')) {
-        msg = 'Approval step failed — the contract could not move your cUSD. Please try again.';
+        msg = 'Approval step failed — the contract could not move your USDm. Please try again.';
       } else if (isMiniPay && (msgL.includes('insufficient funds') || msgL.includes('insufficient balance'))) {
-        msg = 'Not enough cUSD for this transaction. You need at least 0.005 cUSD.';
+        msg = 'Not enough USDm for this transaction. You need at least 0.005 USDm.';
       } else if (!isMiniPay && (msgL.includes('insufficient funds') || msgL.includes('insufficient balance'))) {
-        msg = 'Not enough cUSD or CELO (gas). Top up your wallet and try again.';
+        msg = 'Not enough USDm or CELO (gas). Top up your wallet and try again.';
       }
 
       setError(msg);

@@ -1,6 +1,6 @@
 # MicroMind — Privacy-First AI Journaling on Celo
 
-MicroMind is a mobile-first, privacy-first AI journaling app built on Celo and designed for MiniPay. Write freely with no cost. Pay only when you want an AI insight — a few cents at a time in cUSD, every transaction verifiable onchain.
+MicroMind is a mobile-first, privacy-first AI journaling app built on Celo and designed for MiniPay. Write freely with no cost. Pay only when you want an AI insight — a few cents at a time in USDm, every transaction verifiable onchain.
 
 **No subscriptions. No data harvesting. No vendor lock-in.**
 
@@ -15,11 +15,11 @@ Built for MiniPay users across Africa and beyond.
 | Tool | Price | Description |
 |------|-------|-------------|
 | Journal | Free | Write entries, track mood, organize into folders, streak tracking |
-| Reflect | 0.005 cUSD | AI synthesizes your recent entries into a compassionate weekly reflection |
-| Pattern Analyst | 0.005 cUSD | AI surfaces 3 recurring emotional themes across your entire journal history |
-| Heartfelt Letter | Free + 0.01 cUSD | Write and email a letter to anyone — optional AI polish for 0.01 cUSD |
-| Tweet Gen | 0.005 cUSD | Turn a journal entry into a draft tweet |
-| Mind Chat | 0.005 cUSD | General AI companion for private conversations |
+| Reflect | 0.005 USDm | AI synthesizes your recent entries into a compassionate weekly reflection |
+| Pattern Analyst | 0.005 USDm | AI surfaces 3 recurring emotional themes across your entire journal history |
+| Heartfelt Letter | Free + 0.01 USDm | Write and email a letter to anyone — optional AI polish for 0.01 USDm |
+| Tweet Gen | 0.005 USDm | Turn a journal entry into a draft tweet |
+| Mind Chat | 0.005 USDm | General AI companion for private conversations |
 
 ### Journal
 - Accounts via **email + password** — access from any device
@@ -33,7 +33,7 @@ Built for MiniPay users across Africa and beyond.
 
 ### Heartfelt Letters
 - Send a letter draft for free to any email address
-- Optional AI Polish (0.01 cUSD) rewrites your draft while preserving your voice
+- Optional AI Polish (0.01 USDm) rewrites your draft while preserving your voice
 - **Starred contacts** — save recipients for one-tap filling
 - All sends (free and paid) recorded in history
 - Powered by Resend; letters are delivered directly to the recipient's inbox
@@ -54,7 +54,7 @@ Browser (Next.js 16 + React 19)
 ├── Journal: write locally → sync to Supabase (RLS-protected)
 ├── Letter send (free): Next.js API route → Resend (no agent needed)
 │
-└── AI Tools: user pays cUSD → MicroMindPayment contract on Celo
+└── AI Tools: user pays USDm → MicroMindPayment contract on Celo
                                         │
                                         │ PromptPaid event
                                         ▼
@@ -94,7 +94,7 @@ Only the prompt hash and payment touch the chain. The agent reads the on-chain `
 
 ## Smart Contracts
 
-**MicroMindPayment (cUSD)** — `0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c`  
+**MicroMindPayment (USDm)** — `0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c`  
 [View on Celoscan](https://celoscan.io/address/0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c)
 
 **MicroMindPayment (CELO native)** — `0xeeEa78792266D3dE17Df648113c9eF6930AdbCE5`

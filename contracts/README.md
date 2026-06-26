@@ -7,7 +7,7 @@ npx hardhat run scripts/deploy.ts --network alfajores
 
 ## Verify on Alfajores:
 ```bash
-npx hardhat verify --network alfajores <ADDRESS> <CUSD_ALFAJORES_ADDRESS>
+npx hardhat verify --network alfajores <ADDRESS> <USDm_ALFAJORES_ADDRESS>
 ```
 
 ## Deploy to Celo Mainnet:
@@ -17,5 +17,5 @@ npx hardhat run scripts/deploy.ts --network celo
 
 ## Verify on Mainnet:
 ```bash
-npx hardhat verify --network celo <ADDRESS> <CUSD_MAINNET_ADDRESS>
+npx hardhat verify --network celo <ADDRESS> <USDm_MAINNET_ADDRESS>
 ```

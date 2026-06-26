@@ -195,7 +195,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     network: 'celo-mainnet',
     contract: process.env.CONTRACT_ADDRESS,
-    paymentToken: 'cUSD',
+    paymentToken: 'USDm',
     groqConfigured: !!process.env.GROQ_API_KEY,
     agent8004Id: process.env.AGENT_8004_ID || null,
     selfAgentId: process.env.SELF_AGENT_ID || null,
