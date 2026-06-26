@@ -14,9 +14,6 @@ export const USDm_ADDRESS = '0x765DE816845861e75A25fCA122bb6898B8B1282a';
 export const PAYMENT_TOKEN_SYMBOL = 'USDm';
 export const PAYMENT_TOKEN_DECIMALS = 18; // USDm uses 18 decimals
 
-// MiniPay fee currency (pay gas in USDm)
-export const USDm_ADDRESS = '0x765DE816845861e75A25fCA122bb6898B8B1282a';
-
 export const CELO_MAINNET_PARAMS = {
   chainId: '0xA4EC',
   chainName: 'Celo Mainnet',
