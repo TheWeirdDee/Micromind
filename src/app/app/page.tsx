@@ -104,7 +104,7 @@ export default function AppHome() {
             <div className="flex items-center justify-between px-1">
               <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">AI Tools</p>
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
               {TOOLS.map((tool) => {
                 const isReflectLocked = tool.slug === 'reflect' && entriesCount < 2;
                 const isPatternLocked = tool.slug === 'pattern' && entriesCount < 5;
@@ -113,22 +113,28 @@ export default function AppHome() {
                 const Icon = TOOL_ICONS[tool.slug] || HelpCircle;
 
                 const card = (
-                  <div className={`rounded-2xl border border-border bg-surface p-4 h-full flex flex-col justify-between transition ${
+                  <div className={`rounded-2xl border border-border bg-surface p-3.5 sm:p-4 h-full flex flex-col justify-between transition ${
                     isLocked ? 'opacity-40 cursor-not-allowed' : 'hover:border-accent/30 cursor-pointer'
                   }`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h4 className="font-serif text-base">{tool.name}</h4>
-                        <p className="text-[10px] uppercase tracking-widest text-text-muted mt-1">
-                          {isLocked ? `Requires ${lockLabel}` : tool.description}
-                        </p>
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-serif text-base font-medium truncate">{tool.name}</h4>
+                        <div className="rounded-xl bg-bg/80 p-2 shrink-0">
+                          {isLocked
+                            ? <Lock className="w-3.5 h-3.5 text-text-muted" />
+                            : <Icon className="w-3.5 h-3.5 text-accent" />
+                          }
+                        </div>
                       </div>
-                      <div className="rounded-xl bg-bg/80 p-2.5 shrink-0">
-                        {isLocked
-                          ? <Lock className="w-4 h-4 text-text-muted" />
-                          : <Icon className="w-4 h-4 text-accent" />
-                        }
-                      </div>
+                      <p className="text-[10px] text-text-muted leading-normal line-clamp-2">
+                        {isLocked ? `Requires ${lockLabel}` : tool.description}
+                      </p>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2 shrink-0">
+                      <span className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Fee</span>
+                      <span className="font-mono text-[10px] font-bold text-accent">
+                        {tool.hasFreeMode ? 'Free*' : `${tool.price} USDm`}
+                      </span>
                     </div>
                   </div>
                 );
