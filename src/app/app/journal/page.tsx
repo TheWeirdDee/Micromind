@@ -61,7 +61,7 @@ const MOOD_STYLES: Record<string, { border: string; bg: string; text: string; bg
 
 function MoodRow({ value, onChange }: { value: string; onChange: (m: string) => void }) {
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2.5">
       {MOODS.map(m => (
         <motion.button
           key={m.mood}
@@ -70,13 +70,13 @@ function MoodRow({ value, onChange }: { value: string; onChange: (m: string) => 
           whileTap={{ scale: 0.95 }}
           onClick={() => onChange(m.mood)}
           title={m.label}
-          className={`w-9 h-9 rounded-2xl flex items-center justify-center border transition-all ${
+          className={`w-11 h-11 rounded-2xl flex items-center justify-center border transition-all ${
             value === m.mood
               ? 'bg-accent/15 border-accent shadow-sm shadow-accent/10'
               : 'border-border hover:bg-surface-2 hover:border-text-muted/30'
           }`}
         >
-          <m.icon className={`w-4 h-4 transition-colors ${value === m.mood ? 'text-accent' : 'text-text-muted'}`} />
+          <m.icon className={`w-5 h-5 transition-colors ${value === m.mood ? 'text-accent' : 'text-text-muted'}`} />
         </motion.button>
       ))}
     </div>
