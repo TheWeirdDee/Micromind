@@ -11,7 +11,12 @@ import { ResponseCard } from '@/components/app/ResponseCard';
 import { AgentWarning } from '@/components/app/AgentWarning';
 import { getEntries, getEntriesByFolder, getFolders, updateStreak, type JournalEntry } from '@/lib/journal';
 import { getHistory } from '@/lib/storage';
-import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
+import dynamic from 'next/dynamic';
+
+const ConnectWalletModal = dynamic(
+  () => import('@/components/app/ConnectWalletModal').then((m) => m.ConnectWalletModal),
+  { ssr: false }
+);
 import ReactMarkdown from 'react-markdown';
 
 import { Suspense } from 'react';

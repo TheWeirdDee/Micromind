@@ -11,7 +11,12 @@ import { ResponseCard } from '@/components/app/ResponseCard';
 import { AgentWarning } from '@/components/app/AgentWarning';
 import { getHistory, saveToHistory } from '@/lib/storage';
 import { updateStreak } from '@/lib/journal';
-import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
+import dynamic from 'next/dynamic';
+
+const ConnectWalletModal = dynamic(
+  () => import('@/components/app/ConnectWalletModal').then((m) => m.ConnectWalletModal),
+  { ssr: false }
+);
 import { Suspense } from 'react';
 
 // -- Starred contacts ---------------------------------------------------------

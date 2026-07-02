@@ -12,7 +12,12 @@ import ReactMarkdown from 'react-markdown';
 import { getHistory } from '@/lib/storage';
 import { useWallet } from '@/context/WalletContext';
 import { updateStreak } from '@/lib/journal';
-import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
+import dynamic from 'next/dynamic';
+
+const ConnectWalletModal = dynamic(
+  () => import('@/components/app/ConnectWalletModal').then((m) => m.ConnectWalletModal),
+  { ssr: false }
+);
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
