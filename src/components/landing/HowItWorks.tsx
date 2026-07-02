@@ -21,7 +21,7 @@ export function HowItWorks() {
           >
             <div className="relative aspect-[16/10] rounded-[2rem] overflow-hidden border border-border shadow-2xl">
               <Image
-                src="/images/journal_workspace.jpg"
+                src="/images/journal_workspace.webp"
                 alt="Mindful Workspace"
                 fill
                 className="object-cover transition-transform duration-700 group-hover:scale-105"
