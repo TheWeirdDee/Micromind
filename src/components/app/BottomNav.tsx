@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, BookOpen, MessageSquare, History, ArrowUp } from 'lucide-react';
@@ -12,6 +13,38 @@ function cn(...inputs: ClassValue[]) {
 
 export function BottomNav() {
   const pathname = usePathname();
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.getAttribute('contenteditable') === 'true')
+      ) {
+        setIsKeyboardOpen(true);
+      }
+    };
+    const handleBlur = () => {
+      // Small timeout to prevent flickering when transitioning focus
+      setTimeout(() => {
+        const activeEl = document.activeElement;
+        if (
+          !activeEl ||
+          (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA' && activeEl.getAttribute('contenteditable') !== 'true')
+        ) {
+          setIsKeyboardOpen(false);
+        }
+      }, 50);
+    };
+
+    document.addEventListener('focusin', handleFocus);
+    document.addEventListener('focusout', handleBlur);
+    return () => {
+      document.removeEventListener('focusin', handleFocus);
+      document.removeEventListener('focusout', handleBlur);
+    };
+  }, []);
 
   const navItems = [
     { icon: Home, label: 'Home', href: '/app' },
@@ -20,6 +53,8 @@ export function BottomNav() {
     { icon: ArrowUp, label: 'Send', href: '/app/send' },
     { icon: History, label: 'History', href: '/app/history' },
   ];
+
+  if (isKeyboardOpen) return null;
 
   return (
     <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6 pb-8 pointer-events-none">
