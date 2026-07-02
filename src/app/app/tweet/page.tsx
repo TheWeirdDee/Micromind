@@ -11,7 +11,12 @@ import { getHistory } from '@/lib/storage';
 import { AgentWarning } from '@/components/app/AgentWarning';
 import { useWallet } from '@/context/WalletContext';
 import { getLastEntry, updateStreak, type JournalEntry } from '@/lib/journal';
-import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
+import dynamic from 'next/dynamic';
+
+const ConnectWalletModal = dynamic(
+  () => import('@/components/app/ConnectWalletModal').then((m) => m.ConnectWalletModal),
+  { ssr: false }
+);
 
 import { Suspense } from 'react';
 

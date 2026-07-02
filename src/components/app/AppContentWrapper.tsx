@@ -44,6 +44,25 @@ export function AppContentWrapper({ children }: AppContentWrapperProps) {
     if (shouldShow) setTimeout(() => setShowReminder(true), 0);
   }, [isAuthed]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleOnline = () => {
+      import('@/lib/journal').then(({ syncOfflineQueue }) => {
+        syncOfflineQueue().catch(err => console.error('Failed to sync offline queue:', err));
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    if (navigator.onLine) {
+      handleOnline();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
+
   const dismissReminder = () => {
     localStorage.setItem('mm_reminder_dismissed', new Date().toDateString());
     setShowReminder(false);

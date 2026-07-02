@@ -6,10 +6,21 @@ import { MessageSquare, BookOpen, Lock, Bird, Sparkles, Search, Mail, HelpCircle
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 
+import dynamic from 'next/dynamic';
 import { TOOLS } from '@/constants/tools';
-import { DailyStreak } from '@/components/app/DailyStreak';
-import { MoodChart } from '@/components/app/MoodChart';
-import { WordCloud } from '@/components/app/WordCloud';
+
+const DailyStreak = dynamic(
+  () => import('@/components/app/DailyStreak').then((m) => m.DailyStreak),
+  { ssr: false }
+);
+const MoodChart = dynamic(
+  () => import('@/components/app/MoodChart').then((m) => m.MoodChart),
+  { ssr: false }
+);
+const WordCloud = dynamic(
+  () => import('@/components/app/WordCloud').then((m) => m.WordCloud),
+  { ssr: false }
+);
 import { getHistory, type HistoryItem } from '@/lib/storage';
 import { getEntries, getLastEntry, type JournalEntry } from '@/lib/journal';
 
