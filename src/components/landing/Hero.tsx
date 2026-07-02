@@ -85,7 +85,7 @@ export function Hero() {
           >
             <div className="relative w-full max-w-[380px] aspect-[4/5] rounded-[3rem] overflow-hidden border border-border shadow-2xl">
               <Image
-                src="/images/journal_hero.jpg"
+                src="/images/journal_hero.webp"
                 alt="Mindful journaling"
                 fill
                 className="object-cover"
