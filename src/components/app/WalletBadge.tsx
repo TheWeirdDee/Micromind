@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { useWallet } from '@/context/WalletContext';
 import dynamic from 'next/dynamic';
+import { Copy, Check } from 'lucide-react';
 
 const ConnectWalletModal = dynamic(
   () => import('./ConnectWalletModal').then((m) => m.ConnectWalletModal),
   { ssr: false }
 );
-import { Copy, Check } from 'lucide-react';
 
 export function WalletBadge() {
   const { address, USDmBalance, isConnected } = useWallet();

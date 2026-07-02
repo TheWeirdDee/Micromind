@@ -12,12 +12,12 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 import { getHistory, saveToHistory } from '@/lib/storage';
 import { updateStreak } from '@/lib/journal';
 import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
 
 const ConnectWalletModal = dynamic(
   () => import('@/components/app/ConnectWalletModal').then((m) => m.ConnectWalletModal),
   { ssr: false }
 );
-import { Suspense } from 'react';
 
 // -- Starred contacts ---------------------------------------------------------
 

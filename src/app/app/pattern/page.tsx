@@ -12,14 +12,13 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 import { getEntries, getEntriesByFolder, getFolders, updateStreak, type JournalEntry } from '@/lib/journal';
 import { getHistory } from '@/lib/storage';
 import dynamic from 'next/dynamic';
+import ReactMarkdown from 'react-markdown';
+import { Suspense } from 'react';
 
 const ConnectWalletModal = dynamic(
   () => import('@/components/app/ConnectWalletModal').then((m) => m.ConnectWalletModal),
   { ssr: false }
 );
-import ReactMarkdown from 'react-markdown';
-
-import { Suspense } from 'react';
 
 function PatternPageInner({ folderParam, historyId }: { folderParam: string | null; historyId: string | null }) {
   const { isConnected, address, celoBalance, isMiniPay } = useWallet();

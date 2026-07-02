@@ -12,13 +12,12 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 import { getEntriesByFolder, getRecentEntries, getFolders, updateStreak, MOOD_ICONS, type JournalEntry } from '@/lib/journal';
 import { getHistory } from '@/lib/storage';
 import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
 
 const ConnectWalletModal = dynamic(
   () => import('@/components/app/ConnectWalletModal').then((m) => m.ConnectWalletModal),
   { ssr: false }
 );
-
-import { Suspense } from 'react';
 
 function ReflectPageInner({ folderParam, historyId }: { folderParam: string | null; historyId: string | null }) {
   const { isConnected, address, celoBalance, isMiniPay } = useWallet();

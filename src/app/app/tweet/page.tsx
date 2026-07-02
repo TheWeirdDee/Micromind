@@ -12,13 +12,12 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 import { useWallet } from '@/context/WalletContext';
 import { getLastEntry, updateStreak, type JournalEntry } from '@/lib/journal';
 import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
 
 const ConnectWalletModal = dynamic(
   () => import('@/components/app/ConnectWalletModal').then((m) => m.ConnectWalletModal),
   { ssr: false }
 );
-
-import { Suspense } from 'react';
 
 function TweetPageInner({ historyId }: { historyId: string | null }) {
   const { isConnected, address, celoBalance, isMiniPay } = useWallet();
