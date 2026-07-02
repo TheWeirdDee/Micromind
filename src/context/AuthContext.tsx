@@ -27,11 +27,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session) {
+        import('@/lib/journal').then(({ loadEntriesFromSupabase, migrateLocalEntriesToSupabase, syncOfflineQueue }) => {
+          loadEntriesFromSupabase();
+          migrateLocalEntriesToSupabase();
+          syncOfflineQueue();
+        });
+      }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+        import('@/lib/journal').then(({ loadEntriesFromSupabase, migrateLocalEntriesToSupabase, syncOfflineQueue }) => {
+          loadEntriesFromSupabase();
+          migrateLocalEntriesToSupabase();
+          syncOfflineQueue();
+        });
+      }
     });
 
     return () => subscription.unsubscribe();

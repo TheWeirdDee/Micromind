@@ -17,24 +17,36 @@ async function pushEntryToSupabase(entry: JournalEntry) {
   const session = await getSupabaseSession();
   if (!session) return;
   const { supabase } = await import('./supabase');
-  await supabase.from('journal_entries').upsert({
-    id: entry.id,
-    user_id: session.user.id,
-    content: entry.content,
-    mood: entry.mood,
-    timestamp: entry.timestamp,
-    folder_id: entry.folderId ?? null,
-    tags: entry.tags ?? [],
-    date: entry.date,
-    image: entry.image ?? null,
-  }, { onConflict: 'id' });
+  try {
+    const { error } = await supabase.from('journal_entries').upsert({
+      id: entry.id,
+      user_id: session.user.id,
+      content: entry.content,
+      mood: entry.mood,
+      timestamp: entry.timestamp,
+      folder_id: entry.folderId ?? null,
+      tags: entry.tags ?? [],
+      date: entry.date,
+      image: entry.image ?? null,
+    }, { onConflict: 'id' });
+    if (error) throw error;
+  } catch (err) {
+    console.warn('Failed pushing to Supabase. Queueing offline sync.', err);
+    addToSyncQueue({ id: entry.id, type: 'upsert', entry });
+  }
 }
 
 async function deleteEntryFromSupabase(id: string) {
   const session = await getSupabaseSession();
   if (!session) return;
   const { supabase } = await import('./supabase');
-  await supabase.from('journal_entries').delete().eq('id', id).eq('user_id', session.user.id);
+  try {
+    const { error } = await supabase.from('journal_entries').delete().eq('id', id).eq('user_id', session.user.id);
+    if (error) throw error;
+  } catch (err) {
+    console.warn('Failed deleting from Supabase. Queueing offline sync.', err);
+    addToSyncQueue({ id, type: 'delete' });
+  }
 }
 
 /** Pulls all entries from Supabase and merges them into localStorage. Call on login. */
@@ -314,4 +326,75 @@ export function updateStreak(walletAddress: string | null): void {
   }));
 
   window.dispatchEvent(new Event('streak_updated'));
+}
+
+// -- Offline Sync Queue logic
+
+export interface SyncOperation {
+  id: string;
+  type: 'upsert' | 'delete';
+  entry?: JournalEntry;
+}
+
+const SYNC_QUEUE_KEY = 'mm_journal_sync_queue';
+
+export function getSyncQueue(): SyncOperation[] {
+  if (typeof window === 'undefined') return [];
+  const raw = localStorage.getItem(SYNC_QUEUE_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as SyncOperation[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveSyncQueue(queue: SyncOperation[]) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+}
+
+export function addToSyncQueue(op: SyncOperation) {
+  const queue = getSyncQueue();
+  // Filter out older duplicate operations for the same ID to avoid redundant work
+  const filtered = queue.filter(item => !(item.id === op.id && item.type === op.type));
+  filtered.push(op);
+  saveSyncQueue(filtered);
+}
+
+export async function syncOfflineQueue(): Promise<void> {
+  const session = await getSupabaseSession();
+  if (!session) return;
+  const queue = getSyncQueue();
+  if (queue.length === 0) return;
+
+  const { supabase } = await import('./supabase');
+  const remaining: SyncOperation[] = [];
+
+  for (const op of queue) {
+    try {
+      if (op.type === 'upsert' && op.entry) {
+        const { error } = await supabase.from('journal_entries').upsert({
+          id: op.entry.id,
+          user_id: session.user.id,
+          content: op.entry.content,
+          mood: op.entry.mood,
+          timestamp: op.entry.timestamp,
+          folder_id: op.entry.folderId ?? null,
+          tags: op.entry.tags ?? [],
+          date: op.entry.date,
+          image: op.entry.image ?? null,
+        }, { onConflict: 'id' });
+        if (error) throw error;
+      } else if (op.type === 'delete') {
+        const { error } = await supabase.from('journal_entries').delete().eq('id', op.id).eq('user_id', session.user.id);
+        if (error) throw error;
+      }
+    } catch (err) {
+      console.warn('Failed to sync offline operation, keeping in queue:', err);
+      remaining.push(op);
+    }
+  }
+
+  saveSyncQueue(remaining);
 }
