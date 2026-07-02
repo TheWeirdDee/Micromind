@@ -12,7 +12,14 @@ import ReactMarkdown from 'react-markdown';
 import { getHistory } from '@/lib/storage';
 import { useWallet } from '@/context/WalletContext';
 import { updateStreak } from '@/lib/journal';
-import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
+import dynamic from 'next/dynamic';
+import { AgentWarning } from '@/components/app/AgentWarning';
+import { Suspense } from 'react';
+
+const ConnectWalletModal = dynamic(
+  () => import('@/components/app/ConnectWalletModal').then((m) => m.ConnectWalletModal),
+  { ssr: false }
+);
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -22,10 +29,6 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
-
-import { AgentWarning } from '@/components/app/AgentWarning';
-
-import { Suspense } from 'react';
 
 function ChatPageInner({ historyId }: { historyId: string | null }) {
   const { isConnected, address, celoBalance, isMiniPay } = useWallet();
