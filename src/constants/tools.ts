@@ -69,4 +69,13 @@ export const TOOLS: Tool[] = [
     route: '/app/letter',
     hasFreeMode: true,
   },
+  {
+    id: 1,
+    slug: 'coach',
+    name: 'AI Coach',
+    description: 'Empathy guide to identify thinking traps and improve expression.',
+    price: '0.005',
+    priceWei: '5000000000000000',
+    route: '/app/coach',
+  },
 ];
