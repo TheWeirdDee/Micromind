@@ -84,6 +84,21 @@ const SYSTEM_PROMPTS: Record<number, string> = {
   5: "You are a warm and eloquent writing assistant. Rewrite this letter to make it more heartfelt, emotionally resonant, and beautifully expressed — while keeping the original meaning and the authentic voice of the writer completely intact. Do not add information, events, or relationships that were not in the original. Do not change the tone from loving to formal or vice versa — enhance what is already there. Return only the rewritten letter text, nothing else.",
 };
 
+const COACH_SYSTEM_PROMPT = `You are a compassionate, professional writing coach and cognitive behavioral therapy (CBT) guide. The user will share their draft journal entry. Your goal is to help them reflect, understand their thinking patterns, and express themselves more clearly without rewriting their words for them.
+Analyze the entry for common cognitive distortions or thinking traps:
+- Catastrophizing (imagining the worst-case scenario)
+- All-or-nothing thinking (black-and-white reasoning)
+- Mind reading (assuming what others think without evidence)
+- Emotional reasoning (treating feelings as objective facts)
+- Personalization (taking full blame for outside events)
+
+Write a short, encouraging coaching response (under 150 words) structured exactly as follows:
+1. Acknowledge & Validate: Validate their feelings in a warm, gentle tone (1-2 sentences).
+2. Isolate Distortion: If you spot a thinking trap, gently point it out. If none are present, highlight a strength in their self-expression.
+3. Reflective Question: Ask one targeted, open-ended question that prompts them to think about the situation from a different, healthier angle.
+
+Do not write or rewrite their journal. Act strictly as a supportive guide.`;
+
 // RESEND_FROM_EMAIL must be set to an address on a domain you've verified in the
 // Resend dashboard (e.g. "MicroMind Letters <letters@yourdomain.com>").
 // Using onboarding@resend.dev only works for the Resend account owner's email.
@@ -293,6 +308,63 @@ app.post('/api/letter/polish', async (req, res) => {
   } catch (e: any) {
     console.error('[POLISH] Error:', e.message);
     res.status(500).json({ error: e.message || 'Polish failed' });
+  }
+});
+
+app.post('/api/coach', async (req, res) => {
+  const { prompt, txHash } = req.body;
+  if (!prompt || !txHash) {
+    return res.status(400).json({ error: 'Missing prompt or txHash' });
+  }
+
+  // Set headers for Server-Sent Events (SSE)
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  try {
+    // Verify transaction exists on Celo
+    try {
+      const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+      if (!receipt || receipt.status !== 'success') {
+        res.write(`data: ${JSON.stringify({ error: 'Invalid or pending payment transaction' })}\n\n`);
+        return res.end();
+      }
+    } catch (e: any) {
+      console.warn('[COACH] Tx verify failed (continuing for local/testnet development):', e.message);
+    }
+
+    // Call Groq streaming API
+    console.log('[COACH] Streaming AI advice for prompt...');
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 1024,
+      temperature: 0.7,
+      messages: [
+        { role: 'system', content: COACH_SYSTEM_PROMPT },
+        { role: 'user', content: prompt },
+      ],
+      stream: true,
+    });
+
+    let fullText = '';
+    for await (const chunk of completion) {
+      const text = chunk.choices[0]?.delta?.content || '';
+      if (text) {
+        fullText += text;
+        res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      }
+    }
+
+    // Cache the full response under resp:txHash so history or polling check still works
+    await storeData(`resp:${txHash}`, fullText, 86400);
+
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (err: any) {
+    console.error('[COACH STREAMING ERROR]', err);
+    res.write(`data: ${JSON.stringify({ error: err.message || 'AI coach failed' })}\n\n`);
+    res.end();
   }
 });
 
