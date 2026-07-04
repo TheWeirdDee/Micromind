@@ -6,6 +6,7 @@ import { CONTRACT_ADDRESS, MICROMIND_ABI } from '@/lib/contract';
 import { USDm_ADDRESS, CELO_MAINNET_PARAMS } from '@/constants/chains';
 import { TOOLS } from '@/constants/tools';
 import { saveToHistory } from '@/lib/storage';
+import { buildRelayRequest, signRelayRequest } from '@/lib/eip712';
 
 /** Maximum characters of the prompt sent to the agent for hash computation. */
 const MAX_PROMPT_CHARS = 500;
@@ -354,5 +355,143 @@ export function usePayForPrompt() {
     setResponse(null);
   }, []);
 
-  return { payAndGenerate, loading, step, error, txHash, response, reset };
+  /**
+   * payViaRelay — gasless path for MiniPay users.
+   *
+   * 1. Computes promptHash locally
+   * 2. Builds an EIP-712 RelayRequest
+   * 3. User signs the typed data (no gas cost — just a signature popup)
+   * 4. Sends signature + prompt to POST /api/relay on the agent
+   * 5. Backend verifies, executes on-chain using developer CELO wallet, returns AI response
+   */
+  const payViaRelay = useCallback(async (
+    toolId:   number,
+    toolName: string,
+    prompt:   string,
+  ) => {
+    if (!address || !walletClient) {
+      setError('Wallet not connected');
+      return;
+    }
+
+    const tool     = TOOLS.find(t => t.id === toolId);
+    const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+
+    if (!tool)     { setError('Unknown tool'); setStep('error'); return; }
+    if (!agentUrl) { setError('Agent URL not configured'); setStep('error'); return; }
+
+    setError(null);
+    setResponse(null);
+    setTxHash(null);
+
+    try {
+      setStep('submitting');
+
+      let finalPrompt = prompt;
+      if (finalPrompt.length > MAX_PROMPT_CHARS) {
+        finalPrompt = finalPrompt.slice(0, MAX_PROMPT_CHARS);
+      }
+
+      // Build promptHash (same algorithm as backend)
+      const nonce      = Date.now().toString();
+      const promptHash = keccak256(toBytes(`${finalPrompt}:${address}:${nonce}`)) as `0x${string}`;
+
+      // Build EIP-712 relay request
+      const relayRequest = buildRelayRequest(
+        toolId,
+        promptHash,
+        address as `0x${string}`,
+      );
+
+      // Ask user to sign typed data — shows structured popup, no gas required
+      setStep('approving'); // re-use 'approving' step label for the signing popup
+      const signature = await signRelayRequest(
+        walletClient as any,
+        address as `0x${string}`,
+        relayRequest,
+      );
+
+      setStep('paying'); // backend is now executing the relay
+
+      const relayRes = await fetch(`${agentUrl}/api/relay`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          signature,
+          toolId,
+          promptHash,
+          userAddress: address,
+          nonce:       relayRequest.nonce.toString(),
+          deadline:    relayRequest.deadline.toString(),
+          prompt:      finalPrompt,
+        }),
+      }).then(r => r.json());
+
+      if (relayRes.error) {
+        throw new Error(relayRes.error);
+      }
+
+      const relayTxHash = relayRes.txHash as string;
+      setTxHash(relayTxHash);
+
+      if (relayRes.status === 'ready') {
+        // AI response came back immediately
+        saveToHistory({
+          id:        Math.random().toString(36).substring(7),
+          txHash:    relayTxHash,
+          toolId,
+          toolName,
+          prompt,
+          response:  relayRes.response,
+          cost:      `${tool.price} USDm`,
+          timestamp: Date.now(),
+        });
+        setResponse(relayRes.response);
+        setStep('complete');
+        return relayRes.response;
+      }
+
+      // Status 'processing' — poll for response
+      setStep('generating');
+      for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
+        await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+        try {
+          const data = await fetch(
+            `${agentUrl}/api/response/${relayTxHash}`,
+            { signal: AbortSignal.timeout(POLL_FETCH_TIMEOUT_MS) },
+          ).then(r => r.json());
+
+          if (data.status === 'ready') {
+            saveToHistory({
+              id:        Math.random().toString(36).substring(7),
+              txHash:    relayTxHash,
+              toolId,
+              toolName,
+              prompt,
+              response:  data.response,
+              cost:      `${tool.price} USDm`,
+              timestamp: Date.now(),
+            });
+            setResponse(data.response);
+            setStep('complete');
+            return data.response;
+          }
+        } catch { /* continue polling */ }
+      }
+
+      setError('Response timed out. Your payment was processed — try refreshing in a minute.');
+      setStep('error');
+
+    } catch (e: unknown) {
+      const err = e as { shortMessage?: string; message?: string; code?: number };
+      let msg = err.shortMessage || err.message || 'Relay failed';
+      if (err.code === 4001 || msg.toLowerCase().includes('user rejected')) {
+        msg = 'Signature cancelled.';
+      }
+      setError(msg);
+      setStep('error');
+    }
+  }, [address, walletClient]);
+
+  return { payAndGenerate, payViaRelay, loading, step, error, txHash, response, reset };
 }

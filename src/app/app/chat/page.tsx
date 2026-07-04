@@ -52,7 +52,7 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
     return [];
   });
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string; chatHistory?: Message[] }>(null);
-  const { payAndGenerate, loading, step, error, reset } = usePayForPrompt();
+  const { payAndGenerate, payViaRelay, loading, step, error, reset } = usePayForPrompt();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
@@ -89,7 +89,10 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
       { role: 'user', content: userPrompt }
     ];
     setLastSubmission({ toolId: 1, toolName: 'Chat', prompt: userPrompt, chatHistory: historyContext });
-    const aiResponse = await payAndGenerate(1, 'Chat', userPrompt, historyContext);
+    // MiniPay relay path: sends just the current prompt (chat history not supported in typed data)
+    const aiResponse = isMiniPay
+      ? await payViaRelay(1, 'Chat', userPrompt)
+      : await payAndGenerate(1, 'Chat', userPrompt, historyContext);
     if (aiResponse) {
       setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
       updateStreak(address);
@@ -105,7 +108,9 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
     }
 
     setMessages(prev => [...prev, { role: 'user', content: lastSubmission.prompt }]);
-    const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt, lastSubmission.chatHistory);
+    const aiResponse = isMiniPay
+      ? await payViaRelay(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt)
+      : await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt, lastSubmission.chatHistory);
     if (aiResponse) {
       setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
       setLastSubmission(null);
