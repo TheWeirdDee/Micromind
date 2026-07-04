@@ -118,7 +118,17 @@ export function DailyStreak() {
       const dateStr = getLocalDateString(date);
       
       const isToday = dateStr === todayStr;
-      const isChecked = streak.history.includes(dateStr);
+      
+      let isChecked = false;
+      if (streak.streakCount > 0 && streak.lastCheckInDate) {
+        const lastCheckDate = new Date(streak.lastCheckInDate + 'T00:00:00');
+        const thisDate = new Date(dateStr + 'T00:00:00');
+        const diffTime = lastCheckDate.getTime() - thisDate.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays >= 0 && diffDays < streak.streakCount) {
+          isChecked = true;
+        }
+      }
       
       const dayLabel = date.toLocaleDateString('en-US', { weekday: 'narrow' });
 
