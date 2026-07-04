@@ -48,7 +48,7 @@ export function Hero() {
               variants={item}
               className="text-text-primary/80 font-mono text-sm md:text-base max-w-xl leading-relaxed"
             >
-              Your private space to think clearly, track your mood, reflect deeply, and send polished letters to loved ones. AI insights are always available when you need them.
+              A cozy, private space to write down your thoughts, trace your emotional patterns, and send letters to the future. An honest journal on Celo that uses AI to support your reflection, not write for you.
             </motion.p>
             
             <motion.div 
