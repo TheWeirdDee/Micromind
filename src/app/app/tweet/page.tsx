@@ -37,7 +37,7 @@ function TweetPageInner({ historyId }: { historyId: string | null }) {
   );
   const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string }>(null);
 
-  const { payAndGenerate, loading, step, error, reset } = usePayForPrompt();
+  const { payAndGenerate, payViaRelay, loading, step, error, reset } = usePayForPrompt();
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
 
@@ -48,7 +48,9 @@ function TweetPageInner({ historyId }: { historyId: string | null }) {
     }
 
     setLastSubmission({ toolId: 2, toolName: 'Tweet', prompt: topic });
-    const aiResponse = await payAndGenerate(2, 'Tweet', topic);
+    const aiResponse = isMiniPay
+      ? await payViaRelay(2, 'Tweet', topic)
+      : await payAndGenerate(2, 'Tweet', topic);
     if (aiResponse) {
       setResponse(aiResponse);
       updateStreak(address);
@@ -63,7 +65,9 @@ function TweetPageInner({ historyId }: { historyId: string | null }) {
       return;
     }
 
-    const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
+    const aiResponse = isMiniPay
+      ? await payViaRelay(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt)
+      : await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
     if (aiResponse) {
       setResponse(aiResponse);
       setLastSubmission(null);
