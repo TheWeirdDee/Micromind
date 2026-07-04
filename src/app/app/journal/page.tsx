@@ -17,6 +17,7 @@ import {
   updateStreak, MOOD_ICONS,
   type JournalEntry, type Folder,
 } from '@/lib/journal';
+import { THERAPEUTIC_PROMPTS, DEFAULT_PROMPTS } from '@/constants/prompts';
 
 const MOODS = [
   { mood: 'happy',   icon: Smile,  label: 'Happy'   },
@@ -148,6 +149,38 @@ export default function JournalPage() {
   const [hasDraft, setHasDraft] = useState<boolean>(() =>
     typeof window !== 'undefined' && !!localStorage.getItem('mm_journal_draft')
   );
+
+  // Guided Prompts
+  const [showPrompts, setShowPrompts] = useState(false);
+  const [promptIndex, setPromptIndex] = useState(0);
+
+  const getCurrentPrompt = () => {
+    const list = THERAPEUTIC_PROMPTS[composeMood] || DEFAULT_PROMPTS;
+    return list[promptIndex % list.length]?.text || '';
+  };
+
+  const handleNextPrompt = () => {
+    setPromptIndex(prev => prev + 1);
+  };
+
+  const handleUsePrompt = () => {
+    const promptText = getCurrentPrompt();
+    if (!promptText) return;
+    setComposeContent(prev => {
+      const trimmed = prev.trim();
+      if (!trimmed) return `${promptText}\n\n`;
+      // Don't format with brackets if they have text; just append/insert naturally
+      return `${trimmed}\n\n${promptText}\n\n`;
+    });
+    if (composeRef.current) {
+      composeRef.current.focus();
+    }
+  };
+
+  // Reset prompt index when mood changes
+  useEffect(() => {
+    setPromptIndex(0);
+  }, [composeMood]);
 
   const [toast, setToast] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -593,6 +626,54 @@ export default function JournalPage() {
                   </div>
 
                   <MoodRow value={composeMood} onChange={setComposeMood} />
+
+                  {/* Therapeutic Prompts Toggle & Selection */}
+                  <div className="border border-border/60 rounded-xl p-3 bg-surface-2/40 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-accent-gold" />
+                        <span className="text-xs font-mono text-text-primary">Guided Writing Prompt</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPrompts(!showPrompts);
+                          setPromptIndex(0);
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-mono border transition-all ${
+                          showPrompts
+                            ? 'bg-accent/15 border-accent text-accent'
+                            : 'border-border text-text-muted hover:bg-surface-2'
+                        }`}
+                      >
+                        {showPrompts ? 'Enabled' : 'Disabled'}
+                      </button>
+                    </div>
+
+                    {showPrompts && (
+                      <div className="space-y-2 pt-2 border-t border-border/40">
+                        <p className="text-xs text-text-primary leading-relaxed italic">
+                          "{getCurrentPrompt()}"
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={handleNextPrompt}
+                            className="text-[9px] font-mono px-2 py-1 bg-surface border border-border rounded-lg hover:border-text-muted/30 text-text-muted transition-all"
+                          >
+                            Next Prompt
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleUsePrompt}
+                            className="text-[9px] font-mono px-2 py-1 bg-accent/10 border border-accent/20 rounded-lg hover:bg-accent/20 text-accent transition-all"
+                          >
+                            Use Prompt
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   <textarea
                     ref={composeRef}

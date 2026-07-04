@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, BookOpen, Lock, Bird, Sparkles, Search, Mail, HelpCircle, ArrowRight } from 'lucide-react';
+import { MessageSquare, BookOpen, Lock, Bird, Sparkles, Search, Mail, HelpCircle, ArrowRight, Brain } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 
@@ -40,6 +40,7 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   reflect: Sparkles,
   pattern: Search,
   letter: Mail,
+  coach: Brain,
 };
 
 export default function AppHome() {
@@ -115,7 +116,7 @@ export default function AppHome() {
             <div className="flex items-center justify-between px-1">
               <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">AI Tools</p>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
               {TOOLS.map((tool) => {
                 const isReflectLocked = tool.slug === 'reflect' && entriesCount < 2;
                 const isPatternLocked = tool.slug === 'pattern' && entriesCount < 5;
