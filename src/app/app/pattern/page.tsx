@@ -42,7 +42,7 @@ function PatternPageInner({ folderParam, historyId }: { folderParam: string | nu
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
 
-  const { payAndGenerate, loading, step, error, reset } = usePayForPrompt();
+  const { payAndGenerate, payViaRelay, loading, step, error, reset } = usePayForPrompt();
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
   const folderName = folderParam ? getFolders().find(f => f.id === folderParam)?.name : null;
@@ -61,7 +61,9 @@ function PatternPageInner({ folderParam, historyId }: { folderParam: string | nu
 
     setLastSubmission({ toolId: 4, toolName: 'Pattern', prompt: formattedPrompt });
 
-    const aiResponse = await payAndGenerate(4, 'Pattern', formattedPrompt);
+    const aiResponse = isMiniPay
+      ? await payViaRelay(4, 'Pattern', formattedPrompt)
+      : await payAndGenerate(4, 'Pattern', formattedPrompt);
     if (aiResponse) {
       setResponse(aiResponse);
       updateStreak(address);
@@ -122,7 +124,9 @@ function PatternPageInner({ folderParam, historyId }: { folderParam: string | nu
       return;
     }
 
-    const aiResponse = await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
+    const aiResponse = isMiniPay
+      ? await payViaRelay(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt)
+      : await payAndGenerate(lastSubmission.toolId, lastSubmission.toolName, lastSubmission.prompt);
     if (aiResponse) {
       setResponse(aiResponse);
       setLastSubmission(null);
