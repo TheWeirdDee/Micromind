@@ -177,11 +177,6 @@ export default function JournalPage() {
     }
   };
 
-  // Reset prompt index when mood changes
-  useEffect(() => {
-    setPromptIndex(0);
-  }, [composeMood]);
-
   const [toast, setToast] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -625,7 +620,7 @@ export default function JournalPage() {
                     </button>
                   </div>
 
-                  <MoodRow value={composeMood} onChange={setComposeMood} />
+                  <MoodRow value={composeMood} onChange={(m) => { setComposeMood(m); setPromptIndex(0); }} />
 
                   {/* Therapeutic Prompts Toggle & Selection */}
                   <div className="border border-border/60 rounded-xl p-3 bg-surface-2/40 space-y-2">
@@ -653,7 +648,7 @@ export default function JournalPage() {
                     {showPrompts && (
                       <div className="space-y-2 pt-2 border-t border-border/40">
                         <p className="text-xs text-text-primary leading-relaxed italic">
-                          "{getCurrentPrompt()}"
+                          {"“" + getCurrentPrompt() + "”"}
                         </p>
                         <div className="flex gap-2">
                           <button

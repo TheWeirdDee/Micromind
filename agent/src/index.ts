@@ -13,6 +13,8 @@ import {
   isDeadlineValid,
   executeRelay,
 } from './lib/relayer';
+import { decryptAESGCM } from './lib/crypto';
+import { supabase } from './lib/supabase';
 
 dotenv.config();
 
@@ -365,6 +367,72 @@ app.post('/api/coach', async (req, res) => {
     console.error('[COACH STREAMING ERROR]', err);
     res.write(`data: ${JSON.stringify({ error: err.message || 'AI coach failed' })}\n\n`);
     res.end();
+  }
+});
+
+app.post('/api/cron/release-letters', async (req, res) => {
+  console.log('[CRON] Starting release letters check...');
+
+  const authHeader = req.headers.authorization;
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!supabase) {
+    return res.status(500).json({ error: 'Supabase client not initialized (missing service role key)' });
+  }
+
+  try {
+    const now = new Date().toISOString();
+    const { data: letters, error: fetchError } = await supabase
+      .from('scheduled_letters')
+      .select('*')
+      .eq('status', 'pending')
+      .lte('release_date', now);
+
+    if (fetchError) throw fetchError;
+
+    if (!letters || letters.length === 0) {
+      console.log('[CRON] No pending letters to release.');
+      return res.json({ success: true, count: 0 });
+    }
+
+    console.log(`[CRON] Found ${letters.length} pending letters to release.`);
+    let successCount = 0;
+
+    for (const letter of letters) {
+      try {
+        console.log(`[CRON] Processing letter ${letter.id} for ${letter.recipient_email}...`);
+
+        const decryptedContent = decryptAESGCM(letter.ciphertext, letter.iv, letter.key_hex);
+
+        await sendEmail(letter.recipient_email, letter.sender_name, decryptedContent, false);
+
+        const { error: updateError } = await supabase
+          .from('scheduled_letters')
+          .update({ status: 'sent' })
+          .eq('id', letter.id);
+
+        if (updateError) throw updateError;
+        successCount++;
+      } catch (err: any) {
+        console.error(`[CRON] Failed to release letter ${letter.id}:`, err.message);
+        try {
+          await supabase
+            .from('scheduled_letters')
+            .update({ status: 'failed' })
+            .eq('id', letter.id);
+        } catch (updateErr: any) {
+          console.error('[CRON] Failed to update status to failed:', updateErr.message);
+        }
+      }
+    }
+
+    res.json({ success: true, count: successCount });
+  } catch (err: any) {
+    console.error('[CRON ERROR]', err);
+    res.status(500).json({ error: err.message || 'Cron failed' });
   }
 });
 
