@@ -6,6 +6,13 @@ import { createPublicClient, http, decodeEventLog } from 'viem';
 import { celo, celoAlfajores } from 'viem/chains';
 import { MICROMIND_ABI } from './lib/contract';
 import { Resend } from 'resend';
+import {
+  verifyRelaySignature,
+  isNonceUsed,
+  markNonceUsed,
+  isDeadlineValid,
+  executeRelay,
+} from './lib/relayer';
 
 dotenv.config();
 
@@ -217,7 +224,7 @@ app.post('/api/reflection/email', async (req, res) => {
 
   try {
     await resend.emails.send({
-      from: 'MicroMind <onboarding@resend.dev>',
+      from: RESEND_FROM,
       to: email,
       subject,
       text: `${greeting}\n\nHere's your MicroMind insight:\n\n${content}\n\n---\nGenerated privately on MicroMind · micromind.app`,
@@ -387,6 +394,70 @@ app.post('/api/process-direct', async (req, res) => {
       status: 'error', 
       message: e.message 
     });
+  }
+});
+
+// ─── Relay Route ──────────────────────────────────────────────────────────────
+// Accepts an EIP-712 signed relay request from the frontend.
+// Verifies the signature, executes approve + payForPrompt from the developer
+// wallet (paying native CELO gas), then triggers AI generation.
+app.post('/api/relay', async (req, res) => {
+  const { signature, toolId, promptHash, userAddress, nonce, deadline, prompt } = req.body;
+
+  if (!signature || !toolId || !promptHash || !userAddress || !nonce || !deadline || !prompt) {
+    return res.status(400).json({ error: 'Missing required relay fields' });
+  }
+
+  const parsedToolId = parseInt(toolId, 10);
+  if (!Number.isInteger(parsedToolId) || parsedToolId < 1 || parsedToolId > 5) {
+    return res.status(400).json({ error: 'Invalid toolId' });
+  }
+
+  // Validate deadline has not expired
+  if (!isDeadlineValid(deadline)) {
+    return res.status(400).json({ error: 'Request expired. Please try again.' });
+  }
+
+  // Replay attack protection
+  if (isNonceUsed(userAddress, nonce)) {
+    return res.status(400).json({ error: 'Nonce already used. This request was already processed.' });
+  }
+
+  // Verify EIP-712 signature
+  const params = { signature, toolId: parsedToolId, promptHash, userAddress, nonce, deadline };
+  const isValid = await verifyRelaySignature(params);
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature. Could not verify request authenticity.' });
+  }
+
+  // Mark nonce as used immediately to prevent double-spend during async execution
+  markNonceUsed(userAddress, nonce);
+
+  console.log(`[RELAY] Valid request from ${userAddress} for tool ${parsedToolId}`);
+
+  // Execute relay: developer wallet pays gas + USDm, then AI is generated
+  const result = await executeRelay(
+    params,
+    CONTRACT_ADDRESS,
+    process.env.PAYMENT_TOKEN as `0x${string}`,
+    MICROMIND_ABI,
+  );
+
+  if (!result.success) {
+    console.error('[RELAY] On-chain execution failed:', result.error);
+    return res.status(500).json({ error: result.error || 'Relay execution failed' });
+  }
+
+  // Trigger AI generation and cache under the relay txHash
+  try {
+    const aiResponse = await callAI(parsedToolId, prompt);
+    await storeData(`resp:${result.txHash}`, aiResponse, 86400);
+    console.log(`[RELAY] AI cached under txHash: ${result.txHash}`);
+    res.json({ status: 'ready', txHash: result.txHash, response: aiResponse });
+  } catch (e: any) {
+    console.error('[RELAY] AI generation failed:', e.message);
+    // Payment went through — return txHash so frontend can poll later
+    res.json({ status: 'processing', txHash: result.txHash });
   }
 });
 
