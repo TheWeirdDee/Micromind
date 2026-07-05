@@ -23,6 +23,7 @@ export function useQuestProgress(address: string | null) {
   const [state, setState] = useState<QuestProgressState>(DEFAULT_STATE);
   const [loading, setLoading] = useState(true);
   const [dbUser, setDbUser] = useState<any>(null);
+  const [dbWarning, setDbWarning] = useState<boolean>(false);
 
   // Sync address changes
   const storageKey = address ? `${PROGRESS_KEY}_${address}` : PROGRESS_KEY;
@@ -81,8 +82,11 @@ export function useQuestProgress(address: string | null) {
               return;
             }
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error('[LOAD QUEST PROGRESS ERROR]', e);
+          if (e && (e.code === 'PGRST205' || e.message?.includes('does not exist'))) {
+            setDbWarning(true);
+          }
         }
       }
 
@@ -176,6 +180,7 @@ export function useQuestProgress(address: string | null) {
   return {
     progress: state,
     loading,
+    dbWarning,
     solveStage,
     resetProgress,
   };

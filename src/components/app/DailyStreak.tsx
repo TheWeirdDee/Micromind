@@ -52,9 +52,6 @@ export function DailyStreak() {
   };
 
   const refreshStreak = useCallback(() => {
-    // Recalculate streak dynamically first
-    updateStreak(address);
-
     const stored = localStorage.getItem(streakKey);
     if (stored) {
       try {
@@ -93,18 +90,21 @@ export function DailyStreak() {
       setIsClaimedToday(false);
       setShowSpark(false);
     }
-  }, [address, streakKey, sparkKey]);
+  }, [streakKey, sparkKey]);
 
   // Load streak state from localStorage on mount and listen to updates
   useEffect(() => {
-    setTimeout(() => refreshStreak(), 0);
+    // Recalculate once on load
+    updateStreak(address);
+    refreshStreak();
+
     window.addEventListener('streak_updated', refreshStreak);
     window.addEventListener('journal_updated', refreshStreak);
     return () => {
       window.removeEventListener('streak_updated', refreshStreak);
       window.removeEventListener('journal_updated', refreshStreak);
     };
-  }, [refreshStreak]);
+  }, [address, refreshStreak]);
 
 
   // Generate last 7 days of activity dots
