@@ -118,7 +118,7 @@ export function useQuestProgress(address: string | null) {
   }, []);
 
   // Complete current stage
-  const solveStage = useCallback(async () => {
+  const solveStage = useCallback(async (pointsEarned: number) => {
     const levelConfig = QUEST_LEVELS.find(l => l.levelNumber === state.currentLevel);
     if (!levelConfig) return;
 
@@ -127,8 +127,8 @@ export function useQuestProgress(address: string | null) {
     let nextStage = state.currentStage + 1;
     let nextCompleted = [...state.completedLevels];
 
-    // Earn +10 Clarity Points
-    const nextPoints = state.clarityPoints + 10;
+    // Earn Clarity Points
+    const nextPoints = state.clarityPoints + pointsEarned;
 
     // Check if level is completed
     if (nextStage > totalStages) {
@@ -168,6 +168,17 @@ export function useQuestProgress(address: string | null) {
     }
   }, [state, storageKey, dbUser, pushToDatabase, address]);
 
+  // Deduct points (on withdrawal)
+  const deductPoints = useCallback(async (amount: number) => {
+    const nextPoints = Math.max(0, state.clarityPoints - amount);
+    const updated = { ...state, clarityPoints: nextPoints };
+    setState(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+    if (dbUser) {
+      await pushToDatabase(updated, dbUser.id);
+    }
+  }, [state, storageKey, dbUser, pushToDatabase]);
+
   // Reset Progress (dev or helper option)
   const resetProgress = useCallback(async () => {
     setState(DEFAULT_STATE);
@@ -182,6 +193,7 @@ export function useQuestProgress(address: string | null) {
     loading,
     dbWarning,
     solveStage,
+    deductPoints,
     resetProgress,
   };
 }
