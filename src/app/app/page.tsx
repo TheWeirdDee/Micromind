@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, BookOpen, Lock, Bird, Sparkles, Search, Mail, HelpCircle, ArrowRight, Brain } from 'lucide-react';
+import { MessageSquare, BookOpen, Lock, Bird, Sparkles, Search, Mail, HelpCircle, ArrowRight, Brain, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 
@@ -41,6 +41,7 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   pattern: Search,
   letter: Mail,
   coach: Brain,
+  quest: Trophy,
 };
 
 export default function AppHome() {
