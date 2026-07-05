@@ -436,6 +436,103 @@ app.post('/api/cron/release-letters', async (req, res) => {
   }
 });
 
+app.post('/api/game/reframe', async (req, res) => {
+  const { sentence, targetWord, txHash } = req.body;
+  if (!sentence || !targetWord || !txHash) {
+    return res.status(400).json({ error: 'Missing sentence, targetWord, or txHash' });
+  }
+
+  try {
+    try {
+      const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+      if (!receipt || receipt.status !== 'success') {
+        return res.status(400).json({ error: 'Invalid or pending payment transaction' });
+      }
+    } catch (e: any) {
+      console.warn('[GAME REFRAME] Tx verify failed (continuing for local/testnet development):', e.message);
+    }
+
+    console.log('[GAME REFRAME] Querying AI reframe...');
+    const prompt = `Sentence: "${sentence}"\nTarget Word: "${targetWord}"`;
+    const systemPrompt = `You are a warm, supportive cognitive behavioral therapy (CBT) assistant. The user has just solved a vocabulary puzzle mapping a flat thought to a highly precise mindful emotion.
+The original context:
+"${sentence}"
+The user solved and corrected the flat thought to:
+"${targetWord}"
+
+Generate a beautiful, inspiring "Clarity Reframing Card" structured exactly as follows:
+1. Affirmation: A powerful, first-person positive reframing affirmation (1 sentence, e.g. "I honor my need for rest and allow my energy to replenish without guilt.")
+2. Coaching Question: A single targeted, open-ended question that prompts them to think about how they can manifest this precise state in their life (1 sentence).
+
+Write in a comforting, friendly tone. Do not write anything else. Keep it under 60 words total.`;
+
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 256,
+      temperature: 0.7,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ],
+    });
+
+    const cardText = completion.choices[0]?.message?.content ?? '';
+    await storeData(`resp:${txHash}`, cardText, 86400);
+
+    res.json({ cardText });
+  } catch (err: any) {
+    console.error('[GAME REFRAME ERROR]', err);
+    res.status(500).json({ error: err.message || 'Failed to generate reframe' });
+  }
+});
+
+app.post('/api/game/hint', async (req, res) => {
+  const { sentence, targetWord, scrambledLetters, txHash } = req.body;
+  if (!sentence || !targetWord || !scrambledLetters || !txHash) {
+    return res.status(400).json({ error: 'Missing sentence, targetWord, scrambledLetters, or txHash' });
+  }
+
+  try {
+    try {
+      const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+      if (!receipt || receipt.status !== 'success') {
+        return res.status(400).json({ error: 'Invalid or pending payment transaction' });
+      }
+    } catch (e: any) {
+      console.warn('[GAME HINT] Tx verify failed (continuing for local/testnet development):', e.message);
+    }
+
+    console.log('[GAME HINT] Querying AI hint...');
+    const prompt = `Sentence: "${sentence}"\nLetters: ${JSON.stringify(scrambledLetters)}\nWord: "${targetWord}"`;
+    const systemPrompt = `You are a playful and supportive word-puzzle guide. The user is stuck on a puzzle level and needs a clue.
+The sentence containing the target word:
+"${sentence}"
+The scrambled letters they have: ${JSON.stringify(scrambledLetters)}
+The target word they are looking for: ${targetWord}
+
+Generate a short, riddle-like hint (under 30 words) that describes the meaning of the target word and how it fits the sentence. 
+Provide a clear hint without explicitly spelling the target word itself. Keep it warm and encouraging.`;
+
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 128,
+      temperature: 0.7,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
+      ],
+    });
+
+    const hintText = completion.choices[0]?.message?.content ?? '';
+    await storeData(`resp:${txHash}`, hintText, 86400);
+
+    res.json({ hintText });
+  } catch (err: any) {
+    console.error('[GAME HINT ERROR]', err);
+    res.status(500).json({ error: err.message || 'Failed to generate hint' });
+  }
+});
+
 app.post('/api/prompt/submit', async (req, res) => {
   console.log('[SUBMIT] Received:', req.body);
   const { prompt, toolId, userAddress, nonce: reqNonce } = req.body;
