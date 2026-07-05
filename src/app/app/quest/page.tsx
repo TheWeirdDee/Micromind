@@ -35,6 +35,7 @@ export default function QuestPage() {
   const { payViaRelay, payAndGenerate, loading: paidLoading, step: paidStep, error: paidError, reset: resetPayment } = usePayForPrompt();
 
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showRewardsModal, setShowRewardsModal] = useState(false);
 
   // Game UI state
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
@@ -226,6 +227,7 @@ export default function QuestPage() {
       }
 
       await deductPoints(withdrawAmount);
+      setShowRewardsModal(false);
       alert(`Withdrawal Successful! Converted ${withdrawAmount} points to USDm.\nTransaction Hash: ${data.txHash}`);
     } catch (e: any) {
       alert(`Withdrawal Error: ${e.message}`);
@@ -251,15 +253,8 @@ export default function QuestPage() {
         scrambledLetters: activeStage.scrambledLetters
       });
 
-      let txHash: string | undefined;
-      
-      if (isMiniPay) {
-        txHash = await payViaRelay(1, 'AI Hint', payload);
-      } else {
-        const res = await payAndGenerate(1, 'AI Hint', payload);
-        const hist = getHistory();
-        txHash = hist[0]?.txHash;
-      }
+      // Always use EIP-712 gasless relay signature (no on-chain gas write transaction redirects)
+      const txHash = await payViaRelay(1, 'AI Hint', payload);
 
       if (txHash) {
         const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
@@ -299,15 +294,8 @@ export default function QuestPage() {
         targetWord: activeStage.targetWord
       });
 
-      let txHash: string | undefined;
-      
-      if (isMiniPay) {
-        txHash = await payViaRelay(1, 'AI Reframe', payload);
-      } else {
-        await payAndGenerate(1, 'AI Reframe', payload);
-        const hist = getHistory();
-        txHash = hist[0]?.txHash;
-      }
+      // Always use EIP-712 gasless relay signature (no on-chain gas write transaction redirects)
+      const txHash = await payViaRelay(1, 'AI Reframe', payload);
 
       if (txHash) {
         const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
@@ -353,6 +341,76 @@ export default function QuestPage() {
       case 'generating':  return 'AI is thinking...';
       default:            return 'Authorizing transaction...';
     }
+  };
+
+  // Render Rewards Hub (Withdrawal Section)
+  const renderRewardsHub = (inModal = false) => {
+    return (
+      <div className={`bg-surface border border-border rounded-2xl p-5 sm:p-6 text-left ${inModal ? 'space-y-4 shadow-2xl' : 'space-y-5'}`}>
+        <div className="flex items-center justify-between border-b border-border/50 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🪙</span>
+            <h4 className="font-serif text-lg text-text-primary">Clarity Rewards</h4>
+          </div>
+          <span className="text-xs font-mono text-accent bg-accent/10 px-2.5 py-0.5 rounded-lg font-bold">
+            Rate: 10 pts = 0.005 USDm
+          </span>
+        </div>
+
+        <p className="text-xs font-mono text-text-muted leading-relaxed">
+          Redeem Clarity Points directly for USDm stablecoins, sent to your connected Celo address.
+        </p>
+
+        <div className="grid grid-cols-1 gap-4 pt-1">
+          <div className="space-y-1">
+            <label className="text-[9px] font-mono uppercase text-text-muted tracking-wider block">Connected Celo Wallet</label>
+            <input
+              type="text"
+              placeholder="0x..."
+              value={withdrawAddress}
+              onChange={(e) => setWithdrawAddress(e.target.value)}
+              className="w-full text-xs font-mono bg-surface-2 border border-border rounded-xl px-3 py-2 text-text-primary focus:outline-none focus:border-accent"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[9px] font-mono uppercase text-text-muted tracking-wider block">Points to Redeem</label>
+            <input
+              type="number"
+              placeholder="Min 10"
+              step="10"
+              min="10"
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(Math.max(10, parseInt(e.target.value) || 0))}
+              className="w-full text-xs font-mono bg-surface-2 border border-border rounded-xl px-3 py-2 text-text-primary focus:outline-none focus:border-accent"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 pt-2">
+          <div className="text-xs font-mono text-text-muted text-center sm:text-left">
+            Redeeming: <span className="font-bold text-accent-gold">{withdrawAmount} pts</span> ➔ <span className="font-bold text-accent">{(withdrawAmount * 0.0005).toFixed(4)} USDm</span>
+          </div>
+
+          <button
+            onClick={handleWithdraw}
+            disabled={withdrawing || progress.clarityPoints < withdrawAmount}
+            className="pill-button pill-button-primary px-6 py-3 text-xs font-mono disabled:opacity-40 disabled:cursor-not-allowed w-full flex items-center justify-center gap-1.5"
+          >
+            {withdrawing ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Processing swap...</span>
+              </>
+            ) : (
+              <>
+                <span>Redeem USDm</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    );
   };
 
   // Render Level Locking Navigation List
@@ -409,7 +467,7 @@ export default function QuestPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-24 space-y-8 px-4">
+    <div className="max-w-6xl mx-auto pb-24 space-y-8 px-4">
       {/* Supabase Schema Missing Warning */}
       {dbWarning && (
         <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl flex items-start gap-3 text-left">
@@ -435,12 +493,18 @@ export default function QuestPage() {
           </div>
         </div>
 
-        {/* Score metrics */}
-        <div className="flex items-center gap-3 bg-surface-2 border border-border px-4 py-2 rounded-2xl">
+        {/* Score metrics & Reward mobile trigger */}
+        <div className="flex items-center gap-2 bg-surface-2 border border-border px-3 sm:px-4 py-2 rounded-2xl">
           <div className="flex items-center gap-1.5 text-accent-gold">
             <Trophy className="w-4 h-4" />
             <span className="font-mono text-xs font-bold">{progress.clarityPoints} pts</span>
           </div>
+          <button
+            onClick={() => setShowRewardsModal(true)}
+            className="text-[9px] font-mono bg-accent/25 hover:bg-accent/40 text-accent px-2 py-0.5 rounded-lg border border-accent/40 font-bold lg:hidden shadow-sm transition-all"
+          >
+            Reward
+          </button>
         </div>
       </div>
 
@@ -448,6 +512,9 @@ export default function QuestPage() {
         {/* Nav list (4cols) */}
         <aside className="lg:col-span-4 space-y-6">
           {renderLevelsNav()}
+          <div className="hidden lg:block">
+            {renderRewardsHub()}
+          </div>
         </aside>
 
         {/* Quest canvas (8cols) */}
@@ -557,7 +624,7 @@ export default function QuestPage() {
                     "Clue: {aiHint}"
                   </motion.div>
                 ) : (
-                  !isSolved && !isFailed && (
+                  !isSolved && (
                     <button
                       onClick={handleGetHint}
                       disabled={paidLoading}
@@ -728,74 +795,32 @@ export default function QuestPage() {
               </div>
             </div>
           )}
-
-          {/* Rewards Hub (Withdrawal Section) */}
-          <div className="bg-surface border border-border rounded-2xl p-6 space-y-5 text-left mt-8">
-            <div className="flex items-center justify-between border-b border-border/50 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🪙</span>
-                <h4 className="font-serif text-lg text-text-primary">Clarity Rewards Hub</h4>
-              </div>
-              <span className="text-xs font-mono text-accent bg-accent/10 px-2.5 py-0.5 rounded-lg font-bold">
-                Rate: 10 pts = 0.005 USDm
-              </span>
-            </div>
-
-            <p className="text-xs font-mono text-text-muted leading-relaxed">
-              Earn real value by training your mindful vocabulary. Swap your accumulated Clarity Points directly for USDm stablecoins, sent straight to your connected Celo address or custom recipient.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-mono uppercase text-text-muted tracking-wider block">Connected Celo Wallet</label>
-                <input
-                  type="text"
-                  placeholder="0x..."
-                  value={withdrawAddress}
-                  onChange={(e) => setWithdrawAddress(e.target.value)}
-                  className="w-full text-xs font-mono bg-surface-2 border border-border rounded-xl px-3 py-3 text-text-primary focus:outline-none focus:border-accent"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-mono uppercase text-text-muted tracking-wider block">Points to Redeem</label>
-                <input
-                  type="number"
-                  placeholder="Min 10"
-                  step="10"
-                  min="10"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(Math.max(10, parseInt(e.target.value) || 0))}
-                  className="w-full text-xs font-mono bg-surface-2 border border-border rounded-xl px-3 py-3 text-text-primary focus:outline-none focus:border-accent"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-between pt-2 gap-4">
-              <div className="text-xs font-mono text-text-muted">
-                Redeeming: <span className="font-bold text-accent-gold">{withdrawAmount} pts</span> ➔ <span className="font-bold text-accent">{(withdrawAmount * 0.0005).toFixed(4)} USDm</span>
-              </div>
-
-              <button
-                onClick={handleWithdraw}
-                disabled={withdrawing || progress.clarityPoints < withdrawAmount}
-                className="pill-button pill-button-primary px-6 py-3 text-xs font-mono disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto flex items-center justify-center gap-1.5"
-              >
-                {withdrawing ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Processing swap...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Redeem USDm</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         </main>
       </div>
+
+      {/* Rewards Hub Drawer/Modal on Mobile */}
+      <AnimatePresence>
+        {showRewardsModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-surface border border-border p-6 rounded-3xl max-w-md w-full relative space-y-4"
+            >
+              <button
+                onClick={() => setShowRewardsModal(false)}
+                className="absolute top-4 right-4 text-text-muted hover:text-text-primary font-bold font-mono text-sm px-2 py-1 rounded-lg bg-surface-2 border border-border hover:border-accent/40"
+              >
+                ✕ Close
+              </button>
+              <div className="pt-4">
+                {renderRewardsHub(true)}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </div>
