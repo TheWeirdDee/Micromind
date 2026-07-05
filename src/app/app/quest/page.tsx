@@ -10,6 +10,7 @@ import { useQuestProgress } from '@/hooks/useQuestProgress';
 import { QUEST_LEVELS, QuestStage, QuestLevel } from '@/constants/levels';
 import { getDailyHabitState } from '@/lib/journal';
 import { getHistory } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 import confetti from 'canvas-confetti';
 
@@ -30,18 +31,27 @@ interface CollectedCard {
 
 export default function QuestPage() {
   const { address, isConnected, isMiniPay } = useWallet();
-  const { progress, loading: progressLoading, dbWarning, solveStage, resetProgress } = useQuestProgress(address);
+  const { progress, loading: progressLoading, dbWarning, solveStage, deductPoints, resetProgress } = useQuestProgress(address);
   const { payViaRelay, payAndGenerate, loading: paidLoading, step: paidStep, error: paidError, reset: resetPayment } = usePayForPrompt();
 
   const [showWalletModal, setShowWalletModal] = useState(false);
 
   // Game UI state
-  const [selectedLetters, setSelectedLetters] = useState<string[]>([]);
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [isSolved, setIsSolved] = useState(false);
   const [isFailed, setIsFailed] = useState(false);
   const [shuffledLetters, setShuffledLetters] = useState<string[]>([]);
   const [aiHint, setAiHint] = useState<string | null>(null);
   const [aiCard, setAiCard] = useState<string | null>(null);
+
+  // Timer states
+  const [timeLeft, setTimeLeft] = useState(120); // 2 minutes (120s)
+  const [hasForfeited, setHasForfeited] = useState(false);
+
+  // Withdrawal states
+  const [withdrawAddress, setWithdrawAddress] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState(10);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   // Collected Cards Gallery
   const [collectedCards, setCollectedCards] = useState<CollectedCard[]>([]);
@@ -66,6 +76,13 @@ export default function QuestPage() {
     }
   }, [address, cardsStorageKey]);
 
+  // Set default withdrawal address when connected
+  useEffect(() => {
+    if (address) {
+      setWithdrawAddress(address);
+    }
+  }, [address]);
+
   // Shuffle scrambled letters dynamically when stage changes
   useEffect(() => {
     if (activeStage) {
@@ -87,26 +104,48 @@ export default function QuestPage() {
 
   // Reset stage letters when level/stage changes
   useEffect(() => {
-    setSelectedLetters([]);
+    setSelectedIndices([]);
     setIsSolved(false);
     setIsFailed(false);
     setAiHint(null);
     setAiCard(null);
+    setTimeLeft(120);
+    setHasForfeited(false);
     resetPayment();
   }, [progress.currentLevel, progress.currentStage]);
 
-  // Handle letter select
+  // Timer Countdown Effect
+  useEffect(() => {
+    if (progressLoading || isSolved || isFailed || !activeStage) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsFailed(true);
+          setHasForfeited(true); // Player loses point eligibility for this stage
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [progressLoading, isSolved, isFailed, activeStage]);
+
+  // Handle letter select by index
   const handleSelectLetter = (letter: string, index: number) => {
     if (isSolved || isFailed || !activeStage) return;
     const targetLength = activeStage.targetWord.length;
-    if (selectedLetters.length >= targetLength) return;
+    if (selectedIndices.length >= targetLength) return;
 
-    const nextSelected = [...selectedLetters, letter];
-    setSelectedLetters(nextSelected);
+    const nextIndices = [...selectedIndices, index];
+    setSelectedIndices(nextIndices);
 
     // Verify solution
-    if (nextSelected.length === targetLength) {
-      if (nextSelected.join('') === activeStage.targetWord) {
+    if (nextIndices.length === targetLength) {
+      const spelledWord = nextIndices.map(idx => shuffledLetters[idx]).join('');
+      if (spelledWord === activeStage.targetWord) {
         setIsSolved(true);
         setIsFailed(false);
         // Blast confetti!
@@ -125,17 +164,74 @@ export default function QuestPage() {
   // Remove last letter
   const handleRemoveLetter = (index: number) => {
     if (isSolved) return;
-    const nextSelected = [...selectedLetters];
-    nextSelected.splice(index, 1);
-    setSelectedLetters(nextSelected);
+    const nextIndices = [...selectedIndices];
+    nextIndices.splice(index, 1);
+    setSelectedIndices(nextIndices);
     setIsFailed(false);
   };
 
   // Clear slots
   const handleClearSlots = () => {
     if (isSolved) return;
-    setSelectedLetters([]);
+    setSelectedIndices([]);
     setIsFailed(false);
+  };
+
+  // Solve stage wrapper
+  const handleSolveStage = async () => {
+    const pointsEarned = hasForfeited ? 0 : progress.currentLevel;
+    await solveStage(pointsEarned);
+  };
+
+  // Handle Withdrawal to Real Money
+  const handleWithdraw = async () => {
+    if (withdrawAmount < 10) {
+      alert('Minimum withdrawal is 10 Clarity Points');
+      return;
+    }
+    if (progress.clarityPoints < withdrawAmount) {
+      alert('Insufficient Clarity Points balance');
+      return;
+    }
+    if (!withdrawAddress.startsWith('0x') || withdrawAddress.length !== 42) {
+      alert('Please enter a valid Celo wallet address');
+      return;
+    }
+
+    setWithdrawing(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Please log in and sync your account to withdraw points to USDm.');
+        setWithdrawing(false);
+        return;
+      }
+
+      const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+      const res = await fetch(`${agentUrl}/api/quest/withdraw`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          userAddress: withdrawAddress,
+          points: withdrawAmount
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Withdrawal failed');
+      }
+
+      await deductPoints(withdrawAmount);
+      alert(`Withdrawal Successful! Converted ${withdrawAmount} points to USDm.\nTransaction Hash: ${data.txHash}`);
+    } catch (e: any) {
+      alert(`Withdrawal Error: ${e.message}`);
+    } finally {
+      setWithdrawing(false);
+    }
   };
 
   // Request Premium Hint (0.005 USDm)
@@ -155,21 +251,17 @@ export default function QuestPage() {
         scrambledLetters: activeStage.scrambledLetters
       });
 
-      // EIP-712 / direct prompt payment (maps to on-chain ID 1)
       let txHash: string | undefined;
       
       if (isMiniPay) {
         txHash = await payViaRelay(1, 'AI Hint', payload);
       } else {
-        // Direct
         const res = await payAndGenerate(1, 'AI Hint', payload);
-        // poll standard history
         const hist = getHistory();
         txHash = hist[0]?.txHash;
       }
 
       if (txHash) {
-        // Fetch hint from backend
         const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
         const res = await fetch(`${agentUrl}/api/game/hint`, {
           method: 'POST',
@@ -233,7 +325,6 @@ export default function QuestPage() {
         const data = await res.json();
         setAiCard(data.cardText);
 
-        // Save card to gallery
         const newCard: CollectedCard = {
           id: activeStage.id,
           levelName: activeLevel.name,
@@ -365,11 +456,25 @@ export default function QuestPage() {
             <div className="bg-surface border border-border p-5 sm:p-6 rounded-2xl relative overflow-hidden space-y-6">
               <div className="absolute inset-0 halftone-bg opacity-5 pointer-events-none" />
 
-              {/* Title & Stage indicators */}
+              {/* Title, Timer & Stage indicators */}
               <div className="flex justify-between items-center relative z-10 border-b border-border/50 pb-3">
-                <span className="text-xs font-mono text-accent font-bold uppercase tracking-wider">
-                  Lvl {progress.currentLevel} - Stage {progress.currentStage}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-accent font-bold uppercase tracking-wider">
+                    Lvl {progress.currentLevel} - Stage {progress.currentStage}
+                  </span>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border font-bold ${
+                    timeLeft < 30 
+                      ? 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse'
+                      : 'bg-surface-2 border-border text-text-muted'
+                  }`}>
+                    ⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                  </span>
+                  {hasForfeited && (
+                    <span className="text-[9px] font-mono bg-red-950/40 text-red-400 border border-red-500/25 px-1.5 py-0.5 rounded-md font-bold uppercase">
+                      Forfeited Pts
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] font-mono text-text-muted bg-surface-2 border border-border px-2 py-0.5 rounded-lg">
                   {activeLevel?.category}
                 </span>
@@ -384,7 +489,8 @@ export default function QuestPage() {
                 {/* Slots container (flex wrap for mobile) */}
                 <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 py-4">
                   {Array.from({ length: activeStage.targetWord.length }).map((_, idx) => {
-                    const letter = selectedLetters[idx];
+                    const selectedIdx = selectedIndices[idx];
+                    const letter = selectedIdx !== undefined ? shuffledLetters[selectedIdx] : null;
                     return (
                       <motion.button
                         key={idx}
@@ -406,7 +512,7 @@ export default function QuestPage() {
               {/* Actions & Scrambled Grid */}
               <div className="space-y-4 relative z-10">
                 {/* Clear slots */}
-                {selectedLetters.length > 0 && !isSolved && !isFailed && (
+                {selectedIndices.length > 0 && !isSolved && !isFailed && (
                   <button
                     onClick={handleClearSlots}
                     className="text-[9px] font-mono px-3 py-1 bg-surface-2 border border-border hover:border-red-400/30 hover:text-red-400 transition-colors rounded-lg block mx-auto"
@@ -418,10 +524,7 @@ export default function QuestPage() {
                 {/* Scrambled buttons */}
                 <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto pt-2">
                   {shuffledLetters.map((l, i) => {
-                    // Check if letter has already been selected up to its occurrence count
-                    const selectedCount = selectedLetters.filter(x => x === l).length;
-                    const totalCount = shuffledLetters.filter(x => x === l).length;
-                    const isUsed = selectedCount >= totalCount;
+                    const isUsed = selectedIndices.includes(i);
 
                     return (
                       <motion.button
@@ -486,7 +589,12 @@ export default function QuestPage() {
                   >
                     <div className="flex items-center gap-2 justify-center text-accent-gold font-bold text-sm font-mono">
                       <CheckCircle2 className="w-5 h-5 text-accent-gold fill-accent-gold/15" />
-                      <span>Level Solved! (+10 Clarity Points)</span>
+                      <span>
+                        {hasForfeited 
+                          ? 'Level Solved! (0 points - timer expired)' 
+                          : `Level Solved! (+${progress.currentLevel} Clarity Points)`
+                        }
+                      </span>
                     </div>
 
                     <p className="text-xs font-mono text-text-muted max-w-sm mx-auto leading-relaxed">
@@ -532,7 +640,7 @@ export default function QuestPage() {
                       )}
 
                       <button
-                        onClick={solveStage}
+                        onClick={handleSolveStage}
                         className="pill-button border border-border hover:bg-surface-2 text-text-primary w-full py-3.5 text-xs font-mono"
                       >
                         Solve & Next Stage (Free)
@@ -548,11 +656,14 @@ export default function QuestPage() {
                     className="border-t border-red-500/20 pt-6 space-y-4 text-center relative z-10"
                   >
                     <div className="flex items-center gap-2 justify-center text-red-400 font-bold text-sm font-mono">
-                      <span>Incorrect spelling 😢</span>
+                      <span>{timeLeft <= 0 ? "Time's Up! ⏰" : "Incorrect spelling 😢"}</span>
                     </div>
 
                     <p className="text-xs font-mono text-text-muted max-w-sm mx-auto leading-relaxed">
-                      "{selectedLetters.join('')}" is not the correct mindful word. Try again!
+                      {timeLeft <= 0 
+                        ? 'You ran out of time! You can retry to unlock progression, but you forfeit points for this stage.'
+                        : `"${selectedIndices.map(idx => shuffledLetters[idx]).join('')}" is not the correct mindful word.`
+                      }
                     </p>
 
                     <button
@@ -617,6 +728,72 @@ export default function QuestPage() {
               </div>
             </div>
           )}
+
+          {/* Rewards Hub (Withdrawal Section) */}
+          <div className="bg-surface border border-border rounded-2xl p-6 space-y-5 text-left mt-8">
+            <div className="flex items-center justify-between border-b border-border/50 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🪙</span>
+                <h4 className="font-serif text-lg text-text-primary">Clarity Rewards Hub</h4>
+              </div>
+              <span className="text-xs font-mono text-accent bg-accent/10 px-2.5 py-0.5 rounded-lg font-bold">
+                Rate: 10 pts = 0.005 USDm
+              </span>
+            </div>
+
+            <p className="text-xs font-mono text-text-muted leading-relaxed">
+              Earn real value by training your mindful vocabulary. Swap your accumulated Clarity Points directly for USDm stablecoins, sent straight to your connected Celo address or custom recipient.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono uppercase text-text-muted tracking-wider block">Connected Celo Wallet</label>
+                <input
+                  type="text"
+                  placeholder="0x..."
+                  value={withdrawAddress}
+                  onChange={(e) => setWithdrawAddress(e.target.value)}
+                  className="w-full text-xs font-mono bg-surface-2 border border-border rounded-xl px-3 py-3 text-text-primary focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono uppercase text-text-muted tracking-wider block">Points to Redeem</label>
+                <input
+                  type="number"
+                  placeholder="Min 10"
+                  step="10"
+                  min="10"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(Math.max(10, parseInt(e.target.value) || 0))}
+                  className="w-full text-xs font-mono bg-surface-2 border border-border rounded-xl px-3 py-3 text-text-primary focus:outline-none focus:border-accent"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-2 gap-4">
+              <div className="text-xs font-mono text-text-muted">
+                Redeeming: <span className="font-bold text-accent-gold">{withdrawAmount} pts</span> ➔ <span className="font-bold text-accent">{(withdrawAmount * 0.0005).toFixed(4)} USDm</span>
+              </div>
+
+              <button
+                onClick={handleWithdraw}
+                disabled={withdrawing || progress.clarityPoints < withdrawAmount}
+                className="pill-button pill-button-primary px-6 py-3 text-xs font-mono disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto flex items-center justify-center gap-1.5"
+              >
+                {withdrawing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Processing swap...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Redeem USDm</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </main>
       </div>
 
