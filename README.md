@@ -14,34 +14,37 @@ Built for MiniPay users across Africa and beyond.
 
 | Tool | Price | Description |
 |------|-------|-------------|
-| Journal | Free | Write entries, track mood, organize into folders, streak tracking |
+| Journal | Free | Write entries, track mood, organize into folders, hybrid streak tracking |
+| AI Coach | 0.005 USDm | Guided prompts and real-time word-by-word streaming coach panel |
+| Clarity Quest | Free* | Gamified word unscramble stages across 10 locked levels & 8 categories |
+| Scheduled Letters | Free / 0.010 USDm | Client-side encrypted (AES-GCM) escrow letters scheduled for future cron release |
 | Reflect | 0.005 USDm | AI synthesizes your recent entries into a compassionate weekly reflection |
 | Pattern Analyst | 0.005 USDm | AI surfaces 3 recurring emotional themes across your entire journal history |
-| Heartfelt Letter | Free + 0.01 USDm | Write and email a letter to anyone — optional AI polish for 0.01 USDm |
 | Tweet Gen | 0.005 USDm | Turn a journal entry into a draft tweet |
 | Mind Chat | 0.005 USDm | General AI companion for private conversations |
 
-### Journal
-- Accounts via **email + password** — access from any device
-- Real-time username availability check during signup
-- Entries synced to Supabase, cached locally for offline use
-- Mood tracking per entry (Happy, Excited, Neutral, Angry, Sad)
-- Folder system — create named folders to organize entries
-- Reflect and Pattern tools can be scoped to a specific folder
-- Daily streak tracker
-- **Send as Letter** — pre-fill the letter page from any journal entry
+### Journal & Habit Loops
+- Syncs to Supabase, cached locally for offline-first usage.
+- Hybrid Daily Streak: Writing in your journal OR playing Clarity Quest keeps the streak alive (pulsing). Doing BOTH makes the streak badge bright gold with particle animations. Missed days reset the streak to `0d`.
 
-### Heartfelt Letters
-- Send a letter draft for free to any email address
-- Optional AI Polish (0.01 USDm) rewrites your draft while preserving your voice
-- **Starred contacts** — save recipients for one-tap filling
-- All sends (free and paid) recorded in history
-- Powered by Resend; letters are delivered directly to the recipient's inbox
+### AI Writing Coach
+- Seeded guided CBT prompts across various entry moods.
+- Real-time SSE word-by-word coaching stream decoding.
 
-### Wallet
-- **MiniPay**: auto-detected and connected — zero friction
-- **MetaMask**: manual connect, auto-switches to Celo Mainnet
-- Wallet is only required for paid AI tools — journaling and basic letter sending are always free
+### Clarity Quest Game
+- 10 Scribe levels with an increasing stage count (L1=3, L2=5, L3=7, etc.) spanning 8 cognitive themes.
+- Subsequent levels remain invisible and locked until preceding ones are fully completed.
+- Premium Clue Hints (0.005 USDm) and AI Cognitive Reframing Cards (0.005 USDm).
+- Cards Gallery: Persistent grid of all unlocked reframing cards.
+
+### Heartfelt Letters (Scheduled Escrow)
+- **Client-Side Encryption:** Messages are AES-GCM-256 encrypted directly on-device using Web Crypto. Keys are synced in escrow.
+- **Autorelease Cron:** Server-side cron sweeps pending letters, decrypts, and emails them automatically via Resend.
+- **Escrow Queue:** Cancel pending letters at any time before their release date.
+
+### Wallet & relayer
+- **MiniPay / EIP-712 Relayer:** Detects and triggers typed-signature gasless transactions (developer pays Celo gas) for all premium features.
+- **MetaMask**: Manual connect on desktop web browsers.
 
 ---
 
@@ -101,7 +104,7 @@ Only the prompt hash and payment touch the chain. The agent reads the on-chain `
 
 Tool IDs registered on-chain:
 ```
-1 = Mind Chat
+1 = Mind Chat / AI Coach / Clarity Quest Premium Features
 2 = Tweet Gen
 3 = Weekly Reflect
 4 = Pattern Analyst
