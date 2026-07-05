@@ -343,6 +343,76 @@ export default function QuestPage() {
     }
   };
 
+  // Render Rewards Hub (Withdrawal Section)
+  const renderRewardsHub = (inModal = false) => {
+    return (
+      <div className={`bg-surface border border-border rounded-2xl p-5 sm:p-6 text-left ${inModal ? 'space-y-4 shadow-2xl' : 'space-y-5'}`}>
+        <div className="flex items-center justify-between border-b border-border/50 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🪙</span>
+            <h4 className="font-serif text-lg text-text-primary">Clarity Rewards</h4>
+          </div>
+          <span className="text-xs font-mono text-accent bg-accent/10 px-2.5 py-0.5 rounded-lg font-bold">
+            Rate: 10 pts = 0.005 USDm
+          </span>
+        </div>
+
+        <p className="text-xs font-mono text-text-muted leading-relaxed">
+          Redeem Clarity Points directly for USDm stablecoins, sent to your connected Celo address.
+        </p>
+
+        <div className="grid grid-cols-1 gap-4 pt-1">
+          <div className="space-y-1">
+            <label className="text-[9px] font-mono uppercase text-text-muted tracking-wider block">Connected Celo Wallet</label>
+            <input
+              type="text"
+              placeholder="0x..."
+              value={withdrawAddress}
+              onChange={(e) => setWithdrawAddress(e.target.value)}
+              className="w-full text-xs font-mono bg-surface-2 border border-border rounded-xl px-3 py-2 text-text-primary focus:outline-none focus:border-accent"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[9px] font-mono uppercase text-text-muted tracking-wider block">Points to Redeem</label>
+            <input
+              type="number"
+              placeholder="Min 10"
+              step="10"
+              min="10"
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(Math.max(10, parseInt(e.target.value) || 0))}
+              className="w-full text-xs font-mono bg-surface-2 border border-border rounded-xl px-3 py-2 text-text-primary focus:outline-none focus:border-accent"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 pt-2">
+          <div className="text-xs font-mono text-text-muted text-center sm:text-left">
+            Redeeming: <span className="font-bold text-accent-gold">{withdrawAmount} pts</span> ➔ <span className="font-bold text-accent">{(withdrawAmount * 0.0005).toFixed(4)} USDm</span>
+          </div>
+
+          <button
+            onClick={handleWithdraw}
+            disabled={withdrawing || progress.clarityPoints < withdrawAmount}
+            className="pill-button pill-button-primary px-6 py-3 text-xs font-mono disabled:opacity-40 disabled:cursor-not-allowed w-full flex items-center justify-center gap-1.5"
+          >
+            {withdrawing ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Processing swap...</span>
+              </>
+            ) : (
+              <>
+                <span>Redeem USDm</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   // Render Level Locking Navigation List
   const renderLevelsNav = () => {
     // Only render levels <= progress.currentLevel
