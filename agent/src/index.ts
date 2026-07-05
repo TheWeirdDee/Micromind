@@ -533,6 +533,91 @@ Provide a clear hint without explicitly spelling the target word itself. Keep it
   }
 });
 
+app.post('/api/quest/withdraw', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const { userAddress, points } = req.body;
+
+  if (!authHeader || !userAddress || !points || points < 10) {
+    return res.status(400).json({ error: 'Missing auth header, userAddress, or invalid points (min 10)' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(400).json({ error: 'Invalid auth token format' });
+  }
+
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database service not configured on backend relayer' });
+  }
+
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Unauthorized or invalid session' });
+    }
+
+    const { data: progress, error: progressError } = await supabase
+      .from('quest_progress')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (progressError || !progress) {
+      return res.status(404).json({ error: 'Quest progress record not found. Sync first.' });
+    }
+
+    if (progress.clarity_points < points) {
+      return res.status(400).json({ error: 'Insufficient clarity points for this withdrawal' });
+    }
+
+    const amountWei = BigInt(points) * 500_000_000_000_000n;
+
+    const newPointsCount = progress.clarity_points - points;
+    const { error: updateError } = await supabase
+      .from('quest_progress')
+      .update({ clarity_points: newPointsCount })
+      .eq('user_id', user.id);
+
+    if (updateError) {
+      throw new Error(`Failed to update points record: ${updateError.message}`);
+    }
+
+    const privateKey = process.env.PRIVATE_KEY as `0x${string}`;
+    if (!privateKey) {
+      throw new Error('Relayer private key not configured on server');
+    }
+
+    const { privateKeyToAccount } = await import('viem/accounts');
+    const { createWalletClient, erc20Abi } = await import('viem');
+    const account = privateKeyToAccount(privateKey);
+
+    const walletClient = createWalletClient({
+      account,
+      chain: celo,
+      transport: http('https://rpc.ankr.com/celo'),
+    });
+
+    const USDM_ADDRESS = '0x765DE816845861e75A25fCA122bb6898B8B1282a';
+
+    console.log(`[WITHDRAW] Transferring ${amountWei.toString()} Wei of USDm to ${userAddress}...`);
+    const txHash = await walletClient.writeContract({
+      address: USDM_ADDRESS,
+      abi: erc20Abi,
+      functionName: 'transfer',
+      args: [userAddress as `0x${string}`, amountWei],
+      account,
+      chain: celo,
+    });
+
+    console.log('[WITHDRAW] Transfer transaction sent:', txHash);
+
+    res.json({ success: true, txHash, newPoints: newPointsCount });
+  } catch (err: any) {
+    console.error('[WITHDRAW ERROR]', err);
+    res.status(500).json({ error: err.message || 'Withdrawal failed' });
+  }
+});
+
 app.post('/api/prompt/submit', async (req, res) => {
   console.log('[SUBMIT] Received:', req.body);
   const { prompt, toolId, userAddress, nonce: reqNonce } = req.body;
