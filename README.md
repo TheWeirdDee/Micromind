@@ -1,10 +1,10 @@
 # 🧠 MicroMind — Privacy-First AI Journaling & Gamified Scribe on Celo
 
-MicroMind is a mobile-first, privacy-first AI journaling app built on Celo and designed specifically for Opera MiniPay. It is built to help users process emotions, recognize cognitive distortions, and build healthy journaling habits. 
-
-Write freely with no cost. Pay only when you want premium AI insights — a few cents at a time in USDm, with every transaction verifiable on-chain. Build your mental clarity through gamified vocabulary quests, and redeem your gameplay points directly for real-world USDm stablecoins.
+MicroMind is a mobile-first, privacy-first AI journaling app built on Celo and designed for MiniPay. Write freely with no cost. Pay only when you want an AI insight — a few cents at a time in USDm, every transaction verifiable onchain. Play our gamified Clarity Quest to sharpen your cognitive reframing, earn gameplay points, and cash them out directly to stablecoins.
 
 **No subscriptions. No data harvesting. No vendor lock-in.**
+
+Built for MiniPay users across Africa and beyond.
 
 > Live Dapp: [micromind-three.vercel.app](https://micromind-three.vercel.app)  
 > Live AI Relayer: [strong-possibility-production.up.railway.app](https://strong-possibility-production.up.railway.app)
