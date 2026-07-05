@@ -11,6 +11,7 @@ import { QUEST_LEVELS, QuestStage, QuestLevel } from '@/constants/levels';
 import { getDailyHabitState } from '@/lib/journal';
 import { getHistory } from '@/lib/storage';
 import dynamic from 'next/dynamic';
+import confetti from 'canvas-confetti';
 
 const ConnectWalletModal = dynamic(
   () => import('@/components/app/ConnectWalletModal').then((m) => m.ConnectWalletModal),
@@ -29,7 +30,7 @@ interface CollectedCard {
 
 export default function QuestPage() {
   const { address, isConnected, isMiniPay } = useWallet();
-  const { progress, loading: progressLoading, solveStage, resetProgress } = useQuestProgress(address);
+  const { progress, loading: progressLoading, dbWarning, solveStage, resetProgress } = useQuestProgress(address);
   const { payViaRelay, payAndGenerate, loading: paidLoading, step: paidStep, error: paidError, reset: resetPayment } = usePayForPrompt();
 
   const [showWalletModal, setShowWalletModal] = useState(false);
@@ -37,6 +38,8 @@ export default function QuestPage() {
   // Game UI state
   const [selectedLetters, setSelectedLetters] = useState<string[]>([]);
   const [isSolved, setIsSolved] = useState(false);
+  const [isFailed, setIsFailed] = useState(false);
+  const [shuffledLetters, setShuffledLetters] = useState<string[]>([]);
   const [aiHint, setAiHint] = useState<string | null>(null);
   const [aiCard, setAiCard] = useState<string | null>(null);
 
@@ -63,10 +66,30 @@ export default function QuestPage() {
     }
   }, [address, cardsStorageKey]);
 
+  // Shuffle scrambled letters dynamically when stage changes
+  useEffect(() => {
+    if (activeStage) {
+      const letters = [...activeStage.scrambledLetters];
+      // Fisher-Yates shuffle
+      for (let i = letters.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [letters[i], letters[j]] = [letters[j], letters[i]];
+      }
+      // If the shuffled letters still match the beginning of targetWord in order, reverse them
+      if (letters.slice(0, activeStage.targetWord.length).join('') === activeStage.targetWord) {
+        letters.reverse();
+      }
+      setShuffledLetters(letters);
+    } else {
+      setShuffledLetters([]);
+    }
+  }, [activeStage]);
+
   // Reset stage letters when level/stage changes
   useEffect(() => {
     setSelectedLetters([]);
     setIsSolved(false);
+    setIsFailed(false);
     setAiHint(null);
     setAiCard(null);
     resetPayment();
@@ -74,7 +97,7 @@ export default function QuestPage() {
 
   // Handle letter select
   const handleSelectLetter = (letter: string, index: number) => {
-    if (isSolved || !activeStage) return;
+    if (isSolved || isFailed || !activeStage) return;
     const targetLength = activeStage.targetWord.length;
     if (selectedLetters.length >= targetLength) return;
 
@@ -82,8 +105,20 @@ export default function QuestPage() {
     setSelectedLetters(nextSelected);
 
     // Verify solution
-    if (nextSelected.join('') === activeStage.targetWord) {
-      setIsSolved(true);
+    if (nextSelected.length === targetLength) {
+      if (nextSelected.join('') === activeStage.targetWord) {
+        setIsSolved(true);
+        setIsFailed(false);
+        // Blast confetti!
+        confetti({
+          particleCount: 80,
+          spread: 60,
+          origin: { y: 0.7 }
+        });
+      } else {
+        setIsFailed(true);
+        setIsSolved(false);
+      }
     }
   };
 
@@ -93,12 +128,14 @@ export default function QuestPage() {
     const nextSelected = [...selectedLetters];
     nextSelected.splice(index, 1);
     setSelectedLetters(nextSelected);
+    setIsFailed(false);
   };
 
   // Clear slots
   const handleClearSlots = () => {
     if (isSolved) return;
     setSelectedLetters([]);
+    setIsFailed(false);
   };
 
   // Request Premium Hint (0.005 USDm)
@@ -229,28 +266,16 @@ export default function QuestPage() {
 
   // Render Level Locking Navigation List
   const renderLevelsNav = () => {
+    // Only render levels <= progress.currentLevel
+    const visibleLevels = QUEST_LEVELS.filter(l => l.levelNumber <= progress.currentLevel);
+
     return (
       <div className="space-y-2">
         <h4 className="text-[10px] font-mono uppercase text-text-muted tracking-widest px-1">Clarity Levels</h4>
         <div className="space-y-1">
-          {QUEST_LEVELS.map(level => {
+          {visibleLevels.map(level => {
             const isCompleted = progress.completedLevels.includes(level.levelNumber);
             const isCurrent = progress.currentLevel === level.levelNumber;
-            const isLocked = level.levelNumber > progress.currentLevel;
-
-            // Locked levels are hidden (EyeOff) as per spec instruction:
-            // "level 2 which will be locked and not visible to users untill 1 is done completely"
-            if (isLocked) {
-              return (
-                <div
-                  key={level.levelNumber}
-                  className="flex items-center gap-2.5 px-3 py-2 bg-surface-2/20 border border-border/30 rounded-xl opacity-20 pointer-events-none"
-                >
-                  <EyeOff className="w-3.5 h-3.5 text-text-muted" />
-                  <span className="text-xs font-mono text-text-muted">Locked Scribe Path</span>
-                </div>
-              );
-            }
 
             return (
               <div
@@ -293,7 +318,20 @@ export default function QuestPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-24 space-y-8">
+    <div className="max-w-4xl mx-auto pb-24 space-y-8 px-4">
+      {/* Supabase Schema Missing Warning */}
+      {dbWarning && (
+        <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl flex items-start gap-3 text-left">
+          <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h5 className="text-xs font-mono font-bold text-yellow-500 uppercase">Database Setup Required</h5>
+            <p className="text-[11px] font-mono text-text-muted leading-relaxed">
+              Quest progress is saving locally but failed to sync online because table <strong>quest_progress</strong> does not exist in Supabase. Please ask the administrator to execute the database schema file <code>docs/quest_progress.sql</code>.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3">
@@ -302,7 +340,7 @@ export default function QuestPage() {
           </Link>
           <div>
             <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted font-mono">Gamified Scribe</p>
-            <h1 className="text-3xl font-serif mt-1">Clarity Quest</h1>
+            <h1 className="text-2xl sm:text-3xl font-serif mt-1">Clarity Quest</h1>
           </div>
         </div>
 
@@ -324,51 +362,51 @@ export default function QuestPage() {
         {/* Quest canvas (8cols) */}
         <main className="lg:col-span-8 space-y-6">
           {activeStage ? (
-            <div className="bg-surface border border-border p-6 rounded-2xl relative overflow-hidden space-y-6">
+            <div className="bg-surface border border-border p-5 sm:p-6 rounded-2xl relative overflow-hidden space-y-6">
               <div className="absolute inset-0 halftone-bg opacity-5 pointer-events-none" />
 
               {/* Title & Stage indicators */}
               <div className="flex justify-between items-center relative z-10 border-b border-border/50 pb-3">
-                <span className="text-xs font-mono text-accent uppercase tracking-wider">
-                  {activeLevel?.category}
+                <span className="text-xs font-mono text-accent font-bold uppercase tracking-wider">
+                  Lvl {progress.currentLevel} - Stage {progress.currentStage}
                 </span>
                 <span className="text-[10px] font-mono text-text-muted bg-surface-2 border border-border px-2 py-0.5 rounded-lg">
-                  Stage {progress.currentStage} of {activeLevel?.stages.length}
+                  {activeLevel?.category}
                 </span>
               </div>
 
               {/* The Sentence with slots */}
-              <div className="space-y-4 relative z-10">
-                <h3 className="font-serif text-lg text-text-primary leading-relaxed text-center py-4">
-                  {/* Split sentence by placeholder and render */}
-                  {activeStage.sentence.split('{placeholder}')[0]}
-                  <span className="inline-flex gap-1.5 mx-2 align-middle">
-                    {Array.from({ length: activeStage.targetWord.length }).map((_, idx) => {
-                      const letter = selectedLetters[idx];
-                      return (
-                        <motion.button
-                          key={idx}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleRemoveLetter(idx)}
-                          className={`w-7 h-8 border rounded-lg font-mono text-sm font-bold flex items-center justify-center transition-all ${
-                            letter
-                              ? 'bg-accent/15 border-accent text-accent cursor-pointer shadow-sm'
-                              : 'border-dashed border-border bg-surface-2/40 cursor-default'
-                          }`}
-                        >
-                          {letter || ''}
-                        </motion.button>
-                      );
-                    })}
-                  </span>
-                  {activeStage.sentence.split('{placeholder}')[1]}
-                </h3>
+              <div className="space-y-4 relative z-10 text-center">
+                <p className="font-serif text-lg text-text-primary leading-relaxed px-2">
+                  {activeStage.sentence.replace('{placeholder}', '__________')}
+                </p>
+
+                {/* Slots container (flex wrap for mobile) */}
+                <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 py-4">
+                  {Array.from({ length: activeStage.targetWord.length }).map((_, idx) => {
+                    const letter = selectedLetters[idx];
+                    return (
+                      <motion.button
+                        key={idx}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleRemoveLetter(idx)}
+                        className={`w-8 h-10 border rounded-xl font-mono text-base font-bold flex items-center justify-center transition-all ${
+                          letter
+                            ? 'bg-accent/15 border-accent text-accent cursor-pointer shadow-sm'
+                            : 'border-dashed border-border bg-surface-2/40 cursor-default'
+                        }`}
+                      >
+                        {letter || ''}
+                      </motion.button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Actions & Scrambled Grid */}
               <div className="space-y-4 relative z-10">
                 {/* Clear slots */}
-                {selectedLetters.length > 0 && !isSolved && (
+                {selectedLetters.length > 0 && !isSolved && !isFailed && (
                   <button
                     onClick={handleClearSlots}
                     className="text-[9px] font-mono px-3 py-1 bg-surface-2 border border-border hover:border-red-400/30 hover:text-red-400 transition-colors rounded-lg block mx-auto"
@@ -379,10 +417,10 @@ export default function QuestPage() {
 
                 {/* Scrambled buttons */}
                 <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto pt-2">
-                  {activeStage.scrambledLetters.map((l, i) => {
+                  {shuffledLetters.map((l, i) => {
                     // Check if letter has already been selected up to its occurrence count
                     const selectedCount = selectedLetters.filter(x => x === l).length;
-                    const totalCount = activeStage.scrambledLetters.filter(x => x === l).length;
+                    const totalCount = shuffledLetters.filter(x => x === l).length;
                     const isUsed = selectedCount >= totalCount;
 
                     return (
@@ -390,7 +428,7 @@ export default function QuestPage() {
                         key={i}
                         whileHover={{ scale: isUsed ? 1 : 1.1 }}
                         whileTap={{ scale: isUsed ? 1 : 0.95 }}
-                        disabled={isUsed || isSolved}
+                        disabled={isUsed || isSolved || isFailed}
                         onClick={() => handleSelectLetter(l, i)}
                         className={`w-9 h-9 border rounded-xl font-mono text-sm font-bold flex items-center justify-center transition-all select-none ${
                           isUsed
@@ -416,7 +454,7 @@ export default function QuestPage() {
                     "Clue: {aiHint}"
                   </motion.div>
                 ) : (
-                  !isSolved && (
+                  !isSolved && !isFailed && (
                     <button
                       onClick={handleGetHint}
                       disabled={paidLoading}
@@ -438,7 +476,7 @@ export default function QuestPage() {
                 )}
               </div>
 
-              {/* Solve success overlays */}
+              {/* Solve success / fail overlays */}
               <AnimatePresence>
                 {isSolved && (
                   <motion.div
@@ -452,7 +490,7 @@ export default function QuestPage() {
                     </div>
 
                     <p className="text-xs font-mono text-text-muted max-w-sm mx-auto leading-relaxed">
-                      You mapped the flat sentence to the emotionally precise target: <strong>{activeStage.targetWord}</strong>.
+                      You mapped the flat thought to the emotionally precise target: <strong>{activeStage.targetWord}</strong>.
                     </p>
 
                     {/* Paid Reframing Response */}
@@ -460,13 +498,13 @@ export default function QuestPage() {
                       <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="p-5 border border-accent-gold/40 bg-gradient-to-br from-accent-gold/10 to-surface rounded-[2rem] max-w-md mx-auto space-y-3 shadow-lg shadow-accent-gold/5"
+                        className="p-5 border border-accent-gold/40 bg-gradient-to-br from-accent-gold/10 to-surface rounded-[2rem] max-w-md mx-auto space-y-3 shadow-lg shadow-accent-gold/5 text-left"
                       >
                         <div className="flex items-center justify-center gap-1.5">
                           <Sparkles className="w-4 h-4 text-accent-gold" />
                           <span className="text-[10px] font-mono uppercase tracking-widest text-text-primary">Clarity Card Unlocked</span>
                         </div>
-                        <p className="text-xs font-mono italic leading-relaxed text-text-primary">
+                        <p className="text-xs font-mono italic leading-relaxed text-text-primary whitespace-pre-line">
                           {aiCard}
                         </p>
                       </motion.div>
@@ -502,6 +540,29 @@ export default function QuestPage() {
                     </div>
                   </motion.div>
                 )}
+
+                {isFailed && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="border-t border-red-500/20 pt-6 space-y-4 text-center relative z-10"
+                  >
+                    <div className="flex items-center gap-2 justify-center text-red-400 font-bold text-sm font-mono">
+                      <span>Incorrect spelling 😢</span>
+                    </div>
+
+                    <p className="text-xs font-mono text-text-muted max-w-sm mx-auto leading-relaxed">
+                      "{selectedLetters.join('')}" is not the correct mindful word. Try again!
+                    </p>
+
+                    <button
+                      onClick={handleClearSlots}
+                      className="pill-button bg-red-950/20 border border-red-500/30 hover:border-red-400 hover:text-red-400 w-full max-w-xs py-3 text-xs font-mono mx-auto block"
+                    >
+                      🔄 Retry Stage
+                    </button>
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
           ) : (
@@ -533,7 +594,7 @@ export default function QuestPage() {
                   <motion.div
                     key={card.id + i}
                     layout
-                    className="bg-surface border border-border rounded-[2rem] p-5 space-y-3 shadow-md hover:border-accent-gold/30 hover:shadow-accent-gold/5 transition-all relative overflow-hidden"
+                    className="bg-surface border border-border rounded-[2rem] p-5 space-y-3 shadow-md hover:border-accent-gold/30 hover:shadow-accent-gold/5 transition-all relative overflow-hidden text-left"
                   >
                     <div className="absolute top-0 right-0 w-16 h-16 bg-accent-gold/2 rounded-full filter blur-lg pointer-events-none" />
                     
