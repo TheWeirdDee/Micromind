@@ -191,6 +191,17 @@ export function saveEntry(entry: Omit<JournalEntry, 'id' | 'date' | 'timestamp'>
     timestamp: Date.now(),
   };
   localStorage.setItem(JOURNAL_KEY, JSON.stringify([newEntry, ...entries]));
+  
+  // Set habit state for journal completion
+  const getLocalDateString = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const todayStr = getLocalDateString(new Date());
+  setDailyHabitState(todayStr, { journalDone: true }, null); // will sync automatically
+  
   pushEntryToSupabase(newEntry).catch(() => {});
   dispatch();
   return newEntry;
@@ -256,6 +267,53 @@ export function getRecentEntries(n: number): JournalEntry[] {
   return getEntries().slice(0, n);
 }
 
+
+export interface DailyHabitState {
+  date: string; // YYYY-MM-DD
+  journalDone: boolean;
+  gameplayDone: boolean;
+}
+
+export function getDailyHabitState(dateStr: string, walletAddress: string | null): DailyHabitState {
+  if (typeof window === 'undefined') {
+    return { date: dateStr, journalDone: false, gameplayDone: false };
+  }
+  const key = walletAddress ? `mm_habit_${walletAddress}_${dateStr}` : `mm_habit_${dateStr}`;
+  const stored = localStorage.getItem(key);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch { /* ignore */ }
+  }
+
+  // Fallback: check if they have a journal entry on this date
+  const journalEntries = getEntries();
+  const getLocalDateString = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const hasJournal = journalEntries.some(e => getLocalDateString(new Date(e.timestamp)) === dateStr);
+
+  return {
+    date: dateStr,
+    journalDone: hasJournal,
+    gameplayDone: false
+  };
+}
+
+export function setDailyHabitState(dateStr: string, state: Partial<DailyHabitState>, walletAddress: string | null): void {
+  if (typeof window === 'undefined') return;
+  const key = walletAddress ? `mm_habit_${walletAddress}_${dateStr}` : `mm_habit_${dateStr}`;
+  const current = getDailyHabitState(dateStr, walletAddress);
+  const updated = { ...current, ...state };
+  localStorage.setItem(key, JSON.stringify(updated));
+  
+  // Trigger updateStreak to ensure streak counter stays in sync
+  updateStreak(walletAddress);
+}
+
 /**
  * Updates the daily activity streak for a wallet.
  * Merges journal dates, prompt history dates, and manual check-in dates.
@@ -297,6 +355,23 @@ export function updateStreak(walletAddress: string | null): void {
   }
 
   const allDatesSet = new Set([...journalDates, ...historyDates, ...manualDates]);
+  
+  // Scan habit states where either journal or gameplay is done
+  if (typeof window !== 'undefined') {
+    const prefix = walletAddress ? `mm_habit_${walletAddress}_` : `mm_habit_`;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) {
+        try {
+          const stateObj = JSON.parse(localStorage.getItem(key) || '');
+          if (stateObj && (stateObj.journalDone || stateObj.gameplayDone)) {
+            allDatesSet.add(stateObj.date);
+          }
+        } catch {}
+      }
+    }
+  }
+
   const sortedDates = Array.from(allDatesSet).sort((a, b) => b.localeCompare(a));
 
   let streakCount = 0;
