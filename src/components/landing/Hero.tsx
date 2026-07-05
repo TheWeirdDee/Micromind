@@ -48,7 +48,7 @@ export function Hero() {
               variants={item}
               className="text-text-primary/80 font-mono text-sm md:text-base max-w-xl leading-relaxed"
             >
-              A cozy, private space to write down your thoughts, trace your emotional patterns, and send letters to the future. An honest journal on Celo that uses AI to support your reflection, not write for you.
+              A cozy, private space to write down your thoughts, trace emotional patterns, play a gamified Clarity Quest to sharpen your expression, and schedule encrypted letters to the future. An honest journal on Celo with modular AI tools to support your reflection, not write for you.
             </motion.p>
             
             <motion.div 
