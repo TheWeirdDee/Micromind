@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BookOpen, MessageSquare, Bird, Sparkles, Search, Mail } from 'lucide-react';
+import { BookOpen, MessageSquare, Bird, Sparkles, Search, Mail, Brain, Trophy } from 'lucide-react';
 import Link from 'next/link';
 
 const tools = [
@@ -9,10 +9,37 @@ const tools = [
     icon: BookOpen,
     slug: 'journal',
     name: 'Journal Core',
-    desc: 'Write freely. Own your thoughts and express them fully in a private space.',
+    desc: 'Write freely. Own your thoughts and express them fully in a private, offline-first space.',
     price: 'Free',
     btnText: 'Write Entry',
     route: '/app/journal',
+  },
+  {
+    icon: Brain,
+    slug: 'coach',
+    name: 'AI Writing Coach',
+    desc: 'Interactive guided prompts and SSE-streamed therapeutic coaching to align your focus.',
+    price: '0.005 USDm',
+    btnText: 'Train Expression',
+    route: '/app/coach',
+  },
+  {
+    icon: Trophy,
+    slug: 'quest',
+    name: 'Clarity Quest',
+    desc: 'Unscramble cognitive distortion sentences. Unlock reframing cards to build your streak.',
+    price: 'Free*',
+    btnText: 'Play Quest',
+    route: '/app/quest',
+  },
+  {
+    icon: Mail,
+    slug: 'letter',
+    name: 'Scheduled Escrows',
+    desc: 'Send instant letters or client-side encrypted escrow letters released by backend cron.',
+    price: 'Free + 0.01 USDm',
+    btnText: 'Schedule Letter',
+    route: '/app/letter',
   },
   {
     icon: Sparkles,
@@ -31,15 +58,6 @@ const tools = [
     price: '0.005 USDm',
     btnText: 'Find Patterns',
     route: '/app/pattern',
-  },
-  {
-    icon: Mail,
-    slug: 'letter',
-    name: 'Heartfelt Letter',
-    desc: 'Write a letter to anyone and send it to their inbox. Optional paid AI polish.',
-    price: 'Free + 0.01 USDm',
-    btnText: 'Send Letter',
-    route: '/app/letter',
   },
   {
     icon: Bird,
