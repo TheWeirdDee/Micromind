@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import Groq from 'groq-sdk';
 import { createPublicClient, http, decodeEventLog } from 'viem';
 import { celo, celoAlfajores } from 'viem/chains';
-import { MICROMIND_ABI } from './lib/contract';
+import { MICROMIND_ABI, MICROMIND_STAKING_ABI } from './lib/contract';
 import { Resend } from 'resend';
 import {
   verifyRelaySignature,
@@ -12,6 +12,8 @@ import {
   markNonceUsed,
   isDeadlineValid,
   executeRelay,
+  verifyChallengeRelaySignature,
+  executeChallengeRelay,
 } from './lib/relayer';
 import { decryptAESGCM } from './lib/crypto';
 import { supabase } from './lib/supabase';
@@ -22,6 +24,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 const IS_TESTNET = process.env.IS_TESTNET === 'true';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS as `0x${string}`;
+const STAKING_CONTRACT_ADDRESS = process.env.STAKING_CONTRACT_ADDRESS as `0x${string}`;
 
 // Fail fast — without a valid contract address the agent cannot decode events
 if (!CONTRACT_ADDRESS || CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
@@ -782,6 +785,63 @@ app.post('/api/relay', async (req, res) => {
     res.json({ status: 'processing', txHash: result.txHash });
   }
 });
+
+// ─── Challenge Relay Route ───────────────────────────────────────────────────
+// Accepts an EIP-712 signed relay request for staking challenge operations.
+// Verifies the signature, executes startChallengeFor, checkInFor, or withdrawFor.
+app.post('/api/challenge/relay', async (req, res) => {
+  const { signature, action, entryHash, userAddress, nonce, deadline } = req.body;
+
+  if (!signature || action === undefined || !entryHash || !userAddress || !nonce || !deadline) {
+    return res.status(400).json({ error: 'Missing required challenge relay fields' });
+  }
+
+  const parsedAction = parseInt(action, 10);
+  if (!Number.isInteger(parsedAction) || parsedAction < 1 || parsedAction > 3) {
+    return res.status(400).json({ error: 'Invalid action' });
+  }
+
+  // Validate contract address is set on agent
+  if (!STAKING_CONTRACT_ADDRESS) {
+    return res.status(500).json({ error: 'Staking contract address not configured on relayer' });
+  }
+
+  // Validate deadline
+  if (!isDeadlineValid(deadline)) {
+    return res.status(400).json({ error: 'Request expired. Please try again.' });
+  }
+
+  // Replay protection
+  if (isNonceUsed(userAddress, nonce)) {
+    return res.status(400).json({ error: 'Nonce already used.' });
+  }
+
+  // Verify EIP-712 signature
+  const params = { signature, action: parsedAction, entryHash, userAddress, nonce, deadline };
+  const isValid = await verifyChallengeRelaySignature(params, STAKING_CONTRACT_ADDRESS);
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature. Could not verify request authenticity.' });
+  }
+
+  // Mark nonce as used
+  markNonceUsed(userAddress, nonce);
+
+  console.log(`[RELAY-CHALLENGE] Valid request from ${userAddress} for action ${parsedAction}`);
+
+  const result = await executeChallengeRelay(
+    params,
+    STAKING_CONTRACT_ADDRESS,
+    MICROMIND_STAKING_ABI,
+  );
+
+  if (!result.success) {
+    console.error('[RELAY-CHALLENGE] On-chain execution failed:', result.error);
+    return res.status(500).json({ error: result.error || 'Relay execution failed' });
+  }
+
+  res.json({ status: 'ready', txHash: result.txHash });
+});
+
 
 initStorage().then(() => {
   app.listen(port, () => {
