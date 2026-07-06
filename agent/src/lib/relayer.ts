@@ -19,6 +19,7 @@ import {
   erc20Abi,
   verifyTypedData,
   type Address,
+  type Abi,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { celo } from 'viem/chains';
@@ -195,7 +196,7 @@ export async function executeRelay(
     console.log('[RELAY] Step 2: Calling payForPrompt...');
     const payTx = await walletClient.writeContract({
       address:      contractAddress,
-      abi:          micromindAbi as any,
+      abi:          micromindAbi as unknown as Abi,
       functionName: 'payForPrompt',
       args:         [params.toolId, params.promptHash],
       chain:        celo,
@@ -206,9 +207,10 @@ export async function executeRelay(
     console.log('[RELAY] Payment confirmed:', payTx);
 
     return { txHash: payTx, success: true };
-  } catch (e: any) {
-    console.error('[RELAY] Execution failed:', e.message);
-    return { txHash: '0x', success: false, error: e.message };
+  } catch (e: unknown) {
+    const err = e as Error;
+    console.error('[RELAY] Execution failed:', err.message);
+    return { txHash: '0x', success: false, error: err.message };
   }
 }
 
@@ -288,7 +290,7 @@ export async function executeChallengeRelay(
 
   try {
     let functionName = '';
-    let args: any[] = [];
+    let args: unknown[] = [];
 
     if (params.action === 1) {
       functionName = 'startChallengeFor';
@@ -306,7 +308,7 @@ export async function executeChallengeRelay(
     console.log(`[RELAY-CHALLENGE] Calling ${functionName} for ${params.userAddress}...`);
     const tx = await walletClient.writeContract({
       address:      stakingContractAddress,
-      abi:          stakingAbi as any,
+      abi:          stakingAbi as unknown as Abi,
       functionName,
       args,
       chain:        celo,
@@ -317,9 +319,10 @@ export async function executeChallengeRelay(
     console.log(`[RELAY-CHALLENGE] ${functionName} confirmed:`, tx);
 
     return { txHash: tx, success: true };
-  } catch (e: any) {
-    console.error('[RELAY-CHALLENGE] Execution failed:', e.message);
-    return { txHash: '0x', success: false, error: e.message };
+  } catch (e: unknown) {
+    const err = e as Error;
+    console.error('[RELAY-CHALLENGE] Execution failed:', err.message);
+    return { txHash: '0x', success: false, error: err.message };
   }
 }
 
