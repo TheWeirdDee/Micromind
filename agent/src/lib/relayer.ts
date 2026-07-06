@@ -211,3 +211,115 @@ export async function executeRelay(
     return { txHash: '0x', success: false, error: e.message };
   }
 }
+
+export interface ChallengeRelayParams {
+  signature:   `0x${string}`;
+  action:      number;
+  entryHash:   `0x${string}`;
+  userAddress: `0x${string}`;
+  nonce:       string;
+  deadline:    string;
+}
+
+export async function verifyChallengeRelaySignature(
+  params: ChallengeRelayParams,
+  stakingContractAddress: Address
+): Promise<boolean> {
+  try {
+    const domain = {
+      name: 'MicroMindStaking',
+      version: '1',
+      chainId: CHAIN_ID,
+      verifyingContract: stakingContractAddress,
+    } as const;
+
+    const types = {
+      ChallengeRelayRequest: [
+        { name: 'action',      type: 'uint8'   },
+        { name: 'entryHash',   type: 'bytes32' },
+        { name: 'userAddress', type: 'address' },
+        { name: 'nonce',       type: 'uint256' },
+        { name: 'deadline',    type: 'uint256' },
+      ],
+    } as const;
+
+    return await verifyTypedData({
+      address:     params.userAddress,
+      domain,
+      types,
+      primaryType: 'ChallengeRelayRequest',
+      message: {
+        action:      params.action,
+        entryHash:   params.entryHash,
+        userAddress: params.userAddress,
+        nonce:       BigInt(params.nonce),
+        deadline:    BigInt(params.deadline),
+      },
+      signature: params.signature,
+    });
+  } catch (e) {
+    console.error('[RELAY] Challenge signature verification error:', e);
+    return false;
+  }
+}
+
+export async function executeChallengeRelay(
+  params: ChallengeRelayParams,
+  stakingContractAddress: Address,
+  stakingAbi: readonly object[],
+): Promise<RelayResult> {
+  const privateKey = process.env.PRIVATE_KEY as `0x${string}`;
+  if (!privateKey) {
+    return { txHash: '0x', success: false, error: 'Relayer private key not configured' };
+  }
+
+  const account = privateKeyToAccount(privateKey);
+
+  const walletClient = createWalletClient({
+    account,
+    chain:     celo,
+    transport: http('https://rpc.ankr.com/celo'),
+  });
+
+  const publicClient = createPublicClient({
+    chain:     celo,
+    transport: http('https://rpc.ankr.com/celo'),
+  });
+
+  try {
+    let functionName = '';
+    let args: any[] = [];
+
+    if (params.action === 1) {
+      functionName = 'startChallengeFor';
+      args = [params.userAddress];
+    } else if (params.action === 2) {
+      functionName = 'checkInFor';
+      args = [params.userAddress, params.entryHash];
+    } else if (params.action === 3) {
+      functionName = 'withdrawFor';
+      args = [params.userAddress];
+    } else {
+      throw new Error(`Invalid challenge action: ${params.action}`);
+    }
+
+    console.log(`[RELAY-CHALLENGE] Calling ${functionName} for ${params.userAddress}...`);
+    const tx = await walletClient.writeContract({
+      address:      stakingContractAddress,
+      abi:          stakingAbi as any,
+      functionName,
+      args,
+      chain:        celo,
+      account,
+    });
+
+    await publicClient.waitForTransactionReceipt({ hash: tx, confirmations: 1, timeout: 60_000 });
+    console.log(`[RELAY-CHALLENGE] ${functionName} confirmed:`, tx);
+
+    return { txHash: tx, success: true };
+  } catch (e: any) {
+    console.error('[RELAY-CHALLENGE] Execution failed:', e.message);
+    return { txHash: '0x', success: false, error: e.message };
+  }
+}
+
