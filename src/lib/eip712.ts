@@ -77,3 +77,63 @@ export async function signRelayRequest(
     },
   });
 }
+
+/** EIP-712 type definitions for a challenge staking relay request */
+export const CHALLENGE_RELAY_TYPES = {
+  ChallengeRelayRequest: [
+    { name: 'action',      type: 'uint8'   },
+    { name: 'entryHash',   type: 'bytes32' },
+    { name: 'userAddress', type: 'address' },
+    { name: 'nonce',       type: 'uint256' },
+    { name: 'deadline',    type: 'uint256' },
+  ],
+} as const;
+
+export interface ChallengeRelayRequest {
+  action:      number; // 1 = Register, 2 = CheckIn, 3 = Withdraw
+  entryHash:   `0x${string}`;
+  userAddress: `0x${string}`;
+  nonce:       bigint;
+  deadline:    bigint;
+}
+
+/** Build a ChallengeRelayRequest ready to be signed */
+export function buildChallengeRelayRequest(
+  action: number,
+  entryHash: `0x${string}`,
+  userAddress: `0x${string}`,
+): ChallengeRelayRequest {
+  const nonce    = BigInt(Date.now()); // millisecond timestamp
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 300); // 5 minutes
+  return { action, entryHash, userAddress, nonce, deadline };
+}
+
+/** Sign a ChallengeRelayRequest using the connected walletClient */
+export async function signChallengeRelayRequest(
+  walletClient: { signTypedData: (args: unknown) => Promise<`0x${string}`> },
+  userAddress: `0x${string}`,
+  verifyingContract: string,
+  request: ChallengeRelayRequest,
+): Promise<`0x${string}`> {
+  const domain = {
+    name: 'MicroMindStaking',
+    version: '1',
+    chainId: CHAIN_ID,
+    verifyingContract: verifyingContract as `0x${string}`,
+  };
+
+  return walletClient.signTypedData({
+    account:     userAddress,
+    domain,
+    types:       CHALLENGE_RELAY_TYPES,
+    primaryType: 'ChallengeRelayRequest',
+    message: {
+      action:      request.action,
+      entryHash:   request.entryHash,
+      userAddress: request.userAddress,
+      nonce:       request.nonce,
+      deadline:    request.deadline,
+    },
+  });
+}
+
