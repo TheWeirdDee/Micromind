@@ -9,6 +9,6 @@
     "resolveJsonModule": true,
     "rootDir": ".",
   },
-  "include": ["./scripts/**/*", "./contracts/**/*", "./hardhat.config.ts"],
+  "include": ["./scripts/**/*", "./contracts/**/*", "./test/**/*", "./hardhat.config.ts"],
   "files": ["./hardhat.config.ts"]
 }

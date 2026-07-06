@@ -8,14 +8,13 @@ describe("MicroMindStaking", function () {
   let staking: MicroMindStaking;
   let owner: SignerWithAddress;
   let user: SignerWithAddress;
-  let relayer: SignerWithAddress;
   let otherUser: SignerWithAddress;
 
   const STAKE_AMOUNT = ethers.parseUnits("5", 18);
   const REWARD_AMOUNT = ethers.parseUnits("0.5", 18);
 
   beforeEach(async function () {
-    [owner, user, relayer, otherUser] = await ethers.getSigners();
+    [owner, user, , otherUser] = await ethers.getSigners();
 
     // Deploy Mock USDm
     const MockERC20Factory = await ethers.getContractFactory("MockERC20");
@@ -60,8 +59,8 @@ describe("MicroMindStaking", function () {
         .withArgs(user.address, anyTimestamp(), STAKE_AMOUNT);
 
       const challenge = await staking.challenges(user.address);
-      expect(challenge.active).to.be.true;
-      expect(challenge.claimed).to.be.false;
+      expect(challenge.active).to.equal(true);
+      expect(challenge.claimed).to.equal(false);
       expect(challenge.checkInCount).to.equal(0);
       expect(challenge.startTime).to.be.greaterThan(0n);
 
@@ -181,8 +180,8 @@ describe("MicroMindStaking", function () {
 
       expect(await usdm.balanceOf(user.address)).to.equal(balanceBefore + STAKE_AMOUNT);
       const challenge = await staking.challenges(user.address);
-      expect(challenge.active).to.be.false;
-      expect(challenge.claimed).to.be.true;
+      expect(challenge.active).to.equal(false);
+      expect(challenge.claimed).to.equal(true);
     });
 
     it("Should return principal + reward for finisher", async function () {
@@ -281,5 +280,5 @@ describe("MicroMindStaking", function () {
 
 // Helper matcher for timestamps
 function anyTimestamp() {
-  return (val: any) => typeof val === "bigint" && val > 0n;
+  return (val: unknown) => typeof val === "bigint" && val > 0n;
 }
