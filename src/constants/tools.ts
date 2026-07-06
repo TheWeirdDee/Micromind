@@ -88,4 +88,14 @@ export const TOOLS: Tool[] = [
     route: '/app/quest',
     hasFreeMode: true,
   },
+  {
+    id: 0,
+    slug: 'challenge',
+    name: '30-Day Challenge',
+    description: 'Stake USDm, build your daily writing habit, and earn rewards.',
+    price: '5.00',
+    priceWei: '5000000000000000000',
+    route: '/app/challenge',
+  },
 ];
+
