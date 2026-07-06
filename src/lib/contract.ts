@@ -85,3 +85,88 @@ export const MICROMIND_ABI = [
 
 // Prevent accidental runtime mutation of the ABI
 Object.freeze(MICROMIND_ABI);
+
+/** MicroMindStaking contract address on Celo Mainnet. */
+export const STAKING_CONTRACT_ADDRESS =
+  process.env.NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS as `0x${string}`;
+
+export const MICROMIND_STAKING_ABI = [
+  {
+    name: 'startChallenge',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: []
+  },
+  {
+    name: 'checkIn',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'entryHash', type: 'bytes32' }],
+    outputs: []
+  },
+  {
+    name: 'withdraw',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: []
+  },
+  {
+    name: 'challenges',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: '', type: 'address' }],
+    outputs: [
+      { name: 'startTime', type: 'uint256' },
+      { name: 'checkInCount', type: 'uint16' },
+      { name: 'active', type: 'bool' },
+      { name: 'claimed', type: 'bool' }
+    ]
+  },
+  {
+    name: 'getCheckedInDays',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: [{ name: '', type: 'bool[]' }]
+  },
+  {
+    name: 'stakeAmount',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'challengeDuration',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'requiredCheckins',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'rewardAmount',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    name: 'rewardPoolBalance',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint256' }]
+  }
+] as const;
+
+Object.freeze(MICROMIND_STAKING_ABI);
+
