@@ -21,3 +21,31 @@ export const MICROMIND_ABI = [
     ]
   }
 ] as const;
+
+export const MICROMIND_STAKING_ABI = [
+  {
+    name: 'startChallengeFor',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: []
+  },
+  {
+    name: 'checkInFor',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'user', type: 'address' },
+      { name: 'entryHash', type: 'bytes32' }
+    ],
+    outputs: []
+  },
+  {
+    name: 'withdrawFor',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'user', type: 'address' }],
+    outputs: []
+  }
+] as const;
+

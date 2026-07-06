@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BookOpen, MessageSquare, History, ArrowUp, Trophy } from 'lucide-react';
+import { Home, BookOpen, MessageSquare, History, ArrowUp, Trophy, Flame } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -50,10 +50,12 @@ export function BottomNav() {
     { icon: Home, label: 'Home', href: '/app' },
     { icon: BookOpen, label: 'Journal', href: '/app/journal' },
     { icon: Trophy, label: 'Quest', href: '/app/quest' },
+    { icon: Flame, label: 'Streak', href: '/app/challenge' },
     { icon: MessageSquare, label: 'Chat', href: '/app/chat' },
     { icon: ArrowUp, label: 'Send', href: '/app/send' },
     { icon: History, label: 'History', href: '/app/history' },
   ];
+
 
   if (isKeyboardOpen) return null;
 
