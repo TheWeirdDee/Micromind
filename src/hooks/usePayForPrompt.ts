@@ -487,11 +487,14 @@ export function usePayForPrompt() {
       let msg = err.shortMessage || err.message || 'Relay failed';
       if (err.code === 4001 || msg.toLowerCase().includes('user rejected')) {
         msg = 'Signature cancelled.';
+        setError(msg);
+        setStep('error');
+        return;
       }
-      setError(msg);
-      setStep('error');
+      console.warn('[RELAY] Relay signature failed. Falling back to direct on-chain payment:', msg);
+      return payAndGenerate(toolId, toolName, prompt);
     }
-  }, [address, walletClient]);
+  }, [address, walletClient, payAndGenerate]);
 
   return { payAndGenerate, payViaRelay, loading, step, error, txHash, response, reset };
 }
