@@ -61,6 +61,10 @@ export default function QuestPage() {
   const activeLevel = QUEST_LEVELS.find(l => l.levelNumber === progress.currentLevel);
   const activeStage: QuestStage | undefined = activeLevel?.stages[progress.currentStage - 1];
 
+  const timerStorageKey = address
+    ? `mm_quest_timer_${address}_lvl${progress.currentLevel}_stg${progress.currentStage}`
+    : `mm_quest_timer_lvl${progress.currentLevel}_stg${progress.currentStage}`;
+
   // Load collected cards on mount
   const cardsStorageKey = address ? `mm_quest_cards_${address}` : 'mm_quest_cards';
   
@@ -103,17 +107,44 @@ export default function QuestPage() {
     }
   }, [activeStage]);
 
-  // Reset stage letters when level/stage changes
+  // Reset stage letters and load/initialize timer when level/stage changes
   useEffect(() => {
     setSelectedIndices([]);
     setIsSolved(false);
     setIsFailed(false);
     setAiHint(null);
     setAiCard(null);
-    setTimeLeft(120);
-    setHasForfeited(false);
     resetPayment();
-  }, [progress.currentLevel, progress.currentStage]);
+
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(timerStorageKey);
+      if (stored) {
+        try {
+          const { expiryTime, forfeited } = JSON.parse(stored);
+          const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
+          if (remaining <= 0) {
+            setTimeLeft(0);
+            setHasForfeited(true);
+            setIsFailed(true);
+          } else {
+            setTimeLeft(remaining);
+            setHasForfeited(forfeited);
+            setIsFailed(false);
+          }
+        } catch {
+          const newExpiry = Date.now() + 120 * 1000;
+          setTimeLeft(120);
+          setHasForfeited(false);
+          localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: false }));
+        }
+      } else {
+        const newExpiry = Date.now() + 120 * 1000;
+        setTimeLeft(120);
+        setHasForfeited(false);
+        localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: false }));
+      }
+    }
+  }, [progress.currentLevel, progress.currentStage, timerStorageKey]);
 
   // Timer Countdown Effect
   useEffect(() => {
@@ -125,6 +156,9 @@ export default function QuestPage() {
           clearInterval(timer);
           setIsFailed(true);
           setHasForfeited(true); // Player loses point eligibility for this stage
+          try {
+            localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: Date.now(), forfeited: true }));
+          } catch {}
           return 0;
         }
         return prev - 1;
@@ -132,7 +166,7 @@ export default function QuestPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [progressLoading, isSolved, isFailed, activeStage]);
+  }, [progressLoading, isSolved, isFailed, activeStage, timerStorageKey]);
 
   // Handle letter select by index
   const handleSelectLetter = (letter: string, index: number) => {
@@ -171,17 +205,44 @@ export default function QuestPage() {
     setIsFailed(false);
   };
 
-  // Clear slots
+  // Clear slots / Retry Stage
   const handleClearSlots = () => {
     if (isSolved) return;
     setSelectedIndices([]);
     setIsFailed(false);
+
+    if (timeLeft <= 0) {
+      // Restart timer for retry, but keep forfeited = true
+      const newExpiry = Date.now() + 120 * 1000;
+      setTimeLeft(120);
+      setHasForfeited(true);
+      try {
+        localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: true }));
+      } catch {}
+    }
   };
 
   // Solve stage wrapper
   const handleSolveStage = async () => {
     const pointsEarned = hasForfeited ? 0 : progress.currentLevel;
+    try {
+      localStorage.removeItem(timerStorageKey);
+    } catch {}
     await solveStage(pointsEarned);
+  };
+
+  // Reset progress and clean all timer records
+  const handleResetProgress = async () => {
+    if (typeof window !== 'undefined') {
+      try {
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith('mm_quest_timer_')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch {}
+    }
+    await resetProgress();
   };
 
   // Handle Withdrawal to Real Money
@@ -751,7 +812,7 @@ export default function QuestPage() {
                 Congratulations scribe! You have successfully completed all 10 Levels and cleared every puzzle on Clarity Quest. Your mental acuity is unlocked.
               </p>
               <button
-                onClick={resetProgress}
+                onClick={handleResetProgress}
                 className="px-4 py-2 border border-border hover:bg-red-950/20 hover:text-red-400 hover:border-red-400/30 rounded-xl font-mono text-xs text-text-muted transition-colors"
               >
                 Reset Progress (Start Over)
