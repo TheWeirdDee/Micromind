@@ -2,14 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Brain, Sparkles, AlertTriangle, Loader2, CheckCircle2, Lock, HelpCircle, RefreshCw, Trophy, Calendar, EyeOff } from 'lucide-react';
+import { ChevronLeft, Sparkles, AlertTriangle, Loader2, CheckCircle2, HelpCircle, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { useQuestProgress } from '@/hooks/useQuestProgress';
-import { QUEST_LEVELS, QuestStage, QuestLevel } from '@/constants/levels';
-import { getDailyHabitState } from '@/lib/journal';
-import { getHistory } from '@/lib/storage';
+import { QUEST_LEVELS, QuestStage } from '@/constants/levels';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 import confetti from 'canvas-confetti';
@@ -30,9 +28,9 @@ interface CollectedCard {
 }
 
 export default function QuestPage() {
-  const { address, isConnected, isMiniPay } = useWallet();
+  const { address, isConnected } = useWallet();
   const { progress, loading: progressLoading, dbWarning, solveStage, deductPoints, resetProgress } = useQuestProgress(address);
-  const { payViaRelay, payAndGenerate, loading: paidLoading, step: paidStep, error: paidError, reset: resetPayment } = usePayForPrompt();
+  const { payViaRelay, loading: paidLoading, step: paidStep, reset: resetPayment } = usePayForPrompt();
 
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showRewardsModal, setShowRewardsModal] = useState(false);
@@ -73,10 +71,13 @@ export default function QuestPage() {
       const stored = localStorage.getItem(cardsStorageKey);
       if (stored) {
         try {
-          setCollectedCards(JSON.parse(stored));
+          const parsed = JSON.parse(stored);
+          const t = setTimeout(() => setCollectedCards(parsed), 0);
+          return () => clearTimeout(t);
         } catch {}
       } else {
-        setCollectedCards([]);
+        const t = setTimeout(() => setCollectedCards([]), 0);
+        return () => clearTimeout(t);
       }
     }
   }, [address, cardsStorageKey]);
@@ -84,7 +85,8 @@ export default function QuestPage() {
   // Set default withdrawal address when connected
   useEffect(() => {
     if (address) {
-      setWithdrawAddress(address);
+      const t = setTimeout(() => setWithdrawAddress(address), 0);
+      return () => clearTimeout(t);
     }
   }, [address]);
 
@@ -101,50 +103,55 @@ export default function QuestPage() {
       if (letters.slice(0, activeStage.targetWord.length).join('') === activeStage.targetWord) {
         letters.reverse();
       }
-      setShuffledLetters(letters);
+      const t = setTimeout(() => setShuffledLetters(letters), 0);
+      return () => clearTimeout(t);
     } else {
-      setShuffledLetters([]);
+      const t = setTimeout(() => setShuffledLetters([]), 0);
+      return () => clearTimeout(t);
     }
   }, [activeStage]);
 
   // Reset stage letters and load/initialize timer when level/stage changes
   useEffect(() => {
-    setSelectedIndices([]);
-    setIsSolved(false);
-    setIsFailed(false);
-    setAiHint(null);
-    setAiCard(null);
-    resetPayment();
+    const t = setTimeout(() => {
+      setSelectedIndices([]);
+      setIsSolved(false);
+      setIsFailed(false);
+      setAiHint(null);
+      setAiCard(null);
+      resetPayment();
 
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(timerStorageKey);
-      if (stored) {
-        try {
-          const { expiryTime, forfeited } = JSON.parse(stored);
-          const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
-          if (remaining <= 0) {
-            setTimeLeft(0);
-            setHasForfeited(true);
-            setIsFailed(true);
-          } else {
-            setTimeLeft(remaining);
-            setHasForfeited(forfeited);
-            setIsFailed(false);
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(timerStorageKey);
+        if (stored) {
+          try {
+            const { expiryTime, forfeited } = JSON.parse(stored);
+            const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
+            if (remaining <= 0) {
+              setTimeLeft(0);
+              setHasForfeited(true);
+              setIsFailed(true);
+            } else {
+              setTimeLeft(remaining);
+              setHasForfeited(forfeited);
+              setIsFailed(false);
+            }
+          } catch {
+            const newExpiry = Date.now() + 120 * 1000;
+            setTimeLeft(120);
+            setHasForfeited(false);
+            localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: false }));
           }
-        } catch {
+        } else {
           const newExpiry = Date.now() + 120 * 1000;
           setTimeLeft(120);
           setHasForfeited(false);
           localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: false }));
         }
-      } else {
-        const newExpiry = Date.now() + 120 * 1000;
-        setTimeLeft(120);
-        setHasForfeited(false);
-        localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: false }));
       }
-    }
-  }, [progress.currentLevel, progress.currentStage, timerStorageKey]);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [progress.currentLevel, progress.currentStage, timerStorageKey, resetPayment]);
 
   // Timer Countdown Effect
   useEffect(() => {
@@ -290,8 +297,9 @@ export default function QuestPage() {
       await deductPoints(withdrawAmount);
       setShowRewardsModal(false);
       alert(`Withdrawal Successful! Converted ${withdrawAmount} points to USDm.\nTransaction Hash: ${data.txHash}`);
-    } catch (e: any) {
-      alert(`Withdrawal Error: ${e.message}`);
+    } catch (e: unknown) {
+      const err = e as Error;
+      alert(`Withdrawal Error: ${err.message}`);
     } finally {
       setWithdrawing(false);
     }
@@ -334,8 +342,9 @@ export default function QuestPage() {
         const data = await res.json();
         setAiHint(data.hintText);
       }
-    } catch (e: any) {
-      alert(`Payment or hint generation failed: ${e.message}`);
+    } catch (e: unknown) {
+      const err = e as Error;
+      alert(`Payment or hint generation failed: ${err.message}`);
     }
   };
 
@@ -388,8 +397,9 @@ export default function QuestPage() {
         setCollectedCards(updated);
         localStorage.setItem(cardsStorageKey, JSON.stringify(updated));
       }
-    } catch (e: any) {
-      alert(`Card unlock failed: ${e.message}`);
+    } catch (e: unknown) {
+      const err = e as Error;
+      alert(`Card unlock failed: ${err.message}`);
     }
   };
 
@@ -682,7 +692,7 @@ export default function QuestPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="p-4 bg-accent-gold/5 border border-accent-gold/25 rounded-2xl w-full text-xs font-mono text-accent-gold text-center italic"
                   >
-                    "Clue: {aiHint}"
+                    &quot;Clue: {aiHint}&quot;
                   </motion.div>
                 ) : (
                   !isSolved && (
@@ -843,7 +853,7 @@ export default function QuestPage() {
                     </div>
 
                     <p className="text-[10px] font-mono text-text-muted leading-relaxed">
-                      Context: "{card.sentence}"
+                      Context: &quot;{card.sentence}&quot;
                     </p>
 
                     <div className="pt-2 border-t border-border/20">

@@ -9,11 +9,9 @@ import {
 } from 'react';
 import {
   createPublicClient,
-  createWalletClient,
-  custom,
   http,
   erc20Abi,
-  getAddress
+  type WalletClient
 } from 'viem';
 import { celo } from 'viem/chains';
 import {
@@ -37,7 +35,7 @@ interface WalletContextType {
   /** Human-readable CELO balance of the connected address (4 decimal places). */
   celoBalance: string;
   /** Viem WalletClient instance for signing and sending transactions. */
-  walletClient: ReturnType<typeof createWalletClient> | null;
+  walletClient: WalletClient | null;
   /** Viem PublicClient instance for reading chain state (balances, receipts). */
   publicClient: typeof publicClient;
   /** Prompts the user to connect a wallet. Accepts an optional injected provider. */
@@ -80,7 +78,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [isMiniPay, setIsMiniPay] = useState(false);
   const [USDmBalance, setUSDmBalance] = useState('0');
   const [celoBalance, setCeloBalance] = useState('0');
-  const [walletClient, setWalletClient] = useState<ReturnType<typeof createWalletClient> | null>(null);
+  const [walletClient, setWalletClient] = useState<WalletClient | null>(null);
 
   const fetchBalances = useCallback(async (addr: string) => {
     try {
@@ -129,9 +127,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const storedConnected = localStorage.getItem('micromind_connected');
 
     if (storedAddress && storedConnected === 'true') {
-      setTimeout(() => {
+      setTimeout(async () => {
+        const { getAddress, createWalletClient, custom } = await import('viem');
+        let checksummed = storedAddress;
         try {
-          const checksummed = getAddress(storedAddress);
+          checksummed = getAddress(storedAddress);
           setAddress(checksummed);
           setIsConnected(true);
           fetchBalances(checksummed);
@@ -179,6 +179,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           const accounts = await ethereum.request({ method }) as string[];
 
           if (accounts && accounts.length > 0) {
+            const { getAddress, createWalletClient, custom } = await import('viem');
             const addr = getAddress(accounts[0]);
             const client = createWalletClient({
               chain: celo,
@@ -230,12 +231,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const ethereum = getPreferredProvider();
     if (!ethereum) return;
 
-    const onAccountsChanged = (...args: unknown[]) => {
+    const onAccountsChanged = async (...args: unknown[]) => {
       const accounts = args[0] as string[];
       if (accounts.length === 0) {
         disconnect();
       } else {
         try {
+          const { getAddress } = await import('viem');
           const checksummed = getAddress(accounts[0]);
           setAddress(checksummed);
           fetchBalances(checksummed);
@@ -306,6 +308,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      const { getAddress, createWalletClient, custom } = await import('viem');
       const addr = getAddress(accounts[0]);
       const client = createWalletClient({
         chain: celo,
