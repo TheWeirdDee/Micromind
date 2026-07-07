@@ -38,13 +38,27 @@ export function useStakingChallenge() {
   const [step, setStep] = useState<StakingStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [isDeployed, setIsDeployed] = useState<boolean>(true);
 
   const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+
+  const isContractDeployed =
+    !!STAKING_CONTRACT_ADDRESS &&
+    STAKING_CONTRACT_ADDRESS.startsWith('0x') &&
+    STAKING_CONTRACT_ADDRESS.length === 42 &&
+    STAKING_CONTRACT_ADDRESS.toLowerCase() !== '0x0000000000000000000000000000000000000000';
 
   const fetchChallengeState = useCallback(async () => {
     if (!address) return;
 
+    if (!isContractDeployed) {
+      setIsDeployed(false);
+      setChallenge({ startTime: 0, checkInCount: 0, active: false, claimed: false });
+      return;
+    }
+
     try {
+      setIsDeployed(true);
       // 1. Read challenge parameters if not loaded yet
       if (!params) {
         const [stake, duration, required, reward] = await Promise.all([
@@ -109,8 +123,10 @@ export function useStakingChallenge() {
       }
     } catch (e: any) {
       console.error('[STAKING] Failed to fetch challenge state:', e);
+      setIsDeployed(false);
+      setChallenge({ startTime: 0, checkInCount: 0, active: false, claimed: false });
     }
-  }, [address, params, publicClient]);
+  }, [address, params, publicClient, isContractDeployed]);
 
   // Load state on mount and address change
   useEffect(() => {
@@ -328,6 +344,7 @@ export function useStakingChallenge() {
     step,
     error,
     txHash,
+    isDeployed,
     loading: step === 'loading',
     hasCheckedInToday,
     getDaysRemaining,
