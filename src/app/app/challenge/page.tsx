@@ -27,6 +27,7 @@ export default function ChallengePage() {
     step,
     error,
     txHash,
+    isDeployed,
     hasCheckedInToday,
     getDaysRemaining,
     joinChallenge,
@@ -443,6 +444,37 @@ export default function ChallengePage() {
           <p className="text-xs font-mono text-text-muted max-w-sm mx-auto leading-relaxed">
             Please connect your wallet at the top of the screen to join the habit staking commitment challenge.
           </p>
+        </div>
+      );
+    }
+
+    if (!isDeployed) {
+      return (
+        <div className="bg-surface border border-border p-8 rounded-3xl text-center space-y-6 max-w-xl mx-auto shadow-2xl relative overflow-hidden">
+          <div className="absolute inset-0 halftone-bg opacity-5 pointer-events-none" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+            <Flame className="w-6 h-6 animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="font-serif text-2xl font-bold">Staking Challenge Coming Soon</h2>
+            <span className="inline-block text-[9px] font-mono uppercase bg-accent/25 border border-accent/40 text-accent px-2.5 py-0.5 rounded font-bold">
+              Escrow Pending Deployment 🌐
+            </span>
+            <p className="text-xs font-mono text-text-muted leading-relaxed pt-2">
+              The Lossless Morning Pages Staking Challenge (Phase 6) is configured in the application but the smart contract is not yet deployed on Celo Mainnet.
+            </p>
+            <p className="text-xs font-mono text-text-muted leading-relaxed">
+              Once live, users will be able to lock 5.00 USDm, complete daily journal check-ins, and claim their stake back plus extra yields at conclusion.
+            </p>
+          </div>
+          <div className="border-t border-border/40 pt-4">
+            <Link
+              href="/app"
+              className="inline-flex bg-accent hover:bg-accent-gold text-bg font-serif text-sm font-bold px-6 py-2.5 rounded-xl transition"
+            >
+              Explore Other Tools
+            </Link>
+          </div>
         </div>
       );
     }
