@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BookOpen, MessageSquare, History, Trophy, Flame } from 'lucide-react';
+import { Home, BookOpen, History, Trophy, Mail, LayoutGrid } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -49,9 +49,9 @@ export function BottomNav() {
   const navItems = [
     { icon: Home, label: 'Home', href: '/app' },
     { icon: BookOpen, label: 'Journal', href: '/app/journal' },
-    { icon: Trophy, label: 'Quest', href: '/app/quest' },
-    { icon: Flame, label: 'Streak', href: '/app/challenge' },
-    { icon: MessageSquare, label: 'Chat', href: '/app/chat' },
+    { icon: Trophy, label: 'Game', href: '/app/quest' },
+    { icon: LayoutGrid, label: 'Tools', href: '/app/tools' },
+    { icon: Mail, label: 'Letters', href: '/app/letter' },
     { icon: History, label: 'History', href: '/app/history' },
   ];
 
@@ -62,7 +62,9 @@ export function BottomNav() {
     <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6 pb-8 pointer-events-none">
       <div className="bg-surface/80 backdrop-blur-xl border border-border rounded-full px-4 py-3 flex gap-2 pointer-events-auto shadow-2xl">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = item.href === '/app/tools'
+            ? pathname === '/app/tools' || ['/app/chat', '/app/tweet', '/app/reflect', '/app/pattern', '/app/coach', '/app/challenge'].includes(pathname)
+            : pathname === item.href;
           return (
             <Link
               key={item.href}
