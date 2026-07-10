@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, BookOpen, Lock, Bird, Sparkles, Search, Mail, HelpCircle, ArrowRight, Brain, Trophy, Flame } from 'lucide-react';
+import { BookOpen, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 
 import dynamic from 'next/dynamic';
-import { TOOLS } from '@/constants/tools';
 
 const DailyStreak = dynamic(
   () => import('@/components/app/DailyStreak').then((m) => m.DailyStreak),
@@ -33,18 +32,6 @@ const itemVariants = {
   hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 90, damping: 14 } },
 } as const;
-
-const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
-  chat: MessageSquare,
-  tweet: Bird,
-  reflect: Sparkles,
-  pattern: Search,
-  letter: Mail,
-  coach: Brain,
-  quest: Trophy,
-  challenge: Flame,
-};
-
 
 export default function AppHome() {
   useWallet();
@@ -113,53 +100,6 @@ export default function AppHome() {
               </motion.div>
             </Link>
           </motion.div>
-
-          {/* Tools */}
-          <motion.section variants={itemVariants} className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">AI Tools</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-              {TOOLS.map((tool) => {
-                const isReflectLocked = tool.slug === 'reflect' && entriesCount < 2;
-                const isPatternLocked = tool.slug === 'pattern' && entriesCount < 5;
-                const isLocked = isReflectLocked || isPatternLocked;
-                const lockLabel = isReflectLocked ? '2 entries' : '5 entries';
-                const Icon = TOOL_ICONS[tool.slug] || HelpCircle;
-
-                const card = (
-                  <div className={`rounded-2xl border border-border bg-surface p-3.5 sm:p-4 h-full flex flex-col justify-between transition ${
-                    isLocked ? 'opacity-40 cursor-not-allowed' : 'hover:border-accent/30 cursor-pointer'
-                  }`}>
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-serif text-base font-medium truncate">{tool.name}</h4>
-                        <div className="rounded-xl bg-bg/80 p-2 shrink-0">
-                          {isLocked
-                            ? <Lock className="w-3.5 h-3.5 text-text-muted" />
-                            : <Icon className="w-3.5 h-3.5 text-accent" />
-                          }
-                        </div>
-                      </div>
-                      <p className="text-[10px] text-text-muted leading-normal line-clamp-2">
-                        {isLocked ? `Requires ${lockLabel}` : tool.description}
-                      </p>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2 shrink-0">
-                      <span className="font-mono text-[9px] uppercase tracking-wider text-text-muted">Fee</span>
-                      <span className="font-mono text-[10px] font-bold text-accent">
-                        {tool.hasFreeMode ? 'Free*' : `${tool.price} USDm`}
-                      </span>
-                    </div>
-                  </div>
-                );
-
-                return isLocked
-                  ? <div key={tool.name}>{card}</div>
-                  : <Link key={tool.name} href={tool.route}>{card}</Link>;
-              })}
-            </div>
-          </motion.section>
 
           {/* Word Cloud on desktop only */}
           <motion.div variants={itemVariants} className="hidden lg:block">
