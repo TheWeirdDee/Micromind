@@ -82,7 +82,7 @@ export const TOOLS: Tool[] = [
     id: 1,
     slug: 'quest',
     name: 'Clarity Quest',
-    description: 'Solve vocabulary puzzles to build your clarity and streak.',
+    description: 'Explore emotional vocabulary, deepen your clarity, and collect meaningful insights.',
     price: 'Free*',
     priceWei: '0',
     route: '/app/quest',
