@@ -119,6 +119,76 @@ export default function QuestPage() {
     }
   };
 
+  const syncVocabularyEntryToSupabase = async (entry: VocabularyEntry, userId: string) => {
+    try {
+      const { error } = await supabase.from('quest_vocabulary').upsert(
+        {
+          user_id: userId,
+          stage_id: entry.id,
+          level_name: entry.levelName,
+          category: entry.category,
+          target_word: entry.targetWord,
+          definition: entry.definition,
+          examples: entry.examples,
+          synonyms: entry.synonyms,
+          unlocked_at: new Date(entry.unlockedAt).toISOString(),
+        },
+        { onConflict: ['user_id', 'stage_id'] }
+      );
+      if (error) throw error;
+    } catch (err) {
+      console.warn('[SYNC VOCABULARY ERROR]', err);
+    }
+  };
+
+  const loadVocabularyEntriesFromSupabase = async () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !session.user) return;
+
+      const { data, error } = await supabase
+        .from('quest_vocabulary')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('unlocked_at', { ascending: false });
+
+      if (error) throw error;
+      if (!data) return;
+
+      const remoteEntries = data.map((row: any) => ({
+        id: row.stage_id,
+        levelName: row.level_name,
+        category: row.category,
+        targetWord: row.target_word,
+        definition: row.definition,
+        examples: row.examples ?? [],
+        synonyms: row.synonyms ?? [],
+        unlockedAt: new Date(row.unlocked_at).getTime(),
+      }));
+
+      const local = vocabularyEntries;
+      const remoteIds = new Set(remoteEntries.map((entry) => entry.id));
+      const merged = [...remoteEntries, ...local.filter((item) => !remoteIds.has(item.id))];
+      saveVocabularyEntries(merged);
+    } catch (err) {
+      console.warn('[LOAD VOCABULARY ERROR]', err);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    loadVocabularyEntriesFromSupabase();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        loadVocabularyEntriesFromSupabase();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [vocabStorageKey]);
+
   // Set default withdrawal address when connected
   useEffect(() => {
     if (address) {
@@ -290,9 +360,16 @@ export default function QuestPage() {
 
         const nextEntries = [entry, ...vocabularyEntries.filter((item) => item.id !== entry.id)];
         saveVocabularyEntries(nextEntries);
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          syncVocabularyEntryToSupabase(entry, session.user.id);
+        }
       }
       localStorage.removeItem(timerStorageKey);
-    } catch {}
+    } catch (err) {
+      console.warn('[SAVE VOCABULARY ERROR]', err);
+    }
     await solveStage(pointsEarned);
   };
 
