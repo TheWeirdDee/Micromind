@@ -42,6 +42,7 @@ export default function QuestPage() {
   const [shuffledLetters, setShuffledLetters] = useState<string[]>([]);
   const [aiHint, setAiHint] = useState<string | null>(null);
   const [aiCard, setAiCard] = useState<string | null>(null);
+  const [selectedVocabWord, setSelectedVocabWord] = useState<{ word: string; meaning: string } | null>(null);
 
   // Timer states
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes (120s)
@@ -119,12 +120,7 @@ export default function QuestPage() {
       setIsFailed(false);
       setAiHint(null);
       setAiCard(null);
-      resetPayment();
-
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem(timerStorageKey);
-        if (stored) {
-          try {
+      setSelectedVocabWord(null);
             const { expiryTime, forfeited } = JSON.parse(stored);
             const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
             if (remaining <= 0) {
@@ -739,6 +735,51 @@ export default function QuestPage() {
                       You mapped the flat thought to the emotionally precise target: <strong>{activeStage.targetWord}</strong>.
                     </p>
 
+                    {/* Emotional vocabulary learning */}
+                    {activeStage.vocabulary && (
+                      <div className="space-y-3 max-w-2xl mx-auto text-left">
+                        <div className="rounded-3xl border border-accent/20 bg-accent-gold/5 p-4 text-sm text-text-primary">
+                          <p className="font-serif text-base font-semibold">{activeStage.targetWord}</p>
+                          <p className="text-xs font-mono text-text-muted leading-relaxed">
+                            {activeStage.vocabulary.definition}
+                          </p>
+                        </div>
+
+                        {activeStage.vocabulary.similarWords.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">
+                              Similar words — tap a word to learn more
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {activeStage.vocabulary.similarWords.map((item) => (
+                                <button
+                                  key={item.word}
+                                  type="button"
+                                  onClick={() => setSelectedVocabWord(item)}
+                                  className={`rounded-full border px-3 py-2 text-[10px] font-mono transition-all ${
+                                    selectedVocabWord?.word === item.word
+                                      ? 'border-accent bg-accent/10 text-accent'
+                                      : 'border-border bg-surface-2 text-text-primary hover:border-accent hover:text-accent'
+                                  }`}
+                                >
+                                  {item.word}
+                                </button>
+                              ))}
+                            </div>
+
+                            {selectedVocabWord && (
+                              <div className="rounded-3xl border border-border bg-surface-2 p-4 text-xs font-mono text-text-primary">
+                                <p className="font-semibold text-text-primary">{selectedVocabWord.word}</p>
+                                <p className="mt-1 text-text-muted leading-relaxed">
+                                  {selectedVocabWord.meaning}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Paid Reframing Response */}
                     {aiCard && (
                       <motion.div
@@ -819,7 +860,7 @@ export default function QuestPage() {
               <Trophy className="w-10 h-10 text-accent mx-auto animate-bounce" />
               <h3 className="font-serif text-2xl">Quest Mastered!</h3>
               <p className="text-xs font-mono text-text-muted max-w-md mx-auto leading-relaxed">
-                Congratulations scribe! You have successfully completed all 10 Levels and cleared every puzzle on Clarity Quest. Your mental acuity is unlocked.
+                Congratulations scribe! You have successfully completed all 10 levels and expanded your emotional vocabulary with more precise, nourishing words.
               </p>
               <button
                 onClick={handleResetProgress}
