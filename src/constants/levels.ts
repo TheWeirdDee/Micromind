@@ -10,6 +10,10 @@ export interface QuestStage {
   targetWord: string; // E.g., "REJUVENATING"
   scrambledLetters: string[]; // Letters of targetWord + distractor letters
   clue: string; // Static standard clue
+  vocabulary: {
+    definition: string;
+    similarWords: Array<{ word: string; meaning: string }>;
+  };
 }
 
 export interface QuestLevel {
@@ -31,7 +35,15 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'REJUVENATING',
         scrambledLetters: ['R', 'E', 'J', 'U', 'V', 'E', 'N', 'A', 'T', 'I', 'N', 'G', 'B', 'P'],
-        clue: 'Giving new energy or vigor; restoring youthfulness.'
+        clue: 'Giving new energy or vigor; restoring youthfulness.',
+        vocabulary: {
+          definition: 'More than pleasant; it restores your energy and helps you feel renewed.',
+          similarWords: [
+            { word: 'Restorative', meaning: 'Helps recover energy and calm after stress.' },
+            { word: 'Refreshing', meaning: 'Brings a bright, renewing feeling to the mind or body.' },
+            { word: 'Revitalizing', meaning: 'Restores strength and makes your spirit feel alive again.' },
+          ],
+        },
       },
       {
         id: 'l1-s2',
@@ -39,7 +51,15 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'APPRECIATIVE',
         scrambledLetters: ['A', 'P', 'P', 'R', 'E', 'C', 'I', 'A', 'T', 'I', 'V', 'E', 'X', 'O'],
-        clue: 'Feeling or showing gratitude or pleasure.'
+        clue: 'Feeling or showing gratitude or pleasure.',
+        vocabulary: {
+          definition: 'Recognizing kindness or value with warmth. It helps you see support clearly.',
+          similarWords: [
+            { word: 'Grateful', meaning: 'Feeling thankful for what someone has done for you.' },
+            { word: 'Thankful', meaning: 'Appreciating a positive kindness or moment in your life.' },
+            { word: 'Acknowledging', meaning: 'Noticing and valuing what was offered or given.' },
+          ],
+        },
       },
       {
         id: 'l1-s3',
@@ -47,7 +67,15 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'NOURISHING',
         scrambledLetters: ['N', 'O', 'U', 'R', 'I', 'S', 'H', 'I', 'N', 'G', 'L', 'K'],
-        clue: 'Providing the substances necessary for growth, health, and good condition.'
+        clue: 'Providing the substances necessary for growth, health, and good condition.',
+        vocabulary: {
+          definition: 'More than satisfying. A nourishing experience restores your emotional energy.',
+          similarWords: [
+            { word: 'Restorative', meaning: 'Supports recovery and renewal after feeling drained.' },
+            { word: 'Comforting', meaning: 'Brings ease and warmth when your emotions feel raw.' },
+            { word: 'Healing', meaning: 'Helps mend your inner state so you feel steadier and softer.' },
+          ],
+        },
       }
     ]
   },
@@ -198,7 +226,11 @@ function generateRemainingLevels(): QuestLevel[] {
         placeholderKey: 'placeholder',
         targetWord,
         scrambledLetters: Array.from(lettersSet).sort(() => Math.random() - 0.5),
-        clue: `Practice word focused on building your ${c.cat} capabilities.`
+        clue: `Practice word focused on building your ${c.cat} capabilities.`,
+        vocabulary: {
+          definition: `A meaningful emotion word to help you notice and name what you are really feeling.`,
+          similarWords: [],
+        },
       });
     }
 
