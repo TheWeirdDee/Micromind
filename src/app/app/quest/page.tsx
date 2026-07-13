@@ -27,6 +27,17 @@ interface CollectedCard {
   unlockedAt: number;
 }
 
+interface VocabularyEntry {
+  id: string;
+  levelName: string;
+  category: string;
+  targetWord: string;
+  definition: string;
+  examples: string[];
+  synonyms: string[];
+  unlockedAt: number;
+}
+
 export default function QuestPage() {
   const { address, isConnected } = useWallet();
   const { progress, loading: progressLoading, dbWarning, solveStage, deductPoints, resetProgress } = useQuestProgress(address);
@@ -55,6 +66,7 @@ export default function QuestPage() {
 
   // Collected Cards Gallery
   const [collectedCards, setCollectedCards] = useState<CollectedCard[]>([]);
+  const [vocabularyEntries, setVocabularyEntries] = useState<VocabularyEntry[]>([]);
 
   // Get active level config
   const activeLevel = QUEST_LEVELS.find(l => l.levelNumber === progress.currentLevel);
@@ -66,6 +78,7 @@ export default function QuestPage() {
 
   // Load collected cards on mount
   const cardsStorageKey = address ? `mm_quest_cards_${address}` : 'mm_quest_cards';
+  const vocabStorageKey = address ? `mm_quest_vocabulary_${address}` : 'mm_quest_vocabulary';
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -82,6 +95,29 @@ export default function QuestPage() {
       }
     }
   }, [address, cardsStorageKey]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(vocabStorageKey);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const t = setTimeout(() => setVocabularyEntries(parsed), 0);
+          return () => clearTimeout(t);
+        } catch {}
+      } else {
+        const t = setTimeout(() => setVocabularyEntries([]), 0);
+        return () => clearTimeout(t);
+      }
+    }
+  }, [address, vocabStorageKey]);
+
+  const saveVocabularyEntries = (entries: VocabularyEntry[]) => {
+    setVocabularyEntries(entries);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(vocabStorageKey, JSON.stringify(entries));
+    }
+  };
 
   // Set default withdrawal address when connected
   useEffect(() => {
@@ -121,6 +157,11 @@ export default function QuestPage() {
       setAiHint(null);
       setAiCard(null);
       setSelectedVocabWord(null);
+
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(timerStorageKey);
+        if (stored) {
+          try {
             const { expiryTime, forfeited } = JSON.parse(stored);
             const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
             if (remaining <= 0) {
@@ -229,6 +270,27 @@ export default function QuestPage() {
   const handleSolveStage = async () => {
     const pointsEarned = hasForfeited ? 0 : progress.currentLevel;
     try {
+      if (activeStage) {
+        const vocabulary = activeStage.vocabulary ?? {
+          definition: activeStage.clue,
+          examples: [activeStage.sentence.replace('{placeholder}', activeStage.targetWord)],
+          synonyms: [],
+        };
+
+        const entry: VocabularyEntry = {
+          id: activeStage.id,
+          levelName: activeLevel?.name ?? 'Unknown Level',
+          category: activeLevel?.category ?? 'General',
+          targetWord: activeStage.targetWord,
+          definition: vocabulary.definition,
+          examples: vocabulary.examples ?? [activeStage.sentence.replace('{placeholder}', activeStage.targetWord)],
+          synonyms: vocabulary.synonyms ?? [],
+          unlockedAt: Date.now(),
+        };
+
+        const nextEntries = [entry, ...vocabularyEntries.filter((item) => item.id !== entry.id)];
+        saveVocabularyEntries(nextEntries);
+      }
       localStorage.removeItem(timerStorageKey);
     } catch {}
     await solveStage(pointsEarned);
@@ -868,6 +930,51 @@ export default function QuestPage() {
               >
                 Reset Progress (Start Over)
               </button>
+            </div>
+          )}
+
+          {/* Dictionary Showcase */}
+          {vocabularyEntries.length > 0 && (
+            <div className="space-y-4 border-t border-border/40 pt-6">
+              <h3 className="font-serif text-lg px-1 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-accent-gold" />
+                <span>My Emotional Vocabulary</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {vocabularyEntries.map((entry, i) => (
+                  <motion.div
+                    key={`${entry.id}-${i}`}
+                    layout
+                    className="bg-surface border border-border rounded-[2rem] p-5 space-y-3 shadow-md hover:border-accent-gold/30 hover:shadow-accent-gold/5 transition-all relative overflow-hidden text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">✔️</span>
+                      <div>
+                        <p className="font-serif text-lg font-semibold leading-tight">{entry.targetWord}</p>
+                        <p className="text-[10px] font-mono text-text-muted uppercase tracking-[0.35em]">
+                          {entry.category} • {entry.levelName}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-xs font-mono text-text-primary leading-relaxed">
+                      <span className="font-bold">Meaning:</span> {entry.definition}
+                    </div>
+
+                    {entry.examples.length > 0 && (
+                      <div className="text-xs font-mono text-text-muted leading-relaxed">
+                        <span className="font-bold">Examples:</span> {entry.examples.join(' ')}
+                      </div>
+                    )}
+
+                    {entry.synonyms.length > 0 && (
+                      <div className="text-xs font-mono text-text-muted leading-relaxed">
+                        <span className="font-bold">Synonyms:</span> {entry.synonyms.join(' ')}
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </div>
             </div>
           )}
 
