@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { useQuestProgress } from '@/hooks/useQuestProgress';
-import { QUEST_LEVELS, QuestStage } from '@/constants/levels';
+import { QUEST_LEVELS, QuestStage, QuestLevel } from '@/constants/levels';
 import { supabase } from '@/lib/supabase';
 import dynamic from 'next/dynamic';
 import confetti from 'canvas-confetti';
@@ -67,14 +67,24 @@ export default function QuestPage() {
   // Collected Cards Gallery
   const [collectedCards, setCollectedCards] = useState<CollectedCard[]>([]);
   const [vocabularyEntries, setVocabularyEntries] = useState<VocabularyEntry[]>([]);
+  const [pendingDictionaryEntry, setPendingDictionaryEntry] = useState<VocabularyEntry | null>(null);
+  const [reviewLevelNumber, setReviewLevelNumber] = useState<number | null>(null);
+  const [reviewStageIndex, setReviewStageIndex] = useState<number | null>(null);
 
-  // Get active level config
-  const activeLevel = QUEST_LEVELS.find(l => l.levelNumber === progress.currentLevel);
-  const activeStage: QuestStage | undefined = activeLevel?.stages[progress.currentStage - 1];
+  // Get active level config for either live quest or review mode
+  const activeLevel = QUEST_LEVELS.find(l => l.levelNumber === (reviewLevelNumber ?? progress.currentLevel));
+  const activeStageIndex = reviewStageIndex ?? (activeLevel?.levelNumber === progress.currentLevel ? progress.currentStage - 1 : 0);
+  const activeStage: QuestStage | undefined = activeLevel?.stages[activeStageIndex];
+
+  const isReviewing = reviewLevelNumber !== null;
+  const displayLevelNumber = reviewLevelNumber ?? progress.currentLevel;
+  const displayStageNumber = activeStageIndex + 1;
+  const isActiveQuestStage = !isReviewing || (reviewLevelNumber === progress.currentLevel && activeStageIndex === progress.currentStage - 1);
+  const canAttemptStage = activeStage && !isSolved && !isFailed && !isReviewing;
 
   const timerStorageKey = address
-    ? `mm_quest_timer_${address}_lvl${progress.currentLevel}_stg${progress.currentStage}`
-    : `mm_quest_timer_lvl${progress.currentLevel}_stg${progress.currentStage}`;
+    ? `mm_quest_timer_${address}_lvl${displayLevelNumber}_stg${displayStageNumber}`
+    : `mm_quest_timer_lvl${displayLevelNumber}_stg${displayStageNumber}`;
 
   // Load collected cards on mount
   const cardsStorageKey = address ? `mm_quest_cards_${address}` : 'mm_quest_cards';
@@ -119,6 +129,17 @@ export default function QuestPage() {
     }
   };
 
+  const createDictionaryEntry = (stage: QuestStage, level: QuestLevel): VocabularyEntry => ({
+    id: stage.id,
+    levelName: level.name,
+    category: level.category,
+    targetWord: stage.targetWord,
+    definition: stage.vocabulary?.definition ?? stage.clue,
+    examples: stage.vocabulary?.examples ?? [stage.sentence.replace('{placeholder}', stage.targetWord)],
+    synonyms: stage.vocabulary?.synonyms ?? [],
+    unlockedAt: Date.now(),
+  });
+
   const syncVocabularyEntryToSupabase = async (entry: VocabularyEntry, userId: string) => {
     try {
       const { error } = await supabase.from('quest_vocabulary').upsert(
@@ -133,7 +154,7 @@ export default function QuestPage() {
           synonyms: entry.synonyms,
           unlocked_at: new Date(entry.unlockedAt).toISOString(),
         },
-        { onConflict: ['user_id', 'stage_id'] }
+        { onConflict: 'user_id,stage_id' }
       );
       if (error) throw error;
     } catch (err) {
@@ -167,9 +188,10 @@ export default function QuestPage() {
         unlockedAt: new Date(row.unlocked_at).getTime(),
       }));
 
-      const local = vocabularyEntries;
+      const localString = typeof window !== 'undefined' ? localStorage.getItem(vocabStorageKey) : null;
+      const localEntries: VocabularyEntry[] = localString ? JSON.parse(localString) : [];
       const remoteIds = new Set(remoteEntries.map((entry) => entry.id));
-      const merged = [...remoteEntries, ...local.filter((item) => !remoteIds.has(item.id))];
+      const merged = [...remoteEntries, ...localEntries.filter((item) => !remoteIds.has(item.id))];
       saveVocabularyEntries(merged);
     } catch (err) {
       console.warn('[LOAD VOCABULARY ERROR]', err);
@@ -188,6 +210,20 @@ export default function QuestPage() {
 
     return () => subscription.unsubscribe();
   }, [vocabStorageKey]);
+
+  useEffect(() => {
+    if (!activeStage || !activeLevel) {
+      setPendingDictionaryEntry(null);
+      return;
+    }
+
+    if (isSolved) {
+      const entry = createDictionaryEntry(activeStage, activeLevel);
+      setPendingDictionaryEntry(entry);
+    } else {
+      setPendingDictionaryEntry(null);
+    }
+  }, [activeStage?.id, activeLevel?.levelNumber, isSolved]);
 
   // Set default withdrawal address when connected
   useEffect(() => {
@@ -228,6 +264,12 @@ export default function QuestPage() {
       setAiCard(null);
       setSelectedVocabWord(null);
 
+      if (isReviewing) {
+        setTimeLeft(120);
+        setHasForfeited(false);
+        return;
+      }
+
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem(timerStorageKey);
         if (stored) {
@@ -258,11 +300,11 @@ export default function QuestPage() {
       }
     }, 0);
     return () => clearTimeout(t);
-  }, [progress.currentLevel, progress.currentStage, timerStorageKey, resetPayment]);
+  }, [progress.currentLevel, progress.currentStage, timerStorageKey, resetPayment, isReviewing]);
 
   // Timer Countdown Effect
   useEffect(() => {
-    if (progressLoading || isSolved || isFailed || !activeStage) return;
+    if (progressLoading || isSolved || isFailed || !activeStage || isReviewing) return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -337,39 +379,33 @@ export default function QuestPage() {
   };
 
   // Solve stage wrapper
+  const handleAddToDictionary = async () => {
+    if (!pendingDictionaryEntry) return;
+    const nextEntries = [pendingDictionaryEntry, ...vocabularyEntries.filter((item) => item.id !== pendingDictionaryEntry.id)];
+    saveVocabularyEntries(nextEntries);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await syncVocabularyEntryToSupabase(pendingDictionaryEntry, session.user.id);
+      }
+    } catch (err) {
+      console.warn('[ADD TO DICTIONARY ERROR]', err);
+    }
+    setPendingDictionaryEntry(null);
+  };
+
   const handleSolveStage = async () => {
+    if (isReviewing) {
+      setReviewLevelNumber(null);
+      setReviewStageIndex(null);
+      return;
+    }
+
     const pointsEarned = hasForfeited ? 0 : progress.currentLevel;
     try {
-      if (activeStage) {
-        const vocabulary = activeStage.vocabulary ?? {
-          definition: activeStage.clue,
-          examples: [activeStage.sentence.replace('{placeholder}', activeStage.targetWord)],
-          synonyms: [],
-        };
-
-        const entry: VocabularyEntry = {
-          id: activeStage.id,
-          levelName: activeLevel?.name ?? 'Unknown Level',
-          category: activeLevel?.category ?? 'General',
-          targetWord: activeStage.targetWord,
-          definition: vocabulary.definition,
-          examples: vocabulary.examples ?? [activeStage.sentence.replace('{placeholder}', activeStage.targetWord)],
-          synonyms: vocabulary.synonyms ?? [],
-          unlockedAt: Date.now(),
-        };
-
-        const nextEntries = [entry, ...vocabularyEntries.filter((item) => item.id !== entry.id)];
-        saveVocabularyEntries(nextEntries);
-
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          syncVocabularyEntryToSupabase(entry, session.user.id);
-        }
-      }
       localStorage.removeItem(timerStorageKey);
-    } catch (err) {
-      console.warn('[SAVE VOCABULARY ERROR]', err);
-    }
+    } catch {}
     await solveStage(pointsEarned);
   };
 
@@ -621,43 +657,68 @@ export default function QuestPage() {
 
   // Render Level Locking Navigation List
   const renderLevelsNav = () => {
-    // Only render levels <= progress.currentLevel
     const visibleLevels = QUEST_LEVELS.filter(l => l.levelNumber <= progress.currentLevel);
+    const grouped = visibleLevels.reduce((map: Record<string, typeof visibleLevels>, level) => {
+      if (!map[level.category]) map[level.category] = [];
+      map[level.category].push(level);
+      return map;
+    }, {} as Record<string, typeof visibleLevels>);
 
     return (
-      <div className="space-y-2">
-        <h4 className="text-[10px] font-mono uppercase text-text-muted tracking-widest px-1">Clarity Levels</h4>
-        <div className="space-y-1">
-          {visibleLevels.map(level => {
-            const isCompleted = progress.completedLevels.includes(level.levelNumber);
-            const isCurrent = progress.currentLevel === level.levelNumber;
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h4 className="text-[10px] font-mono uppercase text-text-muted tracking-widest">Categories</h4>
+            <p className="text-[11px] text-text-muted">Jump back to any completed level or review a category.</p>
+          </div>
+          {isReviewing && (
+            <button
+              onClick={() => {
+                setReviewLevelNumber(null);
+                setReviewStageIndex(null);
+              }}
+              className="text-[9px] font-mono uppercase tracking-[0.35em] text-accent hover:text-accent-gold"
+            >
+              Back to Quest
+            </button>
+          )}
+        </div>
 
-            return (
-              <div
-                key={level.levelNumber}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all border ${
-                  isCurrent
-                    ? 'bg-accent/15 border-accent text-accent'
-                    : 'bg-surface border-border text-text-muted'
-                }`}
-              >
-                {isCompleted ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-accent-gold" />
-                ) : (
-                  <Trophy className="w-3.5 h-3.5 text-text-muted/60" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-serif font-bold leading-normal truncate">{level.name}</p>
-                  <p className="text-[9px] font-mono text-text-muted/70 leading-normal truncate">{level.category}</p>
-                </div>
-                {isCurrent && (
-                  <span className="text-[9px] font-mono bg-accent/20 text-accent px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider">
-                    Lvl {level.levelNumber}
-                  </span>
-                )}
+        <div className="space-y-3">
+          {Object.entries(grouped).map(([category, levels]) => (
+            <div key={category} className="space-y-2">
+              <p className="text-[9px] font-mono uppercase tracking-[0.35em] text-text-muted">{category}</p>
+              <div className="space-y-1">
+                {levels.map((level) => {
+                  const isCompleted = progress.completedLevels.includes(level.levelNumber);
+                  const isCurrent = progress.currentLevel === level.levelNumber;
+                  const canReview = isCompleted || isCurrent;
+
+                  return (
+                    <button
+                      key={level.levelNumber}
+                      onClick={() => {
+                        if (!canReview) return;
+                        setReviewLevelNumber(level.levelNumber);
+                        setReviewStageIndex(0);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl transition-all border ${
+                        isCurrent
+                          ? 'bg-accent/15 border-accent text-accent'
+                          : 'bg-surface border-border text-text-primary hover:bg-surface-2'
+                      } ${!canReview ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-serif font-semibold truncate">{level.name}</span>
+                        {isCompleted && !isCurrent && <CheckCircle2 className="w-3.5 h-3.5 text-accent-gold" />}
+                      </div>
+                      <p className="text-[9px] font-mono text-text-muted truncate">Level {level.levelNumber}</p>
+                    </button>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -731,22 +792,32 @@ export default function QuestPage() {
 
               {/* Title, Timer & Stage indicators */}
               <div className="flex justify-between items-center relative z-10 border-b border-border/50 pb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-accent font-bold uppercase tracking-wider">
-                    Lvl {progress.currentLevel} - Stage {progress.currentStage}
-                  </span>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border font-bold ${
-                    timeLeft < 30 
-                      ? 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse'
-                      : 'bg-surface-2 border-border text-text-muted'
-                  }`}>
-                    ⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-                  </span>
-                  {hasForfeited && (
-                    <span className="text-[9px] font-mono bg-red-950/40 text-red-400 border border-red-500/25 px-1.5 py-0.5 rounded-md font-bold uppercase">
-                      Forfeited Pts
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between w-full">
+                  <div className="flex flex-col gap-2 sm:gap-0 sm:flex-row sm:items-center">
+                    <span className="text-xs font-mono text-accent font-bold uppercase tracking-wider">
+                      Lvl {displayLevelNumber} - Stage {displayStageNumber}
                     </span>
-                  )}
+                    {isReviewing && (
+                      <span className="text-[9px] font-mono uppercase tracking-[0.35em] bg-surface-2 border border-border px-2 py-1 rounded-lg text-text-muted">
+                        Review mode
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border font-bold ${
+                      !isReviewing && timeLeft < 30 
+                        ? 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse'
+                        : 'bg-surface-2 border-border text-text-muted'
+                    }`}>
+                      ⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                    </span>
+                    {hasForfeited && (
+                      <span className="text-[9px] font-mono bg-red-950/40 text-red-400 border border-red-500/25 px-1.5 py-0.5 rounded-md font-bold uppercase">
+                        Forfeited Pts
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <span className="text-[10px] font-mono text-text-muted bg-surface-2 border border-border px-2 py-0.5 rounded-lg">
                   {activeLevel?.category}
@@ -937,7 +1008,7 @@ export default function QuestPage() {
                     )}
 
                     <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto pt-2">
-                      {!aiCard && (
+                      {!aiCard && !isReviewing && (
                         <button
                           onClick={handleUnlockCard}
                           disabled={paidLoading}
@@ -963,6 +1034,14 @@ export default function QuestPage() {
                       >
                         Solve & Next Stage (Free)
                       </button>
+                      {pendingDictionaryEntry && (
+                        <button
+                          onClick={handleAddToDictionary}
+                          className="pill-button pill-button-secondary bg-surface-2 border border-border text-text-primary w-full py-3.5 text-xs font-mono"
+                        >
+                          Add this word to my dictionary
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 )}
