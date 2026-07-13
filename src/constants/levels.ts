@@ -10,8 +10,10 @@ export interface QuestStage {
   targetWord: string; // E.g., "REJUVENATING"
   scrambledLetters: string[]; // Letters of targetWord + distractor letters
   clue: string; // Static standard clue
-  vocabulary: {
+  vocabulary?: {
     definition: string;
+    examples: string[];
+    synonyms: string[];
     similarWords: Array<{ word: string; meaning: string }>;
   };
 }
@@ -38,6 +40,8 @@ export const QUEST_LEVELS: QuestLevel[] = [
         clue: 'Giving new energy or vigor; restoring youthfulness.',
         vocabulary: {
           definition: 'More than pleasant; it restores your energy and helps you feel renewed.',
+          examples: ['A rejuvenating walk in the park.', 'A rejuvenating conversation that lifted my spirit.'],
+          synonyms: ['Restorative', 'Refreshing', 'Revitalizing'],
           similarWords: [
             { word: 'Restorative', meaning: 'Helps recover energy and calm after stress.' },
             { word: 'Refreshing', meaning: 'Brings a bright, renewing feeling to the mind or body.' },
@@ -54,6 +58,8 @@ export const QUEST_LEVELS: QuestLevel[] = [
         clue: 'Feeling or showing gratitude or pleasure.',
         vocabulary: {
           definition: 'Recognizing kindness or value with warmth. It helps you see support clearly.',
+          examples: ['I feel appreciative for the time they spent listening.', 'I am appreciative of the unexpected help.'],
+          synonyms: ['Grateful', 'Thankful', 'Acknowledging'],
           similarWords: [
             { word: 'Grateful', meaning: 'Feeling thankful for what someone has done for you.' },
             { word: 'Thankful', meaning: 'Appreciating a positive kindness or moment in your life.' },
@@ -70,6 +76,8 @@ export const QUEST_LEVELS: QuestLevel[] = [
         clue: 'Providing the substances necessary for growth, health, and good condition.',
         vocabulary: {
           definition: 'More than satisfying. A nourishing experience restores your emotional energy.',
+          examples: ['A nourishing conversation.', 'A nourishing weekend away.'],
+          synonyms: ['Comforting', 'Healing', 'Restorative'],
           similarWords: [
             { word: 'Restorative', meaning: 'Supports recovery and renewal after feeling drained.' },
             { word: 'Comforting', meaning: 'Brings ease and warmth when your emotions feel raw.' },
