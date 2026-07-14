@@ -1619,7 +1619,7 @@ export default function QuestPage() {
                           >
                             <div className="flex items-center justify-center gap-1.5">
                               <Sparkles className="w-4 h-4 text-accent-gold" />
-                              <span className="text-[10px] font-mono uppercase tracking-widest text-text-primary">Clarity Card Unlocked</span>
+                              <span className="text-[10px] font-mono uppercase tracking-widest text-text-primary">AI Reframing Card Unlocked</span>
                             </div>
                             <p className="text-xs font-mono italic leading-relaxed text-text-primary whitespace-pre-line text-text-muted">
                               {aiCard || collectedCards.find(c => c.id === activeStage.id)?.cardText}
@@ -1628,11 +1628,38 @@ export default function QuestPage() {
                         )}
 
                         <div className="flex flex-col gap-2.5 max-w-md mx-auto pt-2">
+                          <button
+                            onClick={handleSolveStage}
+                            className="pill-button pill-button-primary w-full py-3.5 text-xs font-mono font-bold"
+                          >
+                            {isReviewing ? 'Finish Replay & Close' : 'Solve & Next Stage (Free)'}
+                          </button>
+
+                          {pendingDictionaryEntry && (
+                            <button
+                              onClick={handleAddToDictionary}
+                              disabled={addingToDictWord !== null}
+                              className="pill-button pill-button-secondary bg-surface-2 border border-border hover:bg-surface-3 w-full py-3.5 text-xs font-mono flex items-center justify-center gap-1.5 transition-all text-text-primary"
+                            >
+                              {addingToDictWord === activeStage.targetWord ? (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-accent animate-bounce" />
+                                  <span>Saved to Dictionary ✓</span>
+                                </>
+                              ) : (
+                                <>
+                                  <BookOpen className="w-3.5 h-3.5 text-text-muted" />
+                                  <span>Add this word to my dictionary</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+
                           {!aiCard && !collectedCards.some(c => c.id === activeStage.id) && !isReviewing && (
                             <button
                               onClick={handleUnlockCard}
                               disabled={paidLoading}
-                              className="pill-button pill-button-primary w-full py-3.5 text-xs font-mono flex items-center justify-center gap-1.5 disabled:opacity-40"
+                              className="pill-button bg-accent-gold/10 border border-accent-gold/40 hover:bg-accent-gold/20 text-accent-gold w-full py-3.5 text-xs font-mono flex items-center justify-center gap-1.5 transition-all"
                             >
                               {paidLoading ? (
                                 <>
@@ -1642,38 +1669,11 @@ export default function QuestPage() {
                               ) : (
                                 <>
                                   <Sparkles className="w-3.5 h-3.5" />
-                                  <span>AI Reframing Card (0.005 USDm)</span>
+                                  <span>Unlock AI Reframing Card (0.005 USDm)</span>
                                 </>
                               )}
                             </button>
                           )}
-
-                          {pendingDictionaryEntry && (
-                            <button
-                              onClick={handleAddToDictionary}
-                              disabled={addingToDictWord !== null}
-                              className="pill-button pill-button-secondary bg-accent-gold/15 border border-accent-gold text-accent-gold hover:bg-accent-gold/25 w-full py-3.5 text-xs font-mono flex items-center justify-center gap-1.5 transition-all"
-                            >
-                              {addingToDictWord === activeStage.targetWord ? (
-                                <>
-                                  <CheckCircle2 className="w-3.5 h-3.5 animate-bounce" />
-                                  <span>Saved to Dictionary ✓</span>
-                                </>
-                              ) : (
-                                <>
-                                  <BookOpen className="w-3.5 h-3.5" />
-                                  <span>Add this word to my dictionary</span>
-                                </>
-                              )}
-                            </button>
-                          )}
-
-                          <button
-                            onClick={handleSolveStage}
-                            className="pill-button border border-border hover:bg-surface-2 text-text-primary w-full py-3.5 text-xs font-mono"
-                          >
-                            {isReviewing ? 'Finish Replay & Close' : 'Solve & Next Stage (Free)'}
-                          </button>
                         </div>
                       </motion.div>
                     )}
