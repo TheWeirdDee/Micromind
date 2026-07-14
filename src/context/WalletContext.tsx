@@ -38,8 +38,8 @@ interface WalletContextType {
   walletClient: WalletClient | null;
   /** Viem PublicClient instance for reading chain state (balances, receipts). */
   publicClient: typeof publicClient;
-  /** Prompts the user to connect a wallet. Accepts an optional injected provider. */
-  connect: (provider?: EthereumProvider) => Promise<void>;
+  /** Prompts the user to connect a wallet. Accepts an optional injected provider and EIP-6963 rdns. */
+  connect: (provider?: EthereumProvider, rdns?: string) => Promise<void>;
   /** Clears wallet state and redirects to /app. */
   disconnect: () => void;
   /** Fetches and updates USDm + CELO balances for a given address. */
@@ -80,6 +80,31 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [celoBalance, setCeloBalance] = useState('0');
   const [walletClient, setWalletClient] = useState<WalletClient | null>(null);
 
+  // EIP-6963 announced providers dictionary
+  const [announcedProviders, setAnnouncedProviders] = useState<Record<string, EthereumProvider>>({});
+
+  // Listen for EIP-6963 provider announcements on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleAnnounce = (event: Event) => {
+      const { info, provider } = (event as CustomEvent).detail ?? {};
+      if (info?.rdns && provider) {
+        setAnnouncedProviders(prev => ({ ...prev, [info.rdns]: provider }));
+      }
+    };
+    window.addEventListener('eip6963:announceProvider', handleAnnounce);
+    window.dispatchEvent(new Event('eip6963:requestProvider'));
+    return () => window.removeEventListener('eip6963:announceProvider', handleAnnounce);
+  }, []);
+
+  // Resolve the active provider by checking EIP-6963 announced list or falling back
+  const getActiveProvider = useCallback((storedRdns: string | null): EthereumProvider | null => {
+    if (storedRdns && announcedProviders[storedRdns]) {
+      return announcedProviders[storedRdns];
+    }
+    return getPreferredProvider();
+  }, [announcedProviders]);
+
   const fetchBalances = useCallback(async (addr: string) => {
     try {
       const celoRaw = await publicClient.getBalance({
@@ -111,6 +136,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     try { localStorage.removeItem('micromind_address'); } catch {}
     try { localStorage.removeItem('micromind_connected'); } catch {}
+    try { localStorage.removeItem('micromind_wallet_rdns'); } catch {}
     // Prevent auto-connect loop from immediately reconnecting after disconnect
     try { sessionStorage.setItem('mm_wallet_disconnected', '1'); } catch {}
 
@@ -120,40 +146,36 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // Hydrate from localStorage to prevent flash of disconnected state
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    // Don't restore session if user explicitly disconnected this tab
     if (sessionStorage.getItem('mm_wallet_disconnected')) return;
 
     const storedAddress = localStorage.getItem('micromind_address');
     const storedConnected = localStorage.getItem('micromind_connected');
+    const storedRdns = localStorage.getItem('micromind_wallet_rdns');
 
     if (storedAddress && storedConnected === 'true') {
-      setTimeout(async () => {
+      const initWallet = async () => {
         const { getAddress, createWalletClient, custom } = await import('viem');
         let checksummed = storedAddress;
         try {
           checksummed = getAddress(storedAddress);
-          setAddress(checksummed);
-          setIsConnected(true);
-          fetchBalances(checksummed);
-        } catch {
-          setAddress(storedAddress);
-          setIsConnected(true);
-          fetchBalances(storedAddress);
-        }
+        } catch {}
+        setAddress(checksummed);
+        setIsConnected(true);
+        fetchBalances(checksummed);
 
-        // Initialize wallet client early using the preferred provider
-        const provider = getPreferredProvider();
+        const provider = getActiveProvider(storedRdns);
         if (provider) {
           const client = createWalletClient({
             chain: celo,
             transport: custom(provider)
           });
           setWalletClient(client);
-          if (provider.isMiniPay) setIsMiniPay(true);
+          setIsMiniPay(!!provider.isMiniPay);
         }
-      }, 0);
+      };
+      initWallet();
     }
-  }, [fetchBalances]);
+  }, [fetchBalances, announcedProviders, getActiveProvider]);
 
   // Auto-connect and robust late-injection handling
   useEffect(() => {
@@ -170,7 +192,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       attempts++;
 
-      const ethereum = getPreferredProvider();
+      const storedRdns = localStorage.getItem('micromind_wallet_rdns');
+      const ethereum = getActiveProvider(storedRdns);
       if (ethereum) {
         const isMiniPayDetected = ethereum.isMiniPay === true;
 
@@ -201,7 +224,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           console.log('Auto-connect failed:', e);
         }
         
-        // If we found ethereum but accounts are empty, we can stop polling unless it's very early
         if (attempts > 5) clearInterval(checkInterval);
       } else {
         if (attempts > 30) clearInterval(checkInterval);
@@ -211,8 +233,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const checkInterval = setInterval(checkAndConnect, 100);
     checkAndConnect();
 
-    // Also fire immediately when the DOM reaches interactive/complete state,
-    // catching late-injected window.ethereum on some Android webviews.
     const onReadyStateChange = () => {
       if (document.readyState === 'interactive' || document.readyState === 'complete') {
         checkAndConnect();
@@ -224,11 +244,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       clearInterval(checkInterval);
       document.removeEventListener('readystatechange', onReadyStateChange);
     };
-  }, [fetchBalances]);
+  }, [fetchBalances, announcedProviders, getActiveProvider]);
 
-  // Listen for account/chain changes on the preferred provider
+  // Listen for account/chain changes on the active provider
   useEffect(() => {
-    const ethereum = getPreferredProvider();
+    const storedRdns = typeof window !== 'undefined' ? localStorage.getItem('micromind_wallet_rdns') : null;
+    const ethereum = getActiveProvider(storedRdns);
     if (!ethereum) return;
 
     const onAccountsChanged = async (...args: unknown[]) => {
@@ -257,10 +278,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       ethereum.removeListener?.('accountsChanged', onAccountsChanged);
       ethereum.removeListener?.('chainChanged', onChainChanged);
     };
-  }, [fetchBalances, disconnect]);
+  }, [fetchBalances, disconnect, announcedProviders, getActiveProvider]);
 
-  const connect = useCallback(async (provider?: EthereumProvider) => {
-    // Clear disconnect flag so auto-connect can resume for future sessions
+  const connect = useCallback(async (provider?: EthereumProvider, rdns?: string) => {
     try { sessionStorage.removeItem('mm_wallet_disconnected'); } catch {}
 
     let ethereum: EthereumProvider | undefined = provider || window.ethereum;
@@ -322,7 +342,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       try { localStorage.setItem('micromind_address', addr); } catch {}
       try { localStorage.setItem('micromind_connected', 'true'); } catch {}
-      try { localStorage.removeItem('micromind_disconnected'); } catch {}
+      if (rdns) {
+        try { localStorage.setItem('micromind_wallet_rdns', rdns); } catch {}
+      } else {
+        try { localStorage.removeItem('micromind_wallet_rdns'); } catch {}
+      }
 
       await fetchBalances(addr);
 
