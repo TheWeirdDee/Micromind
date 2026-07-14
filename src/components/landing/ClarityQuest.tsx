@@ -131,12 +131,12 @@ export function ClarityQuest() {
                 <div className="bg-accent/5 border border-accent/15 rounded-xl p-3.5">
                   <span className="text-[8px] font-mono uppercase text-accent font-bold tracking-wider block mb-1">CBT Clue Insight</span>
                   <p className="text-[11px] font-mono text-text-primary">
-                    "A specific, uneasy anticipation of future events, going beyond simple cognitive worry."
+                    &ldquo;A specific, uneasy anticipation of future events, going beyond simple cognitive worry.&rdquo;
                   </p>
                 </div>
 
                 <p className="font-serif text-lg italic text-text-primary leading-relaxed text-center sm:text-left">
-                  "Waiting for the test results left me feeling incredibly __________."
+                  &ldquo;Waiting for the test results left me feeling incredibly __________.&rdquo;
                 </p>
               </div>
 
