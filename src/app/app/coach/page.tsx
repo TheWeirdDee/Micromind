@@ -155,7 +155,7 @@ export default function CoachPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto pb-24">
+    <div className="max-w-6xl mx-auto pb-24 px-4 pt-4 sm:pt-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <Link href="/app" className="p-2 border border-border rounded-xl hover:bg-surface-2 transition-colors">
@@ -167,17 +167,17 @@ export default function CoachPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Input box */}
-        <div className="md:col-span-7 space-y-4">
-          <div className="bg-surface border border-border rounded-2xl p-4 space-y-3">
+        <div className="lg:col-span-6 space-y-4">
+          <div className="bg-surface border border-border rounded-2xl p-6 space-y-4">
             <label className="text-xs font-mono text-text-muted uppercase tracking-wider block">Draft Your Entry</label>
             <textarea
               ref={textareaRef}
               value={text}
               onChange={e => setText(e.target.value)}
               placeholder="Start writing down your draft... (e.g., 'I felt so frustrated during the review today. I know I am going to get fired because of one mistake.')"
-              className="w-full min-h-[220px] resize-none bg-surface-2 rounded-xl border border-border p-3 font-mono text-sm leading-relaxed text-text-primary outline-none focus:border-accent transition-colors"
+              className="w-full h-[260px] resize-none bg-surface-2 rounded-xl border border-border p-4 font-mono text-sm leading-relaxed text-text-primary outline-none focus:border-accent transition-colors"
             />
             
             <button
@@ -196,7 +196,7 @@ export default function CoachPage() {
                 }
               }}
               disabled={loading || !text.trim()}
-              className="w-full py-3 bg-accent text-bg rounded-xl text-xs font-mono font-bold hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-accent text-bg rounded-xl text-xs font-mono font-bold hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
             >
               <Brain className="w-4 h-4" />
               {loading ? 'Processing Payment...' : 'Get Coach Insights (0.005 USDm)'}
@@ -205,8 +205,8 @@ export default function CoachPage() {
         </div>
 
         {/* Coach thoughts box */}
-        <div className="md:col-span-5">
-          <div className="bg-surface border border-border rounded-2xl p-5 min-h-[300px] flex flex-col justify-between relative overflow-hidden">
+        <div className="lg:col-span-6">
+          <div className="bg-surface border border-border rounded-2xl p-6 min-h-[380px] flex flex-col justify-between relative overflow-hidden">
             {/* Background design elements */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-accent/2 rounded-full filter blur-xl pointer-events-none" />
 
