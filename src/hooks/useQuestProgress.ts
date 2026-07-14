@@ -103,6 +103,7 @@ export function useQuestProgress(address: string | null) {
         } catch (e: unknown) {
           const err = e as { code?: string; message?: string };
           console.error('[LOAD QUEST PROGRESS ERROR]', err);
+          alert(`Quest Progress Load Error: ${err?.message || JSON.stringify(err)} (Code: ${err?.code || 'unknown'})`);
           if (err && (err.code === 'PGRST205' || err.message?.includes('does not exist'))) {
             setDbWarning(true);
           }
