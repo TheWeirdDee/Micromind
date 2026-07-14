@@ -495,16 +495,31 @@ export default function QuestPage() {
   // Handle manual shuffle of letters (max 3 times per stage)
   const handleShuffleLetters = () => {
     if (shuffleCount >= 3) return;
+
+    // Find all indices that are NOT selected (i.e. currently in the word bank)
+    const unselectedIndices = shuffledLetters
+      .map((_, idx) => idx)
+      .filter(idx => !selectedIndices.includes(idx));
+
+    if (unselectedIndices.length <= 1) return; // Nothing to shuffle
+
+    // Copy the letters array
     const letters = [...shuffledLetters];
-    // Fisher-Yates shuffle
-    for (let i = letters.length - 1; i > 0; i--) {
+    
+    // Copy the values of the unselected letters
+    const unselectedValues = unselectedIndices.map(idx => letters[idx]);
+    
+    // Shuffle the unselected values array (Fisher-Yates)
+    for (let i = unselectedValues.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [letters[i], letters[j]] = [letters[j], letters[i]];
+      [unselectedValues[i], unselectedValues[j]] = [unselectedValues[j], unselectedValues[i]];
     }
-    // If the shuffled letters match the beginning of targetWord in order, reverse them
-    if (activeStage && letters.slice(0, activeStage.targetWord.length).join('') === activeStage.targetWord) {
-      letters.reverse();
-    }
+
+    // Put the shuffled values back into their respective positions in the letters array
+    unselectedIndices.forEach((origIdx, shuffleIdx) => {
+      letters[origIdx] = unselectedValues[shuffleIdx];
+    });
+
     setShuffledLetters(letters);
     setShuffleCount(prev => prev + 1);
   };
@@ -1596,7 +1611,7 @@ export default function QuestPage() {
                         )}
 
                         {/* Paid Reframing Response */}
-                        {aiCard && (
+                        {(aiCard || collectedCards.some(c => c.id === activeStage.id)) && (
                           <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -1607,13 +1622,13 @@ export default function QuestPage() {
                               <span className="text-[10px] font-mono uppercase tracking-widest text-text-primary">Clarity Card Unlocked</span>
                             </div>
                             <p className="text-xs font-mono italic leading-relaxed text-text-primary whitespace-pre-line text-text-muted">
-                              {aiCard}
+                              {aiCard || collectedCards.find(c => c.id === activeStage.id)?.cardText}
                             </p>
                           </motion.div>
                         )}
 
-                        <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto pt-2">
-                          {!aiCard && !isReviewing && (
+                        <div className="flex flex-col gap-2.5 max-w-md mx-auto pt-2">
+                          {!aiCard && !collectedCards.some(c => c.id === activeStage.id) && !isReviewing && (
                             <button
                               onClick={handleUnlockCard}
                               disabled={paidLoading}
