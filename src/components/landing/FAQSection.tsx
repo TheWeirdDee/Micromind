@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Mail, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -17,6 +18,14 @@ const faqs = [
   {
     q: "How does pay-per-prompt work?",
     a: "Each AI tool costs just 0.005 USDm per use, paid directly from your wallet on Celo. No monthly fees, no lock-in. You pay only for what you actually use.",
+  },
+  {
+    q: "What is the Clarity Quest?",
+    a: "Clarity Quest is a gamified cognitive reframing feature. Solve scrambled cognitive distortion sentences to expand your vocabulary with precise emotional words, unlock custom Clarity Cards, and earn Clarity Points which can be converted directly into USDm stablecoins.",
+  },
+  {
+    q: "How does the 30-Day Staking Challenge work?",
+    a: "The 30-Day Staking Challenge helps you build consistent self-reflection habits. Stake 0.05 USDm to join the challenge, complete your daily journal check-ins, and claim your staked funds back along with a share of reward pools upon successful completion.",
   },
   {
     q: "What AI tools are available?",
@@ -62,12 +71,12 @@ export function FAQSection() {
               <p className="font-mono text-sm text-text-muted leading-relaxed max-w-xs">
                 Everything you need to know about MicroMind, Celo payments, and your privacy.
               </p>
-              <a
-                href="#contact"
+              <Link
+                href="/contact"
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-accent-gold text-bg font-mono text-xs font-bold uppercase tracking-wider rounded-full hover:brightness-110 transition-all"
               >
                 Contact Us
-              </a>
+              </Link>
             </motion.div>
 
             {/* Right — accordion */}
@@ -153,32 +162,33 @@ export function FAQSection() {
             </motion.div>
 
             {/* Right — contact cards */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              {[
-                { href: "https://github.com/TheWeirdDee/Micromind/issues", icon: <Mail size={9} />, label: "Report an issue" },
-                { href: "https://github.com/TheWeirdDee/Micromind", icon: <ExternalLink size={9} />, label: "Open source" },
-              ].map((card, i) => (
-                <motion.a
-                  key={card.label}
-                  href={card.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  initial="hidden"
-                  whileInView="show"
-                  viewport={{ once: true, amount: 0.3 }}
-                  variants={fadeUp}
-                  transition={{ duration: 0.5, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
-                  className="flex-1 bg-surface-2 border border-border rounded-xl p-5 hover:border-accent-gold/50 transition-all group"
-                >
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-text-muted mb-2.5 flex items-center gap-1.5">
-                    {card.icon}
-                    {card.label}
-                  </p>
-                  <p className="font-mono text-xs text-text-primary group-hover:text-accent-gold transition-colors">
-                    github.com/TheWeirdDee/Micromind
-                  </p>
-                </motion.a>
-              ))}
+            <div className="flex flex-col sm:flex-row gap-4 w-full">
+              <Link
+                href="/contact"
+                className="flex-1 bg-surface-2 border border-border rounded-xl p-5 hover:border-accent-gold/50 transition-all group text-left"
+              >
+                <p className="font-mono text-[9px] uppercase tracking-widest text-text-muted mb-2.5 flex items-center gap-1.5">
+                  <Mail size={9} />
+                  Report an issue
+                </p>
+                <p className="font-mono text-xs text-text-primary group-hover:text-accent-gold transition-colors">
+                  micromind16@gmail.com
+                </p>
+              </Link>
+              <a
+                href="https://github.com/TheWeirdDee/Micromind"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 bg-surface-2 border border-border rounded-xl p-5 hover:border-accent-gold/50 transition-all group text-left"
+              >
+                <p className="font-mono text-[9px] uppercase tracking-widest text-text-muted mb-2.5 flex items-center gap-1.5">
+                  <ExternalLink size={9} />
+                  Open Source
+                </p>
+                <p className="font-mono text-xs text-text-primary group-hover:text-accent-gold transition-colors">
+                  github.com/TheWeirdDee/Micromind
+                </p>
+              </a>
             </div>
           </div>
         </div>
