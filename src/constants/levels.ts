@@ -237,6 +237,8 @@ function generateRemainingLevels(): QuestLevel[] {
         clue: `Practice word focused on building your ${c.cat} capabilities.`,
         vocabulary: {
           definition: `A meaningful emotion word to help you notice and name what you are really feeling.`,
+          examples: [],
+          synonyms: [],
           similarWords: [],
         },
       });
