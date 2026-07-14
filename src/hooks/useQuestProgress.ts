@@ -123,7 +123,7 @@ export function useQuestProgress(address: string | null) {
   // Push updates to database
   const pushToDatabase = useCallback(async (updated: QuestProgressState, userId: string) => {
     try {
-      await supabase.from('quest_progress').upsert({
+      const { error } = await supabase.from('quest_progress').upsert({
         user_id: userId,
         current_level: updated.currentLevel,
         current_stage: updated.currentStage,
@@ -131,6 +131,11 @@ export function useQuestProgress(address: string | null) {
         clarity_points: updated.clarityPoints,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
+      
+      if (error) {
+        console.error('[SYNC QUEST PROGRESS DATABASE ERROR]', error);
+        alert(`Quest Progress Sync Error: ${error.message} (Code: ${error.code})`);
+      }
     } catch (e) {
       console.error('[SYNC QUEST PROGRESS ERROR]', e);
     }
