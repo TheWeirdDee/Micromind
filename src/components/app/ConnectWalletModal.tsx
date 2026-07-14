@@ -16,6 +16,7 @@ interface WalletOption {
   name: string;
   provider: EthereumProvider;
   icon?: string | null;
+  rdns?: string;
 }
 
 export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps) {
@@ -41,6 +42,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
         name: info.name ?? 'Browser Wallet',
         provider,
         icon: info.icon ?? null,
+        rdns: info.rdns ?? undefined,
       });
       setWalletOptions([...discovered.values()]);
     };
@@ -139,7 +141,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
                   {walletOptions.map((option) => (
                     <button
                       key={option.name}
-                      onClick={() => connect(option.provider)}
+                      onClick={() => connect(option.provider, option.rdns)}
                       className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-left transition-all duration-200 hover:border-accent hover:bg-accent/5 active:scale-[0.98] focus:outline-none flex items-center gap-3"
                     >
                       {option.icon ? (
