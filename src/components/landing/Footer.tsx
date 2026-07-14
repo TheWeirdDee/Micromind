@@ -34,7 +34,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/#tools" className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors">
+                <Link href="/#features" className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors">
                   AI Tools
                 </Link>
               </li>
@@ -82,14 +82,12 @@ export function Footer() {
             </h4>
             <ul className="space-y-3">
               <li>
-                <a
-                  href="https://github.com/TheWeirdDee/Micromind/issues"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/contact"
                   className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors"
                 >
                   Report an Issue
-                </a>
+                </Link>
               </li>
               <li>
                 <a
@@ -132,7 +130,7 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="https://twitter.com"
+                  href="https://x.com/micromindapp"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors"
