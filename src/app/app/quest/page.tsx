@@ -917,7 +917,9 @@ export default function QuestPage() {
                   <div className="space-y-0.5 truncate pr-2">
                     <p className="text-xs font-serif font-bold text-text-primary truncate">{catName}</p>
                     <p className="text-[9px] font-mono text-text-muted">
-                      {completedStagesCount}/{totalStages} Stages Solved
+                      {completedStagesCount > 0 
+                        ? `${completedStagesCount} Stage${completedStagesCount > 1 ? 's' : ''} Solved` 
+                        : 'No Stages Solved'}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
@@ -956,6 +958,9 @@ export default function QuestPage() {
                                     const isStageCompleted = lvl.levelNumber < progress.currentLevel || 
                                                              (lvl.levelNumber === progress.currentLevel && stgIdx + 1 < progress.currentStage);
                                     
+                                    // Hide future stages that are not current and not completed yet
+                                    if (!isStageCompleted && !isStageCurrent) return null;
+
                                     const isCurrentlyReviewingThis = reviewLevelNumber === lvl.levelNumber && reviewStageIndex === stgIdx;
                                     const isActivePlayHighlight = !isReviewing && isStageCurrent;
 
@@ -1101,8 +1106,8 @@ export default function QuestPage() {
     return (
       <div className="space-y-4 text-left">
         <div className="px-1">
-          <h4 className="text-[10px] font-mono uppercase text-text-muted tracking-widest">My Cards</h4>
-          <p className="text-[11px] text-text-muted">Review your unlocked AI Reframing cards.</p>
+          <h4 className="text-[10px] font-mono uppercase text-text-muted tracking-widest">My Clarity Cards</h4>
+          <p className="text-[11px] text-text-muted">Review your unlocked Clarity Cards.</p>
         </div>
 
         <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
@@ -1132,7 +1137,7 @@ export default function QuestPage() {
             ))
           ) : (
             <div className="p-8 border border-dashed border-border rounded-xl text-center font-mono text-[10px] text-text-muted leading-relaxed">
-              No cards unlocked yet. Unlock AI Reframing Cards during your quest to build your collection!
+              No cards unlocked yet. Unlock Clarity Cards during your quest to build your collection!
             </div>
           )}
         </div>
@@ -1619,7 +1624,7 @@ export default function QuestPage() {
                           >
                             <div className="flex items-center justify-center gap-1.5">
                               <Sparkles className="w-4 h-4 text-accent-gold" />
-                              <span className="text-[10px] font-mono uppercase tracking-widest text-text-primary">AI Reframing Card Unlocked</span>
+                              <span className="text-[10px] font-mono uppercase tracking-widest text-text-primary">Clarity Card Unlocked</span>
                             </div>
                             <p className="text-xs font-mono italic leading-relaxed text-text-primary whitespace-pre-line text-text-muted">
                               {aiCard || collectedCards.find(c => c.id === activeStage.id)?.cardText}
@@ -1669,7 +1674,7 @@ export default function QuestPage() {
                               ) : (
                                 <>
                                   <Sparkles className="w-3.5 h-3.5" />
-                                  <span>Unlock AI Reframing Card (0.005 USDm)</span>
+                                  <span>Unlock Clarity Card (0.005 USDm)</span>
                                 </>
                               )}
                             </button>
@@ -1787,7 +1792,7 @@ export default function QuestPage() {
                     : 'text-text-muted hover:text-text-primary'
                 }`}
               >
-                🃏 Cards ({collectedCards.length})
+                🃏 Clarity Cards ({collectedCards.length})
               </button>
             </div>
 
