@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BookOpen, MessageSquare, Bird, Sparkles, Search, Mail, Brain, Trophy } from 'lucide-react';
+import { BookOpen, MessageSquare, Bird, Sparkles, Search, Mail, Brain, Trophy, Calendar } from 'lucide-react';
 import Link from 'next/link';
 
 const tools = [
@@ -76,6 +76,15 @@ const tools = [
     price: '0.005 USDm',
     btnText: 'Open Chat',
     route: '/app/chat',
+  },
+  {
+    icon: Calendar,
+    slug: 'challenge',
+    name: '30-Day Staking Challenge',
+    desc: 'Commit to your daily reflection habits. Stake USDm and claim it back along with rewards upon successful completion.',
+    price: '0.05 USDm Stake',
+    btnText: 'Join Challenge',
+    route: '/app/challenge',
   },
 ];
 
