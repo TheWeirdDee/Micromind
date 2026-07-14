@@ -633,6 +633,23 @@ export default function QuestPage() {
         setWithdrawing(false);
         return;
       }
+ 
+      // Force sync progress to Supabase before calling withdraw
+      const { error: syncError } = await supabase.from('quest_progress').upsert({
+        user_id: session.user.id,
+        current_level: progress.currentLevel,
+        current_stage: progress.currentStage,
+        completed_levels: progress.completedLevels,
+        clarity_points: progress.clarityPoints,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+ 
+      if (syncError) {
+        console.error('[WITHDRAW SYNC ERROR]', syncError);
+        alert(`Failed to sync progress to database: ${syncError.message} (Code: ${syncError.code})`);
+        setWithdrawing(false);
+        return;
+      }
 
       const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
       const res = await fetch(`${agentUrl}/api/quest/withdraw`, {
