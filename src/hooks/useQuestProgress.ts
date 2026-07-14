@@ -103,13 +103,12 @@ export function useQuestProgress(address: string | null) {
         } catch (e: unknown) {
           const err = e as { code?: string; message?: string };
           console.error('[LOAD QUEST PROGRESS ERROR]', err);
-          alert(`Quest Progress Load Error: ${err?.message || JSON.stringify(err)} (Code: ${err?.code || 'unknown'})`);
           if (err && (err.code === 'PGRST205' || err.message?.includes('does not exist'))) {
             setDbWarning(true);
           }
         }
       }
-
+ 
       if (local) {
         setState(local);
       } else {
@@ -117,10 +116,10 @@ export function useQuestProgress(address: string | null) {
       }
       setLoading(false);
     }
-
+ 
     loadProgress();
   }, [dbUser, storageKey]);
-
+ 
   // Push updates to database
   const pushToDatabase = useCallback(async (updated: QuestProgressState, userId: string) => {
     try {
@@ -135,7 +134,6 @@ export function useQuestProgress(address: string | null) {
       
       if (error) {
         console.error('[SYNC QUEST PROGRESS DATABASE ERROR]', error);
-        alert(`Quest Progress Sync Error: ${error.message} (Code: ${error.code})`);
       }
     } catch (e) {
       console.error('[SYNC QUEST PROGRESS ERROR]', e);
