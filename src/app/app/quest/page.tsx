@@ -161,6 +161,18 @@ export default function QuestPage() {
   const [withdrawAddress, setWithdrawAddress] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState(10);
   const [withdrawing, setWithdrawing] = useState(false);
+ 
+  // Custom dialog/modal states
+  const [successModal, setSuccessModal] = useState<{
+    title: string;
+    message: string;
+    txHash?: string;
+  } | null>(null);
+  const [errorModal, setErrorModal] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
+  const [copiedHash, setCopiedHash] = useState(false);
 
   // Collected Cards Gallery
   const [collectedCards, setCollectedCards] = useState<CollectedCard[]>([]);
@@ -571,7 +583,7 @@ export default function QuestPage() {
         setReviewLevelNumber(nextLvl);
         setReviewStageIndex(0);
       } else {
-        alert('You have reached the end of your unlocked review content!');
+        setErrorModal({ title: 'End of Review', message: 'You have reached the end of your unlocked review content!' });
       }
     }
   }, [reviewLevelNumber, reviewStageIndex, progress.completedLevels, progress.currentLevel]);
@@ -613,23 +625,23 @@ export default function QuestPage() {
   // Handle Withdrawal to Real Money
   const handleWithdraw = async () => {
     if (withdrawAmount < 10) {
-      alert('Minimum withdrawal is 10 Clarity Points');
+      setErrorModal({ title: 'Validation Error', message: 'Minimum withdrawal is 10 Clarity Points.' });
       return;
     }
     if (progress.clarityPoints < withdrawAmount) {
-      alert('Insufficient Clarity Points balance');
+      setErrorModal({ title: 'Insufficient Balance', message: 'You do not have enough Clarity Points to withdraw.' });
       return;
     }
     if (!withdrawAddress.startsWith('0x') || withdrawAddress.length !== 42) {
-      alert('Please enter a valid Celo wallet address');
+      setErrorModal({ title: 'Invalid Wallet Address', message: 'Please enter a valid 42-character Celo wallet address starting with 0x.' });
       return;
     }
-
+ 
     setWithdrawing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        alert('Please log in and sync your account to withdraw points to USDm.');
+        setErrorModal({ title: 'Authentication Required', message: 'Please log in and sync your account to withdraw points to USDm.' });
         setWithdrawing(false);
         return;
       }
@@ -646,11 +658,11 @@ export default function QuestPage() {
  
       if (syncError) {
         console.error('[WITHDRAW SYNC ERROR]', syncError);
-        alert(`Failed to sync progress to database: ${syncError.message} (Code: ${syncError.code})`);
+        setErrorModal({ title: 'Database Sync Failed', message: `Failed to sync progress to database: ${syncError.message} (Code: ${syncError.code})` });
         setWithdrawing(false);
         return;
       }
-
+ 
       const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
       const res = await fetch(`${agentUrl}/api/quest/withdraw`, {
         method: 'POST',
@@ -663,18 +675,30 @@ export default function QuestPage() {
           points: withdrawAmount
         })
       });
-
+ 
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Withdrawal failed');
       }
-
+ 
       await deductPoints(withdrawAmount);
       setShowRewardsModal(false);
-      alert(`Withdrawal Successful! Converted ${withdrawAmount} points to USDm.\nTransaction Hash: ${data.txHash}`);
+      
+      // Trigger Confetti!
+      confetti({
+        particleCount: 150,
+        spread: 80,
+        origin: { y: 0.6 }
+      });
+      
+      setSuccessModal({
+        title: 'Swap Complete! 🎉',
+        message: `Successfully converted ${withdrawAmount} Clarity Points to ${(withdrawAmount * 0.0005).toFixed(4)} USDm.`,
+        txHash: data.txHash
+      });
     } catch (e: unknown) {
       const err = e as Error;
-      alert(`Withdrawal Error: ${err.message}`);
+      setErrorModal({ title: 'Withdrawal Failed', message: err.message });
     } finally {
       setWithdrawing(false);
     }
@@ -718,10 +742,10 @@ export default function QuestPage() {
       }
     } catch (e: unknown) {
       const err = e as Error;
-      alert(`Payment or hint generation failed: ${err.message}`);
+      setErrorModal({ title: 'Hint Request Failed', message: err.message });
     }
   };
-
+ 
   // Unlock Premium Reframing Card (0.005 USDm)
   const handleUnlockCard = async () => {
     if (!activeStage || !activeLevel || paidLoading) return;
@@ -729,7 +753,7 @@ export default function QuestPage() {
       setShowWalletModal(true);
       return;
     }
-
+ 
     try {
       resetPayment();
       
@@ -737,9 +761,9 @@ export default function QuestPage() {
         sentence: activeStage.sentence,
         targetWord: activeStage.targetWord
       });
-
+ 
       const txHash = await payViaRelay(1, 'AI Reframe', payload);
-
+ 
       if (txHash) {
         const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
         const res = await fetch(`${agentUrl}/api/game/reframe`, {
@@ -751,11 +775,11 @@ export default function QuestPage() {
             txHash
           })
         });
-
+ 
         if (!res.ok) throw new Error('Reframing request failed');
         const data = await res.json();
         setAiCard(data.cardText);
-
+ 
         const newCard: CollectedCard = {
           id: activeStage.id,
           levelName: activeLevel.name,
@@ -765,14 +789,14 @@ export default function QuestPage() {
           cardText: data.cardText,
           unlockedAt: Date.now()
         };
-
+ 
         const updated = [newCard, ...collectedCards];
         setCollectedCards(updated);
         localStorage.setItem(cardsStorageKey, JSON.stringify(updated));
       }
     } catch (e: unknown) {
       const err = e as Error;
-      alert(`Card unlock failed: ${err.message}`);
+      setErrorModal({ title: 'Card Unlock Failed', message: err.message });
     }
   };
 
@@ -1840,7 +1864,100 @@ export default function QuestPage() {
           </div>
         )}
       </AnimatePresence>
-
+ 
+      {/* Success Notification Modal */}
+      <AnimatePresence>
+        {successModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-surface border border-border p-6 rounded-3xl max-w-md w-full text-center shadow-2xl relative overflow-hidden space-y-5"
+            >
+              <div className="halftone-bg absolute inset-0 opacity-5 pointer-events-none" />
+              
+              <div className="w-14 h-14 bg-accent/15 border border-accent/30 rounded-full flex items-center justify-center mx-auto text-2xl animate-pulse">
+                ✨
+              </div>
+ 
+              <div className="space-y-2">
+                <h3 className="font-serif text-xl font-bold text-accent">{successModal.title}</h3>
+                <p className="text-xs font-mono text-text-muted leading-relaxed">{successModal.message}</p>
+              </div>
+ 
+              {successModal.txHash && (
+                <div className="space-y-2 text-left bg-surface-2 p-3.5 border border-border rounded-2xl">
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-text-muted block">Transaction Hash</span>
+                  <div className="font-mono text-[10px] break-all text-accent-gold select-all font-bold">
+                    {successModal.txHash}
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <a
+                      href={`https://celoscan.io/tx/${successModal.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[9px] font-mono bg-accent/10 border border-accent/30 text-accent px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 hover:bg-accent/20 transition-all"
+                    >
+                      🔗 View on Celoscan
+                    </a>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(successModal.txHash || '');
+                        setCopiedHash(true);
+                        setTimeout(() => setCopiedHash(false), 2000);
+                      }}
+                      className="text-[9px] font-mono bg-surface-3 border border-border text-text-muted px-3 py-1.5 rounded-lg flex items-center gap-1 hover:text-text-primary transition-all ml-auto min-w-[75px]"
+                    >
+                      {copiedHash ? '✓ Copied!' : '📋 Copy Hash'}
+                    </button>
+                  </div>
+                </div>
+              )}
+ 
+              <button
+                onClick={() => setSuccessModal(null)}
+                className="pill-button pill-button-primary w-full py-3 text-xs font-mono font-bold"
+              >
+                Great!
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+ 
+      {/* Error Notification Modal */}
+      <AnimatePresence>
+        {errorModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-surface border border-border p-6 rounded-3xl max-w-sm w-full text-center shadow-2xl relative overflow-hidden space-y-5"
+            >
+              <div className="halftone-bg absolute inset-0 opacity-5 pointer-events-none" />
+              
+              <div className="w-14 h-14 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mx-auto text-2xl text-red-400">
+                ⚠️
+              </div>
+ 
+              <div className="space-y-2">
+                <h3 className="font-serif text-xl font-bold text-red-400">{errorModal.title}</h3>
+                <p className="text-xs font-mono text-text-muted leading-relaxed">{errorModal.message}</p>
+              </div>
+ 
+              <button
+                onClick={() => setErrorModal(null)}
+                className="pill-button bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-400 w-full py-3 text-xs font-mono font-bold transition-all"
+              >
+                Dismiss
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+ 
       <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </div>
   );
