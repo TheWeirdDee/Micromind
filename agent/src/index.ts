@@ -535,6 +535,19 @@ Generate a short, warm hint (under 30 words) that describes the meaning of the t
   }
 });
 
+app.get('/api/quest/debug', async (req, res) => {
+  const url = process.env.SUPABASE_URL || 'https://vxjibxhedfeyzddvfxdn.supabase.co';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  res.json({
+    supabaseUrl: url,
+    hasServiceKey: !!key,
+    serviceKeyLength: key ? key.length : 0,
+    serviceKeyPrefix: key ? key.substring(0, 7) : 'none',
+    envKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE') || k.includes('KEY') || k.includes('URL') || k.includes('SECRET')),
+  });
+});
+
 app.post('/api/quest/withdraw', async (req, res) => {
   const authHeader = req.headers.authorization;
   const { userAddress, points } = req.body;
