@@ -58,7 +58,7 @@ export function HowItWorks() {
             </p>
             
             <p className="font-mono text-xs text-text-muted leading-relaxed">
-              Start writing completely free without setting up a wallet. Connect only when you need deep emotional insights, weekly summaries, or eloquent letter polishing from our AI companions.
+              Start writing completely free without setting up a wallet. Play the Clarity Quest to reframe cognitive distortions, connect your wallet to join a 30-day staking challenge, or let our AI companions synthesize weekly reflections.
             </p>
 
             <ol className="space-y-3 pt-2">
