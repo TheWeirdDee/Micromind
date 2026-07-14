@@ -84,7 +84,21 @@ export function useQuestProgress(address: string | null) {
               localStorage.setItem(storageKey, JSON.stringify(dbState));
               setLoading(false);
               return;
+            } else {
+              // Local progress is ahead of remote, sync local state up
+              setState(local);
+              await pushToDatabase(local, dbUser.id);
+              setLoading(false);
+              return;
             }
+          } else {
+            // No record found on remote, initialize it with current local or DEFAULT_STATE
+            const stateToPush = local || DEFAULT_STATE;
+            setState(stateToPush);
+            localStorage.setItem(storageKey, JSON.stringify(stateToPush));
+            await pushToDatabase(stateToPush, dbUser.id);
+            setLoading(false);
+            return;
           }
         } catch (e: unknown) {
           const err = e as { code?: string; message?: string };
