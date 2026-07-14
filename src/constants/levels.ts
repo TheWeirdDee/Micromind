@@ -98,7 +98,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'DISORIENTED',
         scrambledLetters: ['D', 'I', 'S', 'O', 'R', 'I', 'E', 'N', 'T', 'E', 'D', 'M', 'W'],
-        clue: 'Make someone lose their sense of direction or position.'
+        clue: 'Make someone lose their sense of direction or position.',
+        vocabulary: {
+          definition: 'Feeling confused about where you are, where you are going, or what is happening around you.',
+          examples: ['I felt disoriented after waking up from the long, deep sleep.', 'The sudden change in plans left the team feeling disoriented.'],
+          synonyms: ['Confused', 'Baffled', 'Perplexed'],
+          similarWords: [
+            { word: 'Confused', meaning: 'Unable to think clearly or understand something.' },
+            { word: 'Baffled', meaning: 'Totally bewildered or perplexed by a situation.' },
+            { word: 'Perplexed', meaning: 'Completely baffled; very puzzled.' }
+          ]
+        }
       },
       {
         id: 'l2-s2',
@@ -106,7 +116,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'NOSTALGIC',
         scrambledLetters: ['N', 'O', 'S', 'T', 'A', 'L', 'G', 'I', 'C', 'P', 'Q'],
-        clue: 'Exhibiting a sentimental longing or wistful affection for the past.'
+        clue: 'Exhibiting a sentimental longing or wistful affection for the past.',
+        vocabulary: {
+          definition: 'Feeling a sentimental, affectionate longing for a period in the past.',
+          examples: ['Looking at the old photographs made me feel nostalgic.', 'A nostalgic song played on the radio, reminding me of childhood.'],
+          synonyms: ['Wistful', 'Sentimental', 'Longing'],
+          similarWords: [
+            { word: 'Wistful', meaning: 'Having or showing a feeling of vague or regretful longing.' },
+            { word: 'Sentimental', meaning: 'Prompted by feelings of tenderness, sadness, or nostalgia.' },
+            { word: 'Longing', meaning: 'A strong feeling of wanting something, especially something distant.' }
+          ]
+        }
       },
       {
         id: 'l2-s3',
@@ -114,7 +134,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'VALIDATED',
         scrambledLetters: ['V', 'A', 'L', 'I', 'D', 'A', 'T', 'E', 'D', 'S', 'T'],
-        clue: 'Feeling recognized, worthy, or approved.'
+        clue: 'Feeling recognized, worthy, or approved.',
+        vocabulary: {
+          definition: 'Feeling that your emotions, thoughts, or experiences are recognized, understood, and accepted as worthwhile.',
+          examples: ['I felt validated when my manager agreed that the task was indeed difficult.', 'Having a friend listen without judgment made her feel validated.'],
+          synonyms: ['Acknowledged', 'Affirmed', 'Recognized'],
+          similarWords: [
+            { word: 'Acknowledged', meaning: 'Accepted or admitted as true or valid.' },
+            { word: 'Affirmed', meaning: 'Confirmed or supported strongly.' },
+            { word: 'Recognized', meaning: 'Identified and appreciated for your value.' }
+          ]
+        }
       },
       {
         id: 'l2-s4',
@@ -122,7 +152,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'APPREHENSIVE',
         scrambledLetters: ['A', 'P', 'P', 'R', 'E', 'H', 'E', 'N', 'S', 'I', 'V', 'E', 'L', 'K'],
-        clue: 'Anxious or fearful that something bad or unpleasant will happen.'
+        clue: 'Anxious or fearful that something bad or unpleasant will happen.',
+        vocabulary: {
+          definition: 'Feeling anxious or fearful about the future or about a specific upcoming event.',
+          examples: ['I felt apprehensive before presenting my ideas to the executives.', 'She was apprehensive about moving to a new city alone.'],
+          synonyms: ['Anxious', 'Fearful', 'Uneasy'],
+          similarWords: [
+            { word: 'Anxious', meaning: 'Feeling worried, uneasy, or nervous about something with an uncertain outcome.' },
+            { word: 'Fearful', meaning: 'Feeling afraid or dreading something.' },
+            { word: 'Uneasy', meaning: 'Causing or feeling anxiety; troubled or uncomfortable.' }
+          ]
+        }
       },
       {
         id: 'l2-s5',
@@ -130,7 +170,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'REASSURED',
         scrambledLetters: ['R', 'E', 'A', 'S', 'S', 'U', 'R', 'E', 'D', 'A', 'B'],
-        clue: 'Say or do something to remove the doubts or fears of someone.'
+        clue: 'Say or do something to remove the doubts or fears of someone.',
+        vocabulary: {
+          definition: 'Having your doubts, fears, or anxieties removed, leaving you feeling calm and secure.',
+          examples: ['He felt reassured after talking to the doctor.', 'Her warm words left me completely reassured about our friendship.'],
+          synonyms: ['Comforted', 'Encouraged', 'Secured'],
+          similarWords: [
+            { word: 'Comforted', meaning: 'Feeling less sad or worried; consoled.' },
+            { word: 'Encouraged', meaning: 'Having more confidence or hope.' },
+            { word: 'Secured', meaning: 'Feeling safe and free from danger or anxiety.' }
+          ]
+        }
       }
     ]
   },
@@ -145,7 +195,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'ASSERTIVE',
         scrambledLetters: ['A', 'S', 'S', 'E', 'R', 'T', 'I', 'V', 'E', 'M', 'N', 'Z'],
-        clue: 'Having or showing a confident and forceful personality.'
+        clue: 'Having or showing a confident and forceful personality.',
+        vocabulary: {
+          definition: 'Expressing your opinions, needs, and feelings clearly, directly, and confidently, without being aggressive.',
+          examples: ['I need to be more assertive when requesting resources for my team.', 'An assertive response helped resolve the misunderstanding quickly.'],
+          synonyms: ['Confident', 'Direct', 'Decisive'],
+          similarWords: [
+            { word: 'Confident', meaning: 'Feeling self-assurance arising from one\'s appreciation of one\'s own abilities.' },
+            { word: 'Direct', meaning: 'Straightforward and honest in address or behavior.' },
+            { word: 'Decisive', meaning: 'Having or showing the ability to make decisions quickly and effectively.' }
+          ]
+        }
       },
       {
         id: 'l3-s2',
@@ -153,7 +213,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'DIPLOMATIC',
         scrambledLetters: ['D', 'I', 'P', 'L', 'O', 'M', 'A', 'T', 'I', 'C', 'X', 'Y'],
-        clue: 'Tactful and sensitive in dealing with people and difficult situations.'
+        clue: 'Tactful and sensitive in dealing with people and difficult situations.',
+        vocabulary: {
+          definition: 'Handling relationships and sensitive situations tactfully, respectably, and effectively without causing offense.',
+          examples: ['A diplomatic manager handles conflict with care.', 'We need to craft a diplomatic response to the client\'s criticism.'],
+          synonyms: ['Tactful', 'Polite', 'Discreet'],
+          similarWords: [
+            { word: 'Tactful', meaning: 'Showing skill and sensitivity in dealing with people or difficult issues.' },
+            { word: 'Polite', meaning: 'Having or showing behavior that is respectful and considerate.' },
+            { word: 'Discreet', meaning: 'Careful and circumspect in one\'s speech or actions.' }
+          ]
+        }
       },
       {
         id: 'l3-s3',
@@ -161,7 +231,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'COLLABORATIVE',
         scrambledLetters: ['C', 'O', 'L', 'L', 'A', 'B', 'O', 'R', 'A', 'T', 'I', 'V', 'E', 'S', 'P'],
-        clue: 'Produced or conducted by two or more parties working together.'
+        clue: 'Produced or conducted by two or more parties working together.',
+        vocabulary: {
+          definition: 'Working jointly with others or multiple groups to achieve a shared goal or create something together.',
+          examples: ['We established a collaborative environment for our design sprint.', 'The project was a collaborative effort across three departments.'],
+          synonyms: ['Cooperative', 'Joint', 'Collective'],
+          similarWords: [
+            { word: 'Cooperative', meaning: 'Involving mutual assistance in working toward a common goal.' },
+            { word: 'Joint', meaning: 'Shared, held, or made by two or more people together.' },
+            { word: 'Collective', meaning: 'Done by people acting as a group.' }
+          ]
+        }
       },
       {
         id: 'l3-s4',
@@ -169,7 +249,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'COMPOSED',
         scrambledLetters: ['C', 'O', 'M', 'P', 'O', 'S', 'E', 'D', 'A', 'L'],
-        clue: 'Calm and in control of oneself.'
+        clue: 'Calm and in control of oneself.',
+        vocabulary: {
+          definition: 'Maintaining a calm, tranquil, and self-controlled state of mind, especially under pressure.',
+          examples: ['She remained composed throughout the stressful press conference.', 'Take a deep breath to help yourself stay composed during the debate.'],
+          synonyms: ['Serene', 'Calm', 'Poised'],
+          similarWords: [
+            { word: 'Serene', meaning: 'Calm, peaceful, and untroubled.' },
+            { word: 'Calm', meaning: 'Not showing or feeling nervousness, anger, or other strong emotions.' },
+            { word: 'Poised', meaning: 'Having a composed and self-assured manner.' }
+          ]
+        }
       },
       {
         id: 'l3-s5',
@@ -177,7 +267,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'CONSTRUCTIVE',
         scrambledLetters: ['C', 'O', 'N', 'S', 'T', 'R', 'U', 'C', 'T', 'I', 'V', 'E', 'M', 'O'],
-        clue: 'Serving a useful purpose; tending to build up.'
+        clue: 'Serving a useful purpose; tending to build up.',
+        vocabulary: {
+          definition: 'Offering useful, positive, and developmental feedback or advice that helps build up rather than tear down.',
+          examples: ['He offered constructive criticism that improved my coding style.', 'Let\'s focus on having a constructive conversation about our future plans.'],
+          synonyms: ['Productive', 'Beneficial', 'Helpful'],
+          similarWords: [
+            { word: 'Productive', meaning: 'Producing significant, positive, or useful results.' },
+            { word: 'Beneficial', meaning: 'Favorable or advantageous; resulting in good.' },
+            { word: 'Helpful', meaning: 'Giving or ready to give help; useful.' }
+          ]
+        }
       },
       {
         id: 'l3-s6',
@@ -185,7 +285,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'TRANSPARENT',
         scrambledLetters: ['T', 'R', 'A', 'N', 'S', 'P', 'A', 'R', 'E', 'N', 'T', 'K', 'L'],
-        clue: 'Easy to perceive or detect; open and honest.'
+        clue: 'Easy to perceive or detect; open and honest.',
+        vocabulary: {
+          definition: 'Being open, honest, and clear about intentions, actions, and processes so others can see them clearly.',
+          examples: ['We must be fully transparent about the database outage.', 'A transparent communication style builds long-term trust.'],
+          synonyms: ['Open', 'Candid', 'Clear'],
+          similarWords: [
+            { word: 'Open', meaning: 'Honest and frank; not secretive.' },
+            { word: 'Candid', meaning: 'Truthful and straightforward; frank.' },
+            { word: 'Clear', meaning: 'Easy to perceive, understand, or interpret.' }
+          ]
+        }
       },
       {
         id: 'l3-s7',
@@ -193,7 +303,17 @@ export const QUEST_LEVELS: QuestLevel[] = [
         placeholderKey: 'placeholder',
         targetWord: 'PRAGMATIC',
         scrambledLetters: ['P', 'R', 'A', 'G', 'M', 'A', 'T', 'I', 'C', 'R', 'S'],
-        clue: 'Dealing with things sensibly and realistically in a way that is based on practical considerations.'
+        clue: 'Dealing with things sensibly and realistically in a way that is based on practical considerations.',
+        vocabulary: {
+          definition: 'Approaching problems and situations in a practical, sensible, and realistic way, rather than focusing on theoretical ideas.',
+          examples: ['We need a pragmatic solution that we can build in three days.', 'Taking a pragmatic stance helped us finish the project on budget.'],
+          synonyms: ['Practical', 'Realistic', 'Sensible'],
+          similarWords: [
+            { word: 'Practical', meaning: 'Concerned with the actual doing or use of something rather than with theory.' },
+            { word: 'Realistic', meaning: 'Having or showing a sensible and practical idea of what can be achieved or expected.' },
+            { word: 'Sensible', meaning: 'Chosen in accordance with wisdom or prudence; likely to be of benefit.' }
+          ]
+        }
       }
     ]
   },
@@ -201,6 +321,109 @@ export const QUEST_LEVELS: QuestLevel[] = [
   // but keeping a strict type-safe definition for each of the remaining levels.
   ...generateRemainingLevels()
 ];
+
+function getWordVocabulary(word: string, category: string) {
+  const details: Record<string, { definition: string; examples: string[]; synonyms: string[]; similarWords: Array<{ word: string; meaning: string }> }> = {
+    'CENTERED': {
+      definition: 'Feeling calm, stable, and focused in your mind and emotions.',
+      examples: ['Taking three deep breaths helped her feel centered.', 'He remained centered despite the noise around him.'],
+      synonyms: ['Grounded', 'Balanced', 'Stable'],
+      similarWords: [
+        { word: 'Grounded', meaning: 'Mentally stable and connected to the present moment.' },
+        { word: 'Balanced', meaning: 'Having different elements of your life or emotions in correct proportions.' }
+      ]
+    },
+    'GROUNDED': {
+      definition: 'Feeling emotionally stable, connected to the present, and realistic.',
+      examples: ['Walking barefoot on grass helps you feel grounded.', 'Her practical advice kept me grounded.'],
+      synonyms: ['Centered', 'Sensible', 'Realistic'],
+      similarWords: [
+        { word: 'Centered', meaning: 'Calm, stable, and focused in mind and emotions.' },
+        { word: 'Balanced', meaning: 'In a state of emotional equilibrium.' }
+      ]
+    },
+    'MINDFUL': {
+      definition: 'Consciously aware of the present moment, including your thoughts, feelings, and surroundings.',
+      examples: ['Being mindful during meals helps you appreciate food.', 'A mindful walk through the garden.'],
+      synonyms: ['Aware', 'Conscious', 'Attentive'],
+      similarWords: [
+        { word: 'Attentive', meaning: 'Paying close attention to something.' },
+        { word: 'Observant', meaning: 'Quick to notice things; alert.' }
+      ]
+    },
+    'SERENE': {
+      definition: 'Calm, peaceful, and untroubled; free of emotional disturbance.',
+      examples: ['The lake was serene in the early morning.', 'A serene smile crossed her face.'],
+      synonyms: ['Tranquil', 'Peaceful', 'Placid'],
+      similarWords: [
+        { word: 'Tranquil', meaning: 'Free from disturbance; calm.' },
+        { word: 'Placid', meaning: 'Not easily upset or excited.' }
+      ]
+    },
+    'COMPASSIONATE': {
+      definition: 'Feeling or showing deep sympathy and concern for others who are suffering, combined with a desire to help.',
+      examples: ['She gave a compassionate response to the crying child.', 'A compassionate caregiver makes a huge difference.'],
+      synonyms: ['Empathetic', 'Kind', 'Sympathetic'],
+      similarWords: [
+        { word: 'Empathetic', meaning: 'Able to understand and share the feelings of another.' },
+        { word: 'Benevolent', meaning: 'Well-meaning and kindly.' }
+      ]
+    },
+    'DETERMINED': {
+      definition: 'Having made a firm decision and being resolved not to change it.',
+      examples: ['She was determined to finish the marathon.', 'A determined effort led to success.'],
+      synonyms: ['Resolute', 'Resolved', 'Steadfast'],
+      similarWords: [
+        { word: 'Resolute', meaning: 'Admirably purposeful, determined, and unwavering.' },
+        { word: 'Persistent', meaning: 'Continuing firmly in a course of action in spite of difficulty.' }
+      ]
+    },
+    'EMPATHETIC': {
+      definition: 'Showing an ability to understand and share the feelings of another person.',
+      examples: ['An empathetic listener provides deep comfort.', 'She was empathetic to his difficult situation.'],
+      synonyms: ['Understanding', 'Compassionate', 'Sensitive'],
+      similarWords: [
+        { word: 'Compassionate', meaning: 'Showing concern for others who are suffering.' },
+        { word: 'Attuned', meaning: 'Receptive and in harmony with others.' }
+      ]
+    },
+    'RESILIENT': {
+      definition: 'Able to withstand or recover quickly from difficult conditions or setbacks.',
+      examples: ['Resilient communities rebuild quickly after disasters.', 'He was resilient in the face of career challenges.'],
+      synonyms: ['Tough', 'Strong', 'Adaptable'],
+      similarWords: [
+        { word: 'Steadfast', meaning: 'Unwavering and dutiful.' },
+        { word: 'Tenacious', meaning: 'Tending to keep a firm hold of something; clinging or adhering closely.' }
+      ]
+    },
+    'AUTHENTIC': {
+      definition: 'True to one\'s own personality, spirit, or character; sincere and genuine.',
+      examples: ['She is always authentic, never pretending to be someone else.', 'He spoke in an authentic voice about his experiences.'],
+      synonyms: ['Genuine', 'Real', 'Sincere'],
+      similarWords: [
+        { word: 'Sincere', meaning: 'Free from pretense or deceit; proceeding from genuine feelings.' },
+        { word: 'Honest', meaning: 'Free of deceit and untruthfulness; sincere.' }
+      ]
+    }
+  };
+
+  const wordUpper = word.toUpperCase();
+  if (details[wordUpper]) {
+    return details[wordUpper];
+  }
+
+  // Fallback dynamic generator if word is not in the map
+  const cleanWord = word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  return {
+    definition: `Refers to a state of being ${cleanWord.toLowerCase()} which supports your growth in the context of ${category}.`,
+    examples: [`Practicing being ${cleanWord.toLowerCase()} helps build emotional clarity.`, `She felt extremely ${cleanWord.toLowerCase()} during the reflection session.`],
+    synonyms: [`Aligned`, `Present`, `Intentional`],
+    similarWords: [
+      { word: 'Aligned', meaning: 'In correct relative position or agreement.' },
+      { word: 'Present', meaning: 'Fully aware and focused on the now.' }
+    ]
+  };
+}
 
 function generateRemainingLevels(): QuestLevel[] {
   const categories = [
@@ -235,12 +458,7 @@ function generateRemainingLevels(): QuestLevel[] {
         targetWord,
         scrambledLetters: Array.from(lettersSet).sort(() => Math.random() - 0.5),
         clue: `Practice word focused on building your ${c.cat} capabilities.`,
-        vocabulary: {
-          definition: `A meaningful emotion word to help you notice and name what you are really feeling.`,
-          examples: [],
-          synonyms: [],
-          similarWords: [],
-        },
+        vocabulary: getWordVocabulary(targetWord, c.cat)
       });
     }
 

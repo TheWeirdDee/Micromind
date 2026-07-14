@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 import { setDailyHabitState } from '@/lib/journal';
 import { QUEST_LEVELS } from '@/constants/levels';
 
@@ -22,7 +23,7 @@ const DEFAULT_STATE: QuestProgressState = {
 export function useQuestProgress(address: string | null) {
   const [state, setState] = useState<QuestProgressState>(DEFAULT_STATE);
   const [loading, setLoading] = useState(true);
-  const [dbUser, setDbUser] = useState<any>(null);
+  const [dbUser, setDbUser] = useState<User | null>(null);
   const [dbWarning, setDbWarning] = useState<boolean>(false);
 
   // Sync address changes
@@ -82,9 +83,10 @@ export function useQuestProgress(address: string | null) {
               return;
             }
           }
-        } catch (e: any) {
-          console.error('[LOAD QUEST PROGRESS ERROR]', e);
-          if (e && (e.code === 'PGRST205' || e.message?.includes('does not exist'))) {
+        } catch (e: unknown) {
+          const err = e as { code?: string; message?: string };
+          console.error('[LOAD QUEST PROGRESS ERROR]', err);
+          if (err && (err.code === 'PGRST205' || err.message?.includes('does not exist'))) {
             setDbWarning(true);
           }
         }

@@ -1,8 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Sparkles, AlertTriangle, Loader2, CheckCircle2, HelpCircle, Trophy } from 'lucide-react';
+import {
+  ChevronLeft,
+  Sparkles,
+  AlertTriangle,
+  Loader2,
+  CheckCircle2,
+  HelpCircle,
+  Trophy,
+  BookOpen,
+  Search,
+  Lock,
+  Play,
+  ArrowRight,
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw
+} from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
@@ -38,6 +55,82 @@ interface VocabularyEntry {
   unlockedAt: number;
 }
 
+// Helper to provide emotional granularity comparisons
+function getEmotionalGranularityComparison(word: string): { generic: string; nuance: string } {
+  const comparisons: Record<string, { generic: string; nuance: string }> = {
+    'REJUVENATING': {
+      generic: 'Good / Rested',
+      nuance: 'Rejuvenating means you are actively restored with new energy and vitality, rather than just feeling passive rest.'
+    },
+    'APPRECIATIVE': {
+      generic: 'Grateful / Happy',
+      nuance: 'Appreciative emphasizes actively recognizing and valuing the specific kindness, support, or positive details of a moment.'
+    },
+    'NOURISHING': {
+      generic: 'Nice / Good',
+      nuance: 'Nourishing describes experiences or relationships that feed your soul and rebuild your emotional resources, not just pleasant moments.'
+    },
+    'DISORIENTED': {
+      generic: 'Confused',
+      nuance: 'Disoriented captures a deeper loss of direction, context, or stability in a situation, going beyond simple cognitive confusion.'
+    },
+    'NOSTALGIC': {
+      generic: 'Sad / Thinking',
+      nuance: 'Nostalgic specifically names a bittersweet, sentimental longing for the past, combining affection with a soft touch of sadness.'
+    },
+    'VALIDATED': {
+      generic: 'Happy / Heard',
+      nuance: 'Validated means your inner state is recognized as worthy and reasonable, reinforcing self-trust and reducing self-doubt.'
+    },
+    'APPREHENSIVE': {
+      generic: 'Scared / Anxious',
+      nuance: 'Apprehensive highlights a specific, uneasy anticipation of future events, rather than a general or objectless sense of anxiety.'
+    },
+    'REASSURED': {
+      generic: 'Fine / Safe',
+      nuance: 'Reassured indicates a positive shift from fear or doubt back to confidence, usually sparked by a specific comfort or confirmation.'
+    },
+    'ASSERTIVE': {
+      generic: 'Bold / Angry',
+      nuance: 'Assertive is expressing your needs clearly and respectfully, finding the healthy balance between passivity and aggression.'
+    },
+    'DIPLOMATIC': {
+      generic: 'Polite / Quiet',
+      nuance: 'Diplomatic means navigating conflict tactfully to preserve relationships, whereas polite is just standard social manners.'
+    },
+    'COLLABORATIVE': {
+      generic: 'Together',
+      nuance: 'Collaborative represents a unified, synergistic flow where ideas merge, rather than just working side-by-side.'
+    },
+    'COMPOSED': {
+      generic: 'Quiet / OK',
+      nuance: 'Composed is actively holding self-control and calmness under pressure, not just the absence of external stress.'
+    },
+    'CONSTRUCTIVE': {
+      generic: 'Good / Helpful',
+      nuance: 'Constructive feedback is designed to actively build up skills and offer positive forward steps, rather than just pointing out flaws.'
+    },
+    'TRANSPARENT': {
+      generic: 'Honest',
+      nuance: 'Transparent is proactively exposing processes and information so there is nothing hidden, going beyond simply not lying.'
+    },
+    'PRAGMATIC': {
+      generic: 'Practical',
+      nuance: 'Pragmatic focuses on what realistically works in practice, choosing sensible compromises over perfection or pure theory.'
+    }
+  };
+
+  const wordUpper = word.toUpperCase();
+  if (comparisons[wordUpper]) {
+    return comparisons[wordUpper];
+  }
+
+  return {
+    generic: 'Good / Fine',
+    nuance: `Using "${word}" gives your writing and reflection specific emotional detail, helping you identify the exact nature of this state.`
+  };
+}
+
 export default function QuestPage() {
   const { address, isConnected } = useWallet();
   const { progress, loading: progressLoading, dbWarning, solveStage, deductPoints, resetProgress } = useQuestProgress(address);
@@ -45,6 +138,9 @@ export default function QuestPage() {
 
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showRewardsModal, setShowRewardsModal] = useState(false);
+
+  // Tab state in sidebar
+  const [sidebarTab, setSidebarTab] = useState<'levels' | 'dictionary'>('levels');
 
   // Game UI state
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
@@ -68,8 +164,22 @@ export default function QuestPage() {
   const [collectedCards, setCollectedCards] = useState<CollectedCard[]>([]);
   const [vocabularyEntries, setVocabularyEntries] = useState<VocabularyEntry[]>([]);
   const [pendingDictionaryEntry, setPendingDictionaryEntry] = useState<VocabularyEntry | null>(null);
+  const [addingToDictWord, setAddingToDictWord] = useState<string | null>(null);
+
+  // Review states
   const [reviewLevelNumber, setReviewLevelNumber] = useState<number | null>(null);
   const [reviewStageIndex, setReviewStageIndex] = useState<number | null>(null);
+  const [isReplaying, setIsReplaying] = useState(false);
+
+  // Dictionary Search and Filters
+  const [vocabSearch, setVocabSearch] = useState('');
+  const [vocabFilterCategory, setVocabFilterCategory] = useState('All');
+
+  // Accordion state for Categories nav
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+
+  // Database warning states
+  const [vocabDbWarning, setVocabDbWarning] = useState(false);
 
   // Get active level config for either live quest or review mode
   const activeLevel = QUEST_LEVELS.find(l => l.levelNumber === (reviewLevelNumber ?? progress.currentLevel));
@@ -79,66 +189,71 @@ export default function QuestPage() {
   const isReviewing = reviewLevelNumber !== null;
   const displayLevelNumber = reviewLevelNumber ?? progress.currentLevel;
   const displayStageNumber = activeStageIndex + 1;
-  const isActiveQuestStage = !isReviewing || (reviewLevelNumber === progress.currentLevel && activeStageIndex === progress.currentStage - 1);
-  const canAttemptStage = activeStage && !isSolved && !isFailed && !isReviewing;
 
   const timerStorageKey = address
     ? `mm_quest_timer_${address}_lvl${displayLevelNumber}_stg${displayStageNumber}`
     : `mm_quest_timer_lvl${displayLevelNumber}_stg${displayStageNumber}`;
 
   // Load collected cards on mount
-  const cardsStorageKey = address ? `mm_quest_cards_${address}` : 'mm_quest_cards';
-  const vocabStorageKey = address ? `mm_quest_vocabulary_${address}` : 'mm_quest_vocabulary';
-  
+  const cardsStorageKey = useMemo(() => address ? `mm_quest_cards_${address}` : 'mm_quest_cards', [address]);
+  const vocabStorageKey = useMemo(() => address ? `mm_quest_vocabulary_${address}` : 'mm_quest_vocabulary', [address]);
+
+  // Set default expanded category to active level's category if not set by user
+  const currentCategory = expandedCategory ?? activeLevel?.category ?? '';
+
+  const toggleCategory = (catName: string) => {
+    if (currentCategory === catName) {
+      setExpandedCategory('');
+    } else {
+      setExpandedCategory(catName);
+    }
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(cardsStorageKey);
       if (stored) {
         try {
-          const parsed = JSON.parse(stored);
-          const t = setTimeout(() => setCollectedCards(parsed), 0);
-          return () => clearTimeout(t);
+          setCollectedCards(JSON.parse(stored));
         } catch {}
       } else {
-        const t = setTimeout(() => setCollectedCards([]), 0);
-        return () => clearTimeout(t);
+        setCollectedCards([]);
       }
     }
-  }, [address, cardsStorageKey]);
+  }, [cardsStorageKey]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(vocabStorageKey);
       if (stored) {
         try {
-          const parsed = JSON.parse(stored);
-          const t = setTimeout(() => setVocabularyEntries(parsed), 0);
-          return () => clearTimeout(t);
+          setVocabularyEntries(JSON.parse(stored));
         } catch {}
       } else {
-        const t = setTimeout(() => setVocabularyEntries([]), 0);
-        return () => clearTimeout(t);
+        setVocabularyEntries([]);
       }
     }
-  }, [address, vocabStorageKey]);
+  }, [vocabStorageKey]);
 
-  const saveVocabularyEntries = (entries: VocabularyEntry[]) => {
+  const saveVocabularyEntries = useCallback((entries: VocabularyEntry[]) => {
     setVocabularyEntries(entries);
     if (typeof window !== 'undefined') {
       localStorage.setItem(vocabStorageKey, JSON.stringify(entries));
     }
-  };
+  }, [vocabStorageKey]);
 
-  const createDictionaryEntry = (stage: QuestStage, level: QuestLevel): VocabularyEntry => ({
+  const createDictionaryEntry = useCallback((stage: QuestStage, level: QuestLevel): VocabularyEntry => ({
     id: stage.id,
     levelName: level.name,
     category: level.category,
     targetWord: stage.targetWord,
     definition: stage.vocabulary?.definition ?? stage.clue,
-    examples: stage.vocabulary?.examples ?? [stage.sentence.replace('{placeholder}', stage.targetWord)],
+    examples: stage.vocabulary?.examples && stage.vocabulary.examples.length > 0
+      ? stage.vocabulary.examples 
+      : [stage.sentence.replace('{placeholder}', stage.targetWord)],
     synonyms: stage.vocabulary?.synonyms ?? [],
     unlockedAt: Date.now(),
-  });
+  }), []);
 
   const syncVocabularyEntryToSupabase = async (entry: VocabularyEntry, userId: string) => {
     try {
@@ -157,12 +272,16 @@ export default function QuestPage() {
         { onConflict: 'user_id,stage_id' }
       );
       if (error) throw error;
-    } catch (err) {
+      setVocabDbWarning(false);
+    } catch (err: any) {
       console.warn('[SYNC VOCABULARY ERROR]', err);
+      if (err && (err.code === 'PGRST205' || err.message?.includes('relation "quest_vocabulary" does not exist') || err.message?.includes('does not exist'))) {
+        setVocabDbWarning(true);
+      }
     }
   };
 
-  const loadVocabularyEntriesFromSupabase = async () => {
+  const loadVocabularyEntriesFromSupabase = useCallback(async () => {
     if (typeof window === 'undefined') return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -192,15 +311,21 @@ export default function QuestPage() {
       const localEntries: VocabularyEntry[] = localString ? JSON.parse(localString) : [];
       const remoteIds = new Set(remoteEntries.map((entry) => entry.id));
       const merged = [...remoteEntries, ...localEntries.filter((item) => !remoteIds.has(item.id))];
-      saveVocabularyEntries(merged);
-    } catch (err) {
+      
+      setVocabularyEntries(merged);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(vocabStorageKey, JSON.stringify(merged));
+      }
+      setVocabDbWarning(false);
+    } catch (err: any) {
       console.warn('[LOAD VOCABULARY ERROR]', err);
+      if (err && (err.code === 'PGRST205' || err.message?.includes('relation "quest_vocabulary" does not exist') || err.message?.includes('does not exist'))) {
+        setVocabDbWarning(true);
+      }
     }
-  };
+  }, [vocabStorageKey]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-
     loadVocabularyEntriesFromSupabase();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
@@ -209,27 +334,12 @@ export default function QuestPage() {
     });
 
     return () => subscription.unsubscribe();
-  }, [vocabStorageKey]);
-
-  useEffect(() => {
-    if (!activeStage || !activeLevel) {
-      setPendingDictionaryEntry(null);
-      return;
-    }
-
-    if (isSolved) {
-      const entry = createDictionaryEntry(activeStage, activeLevel);
-      setPendingDictionaryEntry(entry);
-    } else {
-      setPendingDictionaryEntry(null);
-    }
-  }, [activeStage?.id, activeLevel?.levelNumber, isSolved]);
+  }, [loadVocabularyEntriesFromSupabase]);
 
   // Set default withdrawal address when connected
   useEffect(() => {
     if (address) {
-      const t = setTimeout(() => setWithdrawAddress(address), 0);
-      return () => clearTimeout(t);
+      setWithdrawAddress(address);
     }
   }, [address]);
 
@@ -246,61 +356,58 @@ export default function QuestPage() {
       if (letters.slice(0, activeStage.targetWord.length).join('') === activeStage.targetWord) {
         letters.reverse();
       }
-      const t = setTimeout(() => setShuffledLetters(letters), 0);
-      return () => clearTimeout(t);
+      setShuffledLetters(letters);
     } else {
-      const t = setTimeout(() => setShuffledLetters([]), 0);
-      return () => clearTimeout(t);
+      setShuffledLetters([]);
     }
   }, [activeStage]);
 
   // Reset stage letters and load/initialize timer when level/stage changes
   useEffect(() => {
-    const t = setTimeout(() => {
-      setSelectedIndices([]);
-      setIsSolved(false);
-      setIsFailed(false);
-      setAiHint(null);
-      setAiCard(null);
-      setSelectedVocabWord(null);
+    setSelectedIndices([]);
+    setIsSolved(false);
+    setIsFailed(false);
+    setAiHint(null);
+    setAiCard(null);
+    setSelectedVocabWord(null);
+    setPendingDictionaryEntry(null);
+    setIsReplaying(false);
 
-      if (isReviewing) {
-        setTimeLeft(120);
-        setHasForfeited(false);
-        return;
-      }
+    if (isReviewing) {
+      setTimeLeft(120);
+      setHasForfeited(false);
+      return;
+    }
 
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem(timerStorageKey);
-        if (stored) {
-          try {
-            const { expiryTime, forfeited } = JSON.parse(stored);
-            const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
-            if (remaining <= 0) {
-              setTimeLeft(0);
-              setHasForfeited(true);
-              setIsFailed(true);
-            } else {
-              setTimeLeft(remaining);
-              setHasForfeited(forfeited);
-              setIsFailed(false);
-            }
-          } catch {
-            const newExpiry = Date.now() + 120 * 1000;
-            setTimeLeft(120);
-            setHasForfeited(false);
-            localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: false }));
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(timerStorageKey);
+      if (stored) {
+        try {
+          const { expiryTime, forfeited } = JSON.parse(stored);
+          const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
+          if (remaining <= 0) {
+            setTimeLeft(0);
+            setHasForfeited(true);
+            setIsFailed(true);
+          } else {
+            setTimeLeft(remaining);
+            setHasForfeited(forfeited);
+            setIsFailed(false);
           }
-        } else {
+        } catch {
           const newExpiry = Date.now() + 120 * 1000;
           setTimeLeft(120);
           setHasForfeited(false);
           localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: false }));
         }
+      } else {
+        const newExpiry = Date.now() + 120 * 1000;
+        setTimeLeft(120);
+        setHasForfeited(false);
+        localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: false }));
       }
-    }, 0);
-    return () => clearTimeout(t);
-  }, [progress.currentLevel, progress.currentStage, timerStorageKey, resetPayment, isReviewing]);
+    }
+  }, [progress.currentLevel, progress.currentStage, timerStorageKey, isReviewing]);
 
   // Timer Countdown Effect
   useEffect(() => {
@@ -322,11 +429,11 @@ export default function QuestPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [progressLoading, isSolved, isFailed, activeStage, timerStorageKey]);
+  }, [progressLoading, isSolved, isFailed, activeStage, timerStorageKey, isReviewing]);
 
   // Handle letter select by index
   const handleSelectLetter = (letter: string, index: number) => {
-    if (isSolved || isFailed || !activeStage) return;
+    if (isSolved || isFailed || !activeStage || !activeLevel) return;
     const targetLength = activeStage.targetWord.length;
     if (selectedIndices.length >= targetLength) return;
 
@@ -345,6 +452,10 @@ export default function QuestPage() {
           spread: 60,
           origin: { y: 0.7 }
         });
+
+        // Set pending dictionary entry
+        const entry = createDictionaryEntry(activeStage, activeLevel);
+        setPendingDictionaryEntry(entry);
       } else {
         setIsFailed(true);
         setIsSolved(false);
@@ -367,7 +478,7 @@ export default function QuestPage() {
     setSelectedIndices([]);
     setIsFailed(false);
 
-    if (timeLeft <= 0) {
+    if (timeLeft <= 0 && !isReviewing) {
       // Restart timer for retry, but keep forfeited = true
       const newExpiry = Date.now() + 120 * 1000;
       setTimeLeft(120);
@@ -378,10 +489,14 @@ export default function QuestPage() {
     }
   };
 
-  // Solve stage wrapper
+  // Handle Explicit Add to Dictionary
   const handleAddToDictionary = async () => {
     if (!pendingDictionaryEntry) return;
-    const nextEntries = [pendingDictionaryEntry, ...vocabularyEntries.filter((item) => item.id !== pendingDictionaryEntry.id)];
+    const targetWord = pendingDictionaryEntry.targetWord;
+    setAddingToDictWord(targetWord);
+
+    // Keep unique entries by targetWord
+    const nextEntries = [pendingDictionaryEntry, ...vocabularyEntries.filter((item) => item.targetWord !== targetWord)];
     saveVocabularyEntries(nextEntries);
 
     try {
@@ -392,13 +507,57 @@ export default function QuestPage() {
     } catch (err) {
       console.warn('[ADD TO DICTIONARY ERROR]', err);
     }
-    setPendingDictionaryEntry(null);
+
+    // Success animation timeout
+    setTimeout(() => {
+      setAddingToDictWord(null);
+      setPendingDictionaryEntry(null);
+    }, 1200);
   };
+
+  // Review sequential navigation
+  const handlePrevReviewStage = useCallback(() => {
+    if (reviewLevelNumber === null || reviewStageIndex === null) return;
+    if (reviewStageIndex > 0) {
+      setReviewStageIndex(reviewStageIndex - 1);
+    } else {
+      const prevLvl = reviewLevelNumber - 1;
+      const prevLvlConfig = QUEST_LEVELS.find(l => l.levelNumber === prevLvl);
+      if (prevLvlConfig && (progress.completedLevels.includes(prevLvl) || progress.currentLevel === prevLvl)) {
+        setReviewLevelNumber(prevLvl);
+        setReviewStageIndex(prevLvlConfig.stages.length - 1);
+      }
+    }
+  }, [reviewLevelNumber, reviewStageIndex, progress.completedLevels, progress.currentLevel]);
+
+  const handleNextReviewStage = useCallback(() => {
+    if (reviewLevelNumber === null || reviewStageIndex === null) return;
+    const currentLvlConfig = QUEST_LEVELS.find(l => l.levelNumber === reviewLevelNumber);
+    if (!currentLvlConfig) return;
+
+    if (reviewStageIndex < currentLvlConfig.stages.length - 1) {
+      setReviewStageIndex(reviewStageIndex + 1);
+    } else {
+      const nextLvl = reviewLevelNumber + 1;
+      const nextLvlConfig = QUEST_LEVELS.find(l => l.levelNumber === nextLvl);
+      const isNextLvlUnlocked = progress.completedLevels.includes(reviewLevelNumber) && nextLvl <= progress.currentLevel;
+      if (nextLvlConfig && isNextLvlUnlocked) {
+        setReviewLevelNumber(nextLvl);
+        setReviewStageIndex(0);
+      } else {
+        // Wrap back or stay
+        alert('You have reached the end of your unlocked review content!');
+      }
+    }
+  }, [reviewLevelNumber, reviewStageIndex, progress.completedLevels, progress.currentLevel]);
 
   const handleSolveStage = async () => {
     if (isReviewing) {
-      setReviewLevelNumber(null);
-      setReviewStageIndex(null);
+      if (isReplaying) {
+        setIsReplaying(false);
+      } else {
+        handleNextReviewStage();
+      }
       return;
     }
 
@@ -421,6 +580,9 @@ export default function QuestPage() {
       } catch {}
     }
     await resetProgress();
+    setReviewLevelNumber(null);
+    setReviewStageIndex(null);
+    setIsReplaying(false);
   };
 
   // Handle Withdrawal to Real Money
@@ -493,7 +655,7 @@ export default function QuestPage() {
         scrambledLetters: activeStage.scrambledLetters
       });
 
-      // Always use EIP-712 gasless relay signature (no on-chain gas write transaction redirects)
+      // Always use EIP-712 gasless relay signature
       const txHash = await payViaRelay(1, 'AI Hint', payload);
 
       if (txHash) {
@@ -535,7 +697,7 @@ export default function QuestPage() {
         targetWord: activeStage.targetWord
       });
 
-      // Always use EIP-712 gasless relay signature (no on-chain gas write transaction redirects)
+      // Always use EIP-712 gasless relay signature
       const txHash = await payViaRelay(1, 'AI Reframe', payload);
 
       if (txHash) {
@@ -585,7 +747,26 @@ export default function QuestPage() {
     }
   };
 
-  // Render Rewards Hub (Withdrawal Section)
+  // Filtered dictionary list
+  const filteredVocabulary = useMemo(() => {
+    return vocabularyEntries.filter((entry) => {
+      const matchesSearch = entry.targetWord.toLowerCase().includes(vocabSearch.toLowerCase()) || 
+                            entry.definition.toLowerCase().includes(vocabSearch.toLowerCase());
+      const matchesCategory = vocabFilterCategory === 'All' || entry.category === vocabFilterCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [vocabularyEntries, vocabSearch, vocabFilterCategory]);
+
+  // Extract unique categories in vocabulary for filtering
+  const dictionaryCategories = useMemo(() => {
+    const categories = new Set<string>();
+    vocabularyEntries.forEach(entry => {
+      if (entry.category) categories.add(entry.category);
+    });
+    return Array.from(categories);
+  }, [vocabularyEntries]);
+
+  // Render Rewards Hub
   const renderRewardsHub = (inModal = false) => {
     return (
       <div className={`bg-surface border border-border rounded-2xl p-5 sm:p-6 text-left ${inModal ? 'space-y-4 shadow-2xl' : 'space-y-5'}`}>
@@ -595,7 +776,7 @@ export default function QuestPage() {
             <h4 className="font-serif text-lg text-text-primary">Clarity Rewards</h4>
           </div>
           <span className="text-xs font-mono text-accent bg-accent/10 px-2.5 py-0.5 rounded-lg font-bold">
-            Rate: 10 pts = 0.005 USDm
+            10 pts = 0.005 USDm
           </span>
         </div>
 
@@ -655,70 +836,235 @@ export default function QuestPage() {
     );
   };
 
-  // Render Level Locking Navigation List
-  const renderLevelsNav = () => {
-    const visibleLevels = QUEST_LEVELS.filter(l => l.levelNumber <= progress.currentLevel);
-    const grouped = visibleLevels.reduce((map: Record<string, typeof visibleLevels>, level) => {
+  // Render Category-driven navigation Accordion
+  const renderCategoryNav = () => {
+    // Group levels by category
+    const grouped = QUEST_LEVELS.reduce((map, level) => {
       if (!map[level.category]) map[level.category] = [];
       map[level.category].push(level);
       return map;
-    }, {} as Record<string, typeof visibleLevels>);
+    }, {} as Record<string, typeof QUEST_LEVELS>);
 
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <div>
-            <h4 className="text-[10px] font-mono uppercase text-text-muted tracking-widest">Categories</h4>
-            <p className="text-[11px] text-text-muted">Jump back to any completed level or review a category.</p>
-          </div>
-          {isReviewing && (
-            <button
-              onClick={() => {
-                setReviewLevelNumber(null);
-                setReviewStageIndex(null);
-              }}
-              className="text-[9px] font-mono uppercase tracking-[0.35em] text-accent hover:text-accent-gold"
-            >
-              Back to Quest
-            </button>
-          )}
+        <div className="px-1 text-left">
+          <h4 className="text-[10px] font-mono uppercase text-text-muted tracking-widest">Category Modules</h4>
+          <p className="text-[11px] text-text-muted">Explore emotional categories and review solved stages.</p>
         </div>
 
-        <div className="space-y-3">
-          {Object.entries(grouped).map(([category, levels]) => (
-            <div key={category} className="space-y-2">
-              <p className="text-[9px] font-mono uppercase tracking-[0.35em] text-text-muted">{category}</p>
-              <div className="space-y-1">
-                {levels.map((level) => {
-                  const isCompleted = progress.completedLevels.includes(level.levelNumber);
-                  const isCurrent = progress.currentLevel === level.levelNumber;
-                  const canReview = isCompleted || isCurrent;
+        <div className="space-y-2 text-left">
+          {Object.entries(grouped).map(([catName, levels]) => {
+            const isExpanded = currentCategory === catName;
+            
+            // Count total stages and completed stages in this category
+            let totalStages = 0;
+            let completedStagesCount = 0;
+            let hasUnlockedLevel = false;
 
-                  return (
-                    <button
-                      key={level.levelNumber}
-                      onClick={() => {
-                        if (!canReview) return;
-                        setReviewLevelNumber(level.levelNumber);
-                        setReviewStageIndex(0);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-xl transition-all border ${
-                        isCurrent
-                          ? 'bg-accent/15 border-accent text-accent'
-                          : 'bg-surface border-border text-text-primary hover:bg-surface-2'
-                      } ${!canReview ? 'opacity-60 cursor-not-allowed' : ''}`}
+            levels.forEach(lvl => {
+              totalStages += lvl.stages.length;
+              if (lvl.levelNumber <= progress.currentLevel) {
+                hasUnlockedLevel = true;
+                if (lvl.levelNumber < progress.currentLevel) {
+                  completedStagesCount += lvl.stages.length;
+                } else {
+                  // Active level: count stages up to currentStage - 1
+                  completedStagesCount += Math.min(lvl.stages.length, progress.currentStage - 1);
+                }
+              }
+            });
+
+            return (
+              <div
+                key={catName}
+                className={`border rounded-2xl overflow-hidden transition-all duration-300 ${
+                  isExpanded ? 'border-accent/40 bg-accent/5' : 'border-border bg-surface'
+                }`}
+              >
+                {/* Category Header */}
+                <button
+                  onClick={() => toggleCategory(catName)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-surface-2/50 transition-colors"
+                >
+                  <div className="space-y-0.5 truncate pr-2">
+                    <p className="text-xs font-serif font-bold text-text-primary truncate">{catName}</p>
+                    <p className="text-[9px] font-mono text-text-muted">
+                      {completedStagesCount}/{totalStages} Stages Solved
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {!hasUnlockedLevel && <Lock className="w-3.5 h-3.5 text-text-muted/65" />}
+                    {isExpanded ? (
+                      <ChevronUp className="w-4 h-4 text-text-muted" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-text-muted" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Levels & Stages expanded view */}
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0 }}
+                      animate={{ height: 'auto' }}
+                      exit={{ height: 0 }}
+                      className="overflow-hidden border-t border-border/30 bg-surface-2/20"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-serif font-semibold truncate">{level.name}</span>
-                        {isCompleted && !isCurrent && <CheckCircle2 className="w-3.5 h-3.5 text-accent-gold" />}
+                      <div className="p-3.5 space-y-3">
+                        {levels.map((lvl) => {
+                          const isLevelUnlocked = lvl.levelNumber <= progress.currentLevel;
+
+                          return (
+                            <div key={lvl.levelNumber} className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[10px] font-mono text-text-muted font-semibold">
+                                <span className="uppercase tracking-wider">Lvl {lvl.levelNumber}: {lvl.name}</span>
+                                {!isLevelUnlocked && <span className="text-red-400/80">Locked</span>}
+                              </div>
+
+                              {isLevelUnlocked ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {lvl.stages.map((stg, stgIdx) => {
+                                    const isStageCurrent = lvl.levelNumber === progress.currentLevel && stgIdx + 1 === progress.currentStage;
+                                    const isStageCompleted = lvl.levelNumber < progress.currentLevel || 
+                                                             (lvl.levelNumber === progress.currentLevel && stgIdx + 1 < progress.currentStage);
+                                    
+                                    const isCurrentlyReviewingThis = reviewLevelNumber === lvl.levelNumber && reviewStageIndex === stgIdx;
+                                    const isActivePlayHighlight = !isReviewing && isStageCurrent;
+
+                                    return (
+                                      <button
+                                        key={stg.id}
+                                        onClick={() => {
+                                          if (isStageCurrent) {
+                                            setReviewLevelNumber(null);
+                                            setReviewStageIndex(null);
+                                            setIsReplaying(false);
+                                          } else if (isStageCompleted) {
+                                            setReviewLevelNumber(lvl.levelNumber);
+                                            setReviewStageIndex(stgIdx);
+                                            setIsReplaying(false);
+                                          }
+                                        }}
+                                        className={`px-2.5 py-1.5 rounded-xl font-mono text-[9px] font-bold border transition-all flex items-center gap-1 ${
+                                          isActivePlayHighlight
+                                            ? 'bg-accent border-accent text-white shadow-md shadow-accent/10 animate-pulse'
+                                            : isCurrentlyReviewingThis
+                                            ? 'bg-accent-gold border-accent-gold text-black shadow-md'
+                                            : isStageCompleted
+                                            ? 'bg-accent/10 border-accent/20 text-accent hover:bg-accent/20'
+                                            : 'bg-surface-2 border-border text-text-muted opacity-40 cursor-not-allowed'
+                                        }`}
+                                        disabled={!isStageCompleted && !isStageCurrent}
+                                      >
+                                        {isStageCompleted ? (
+                                          <span>S{stgIdx + 1} ✓</span>
+                                        ) : isStageCurrent ? (
+                                          <>
+                                            <Play className="w-2.5 h-2.5 fill-current" />
+                                            <span>S{stgIdx + 1}</span>
+                                          </>
+                                        ) : (
+                                          <span>S{stgIdx + 1}</span>
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="h-6 flex items-center bg-surface border border-dashed border-border rounded-xl px-2 text-[9px] font-mono text-text-muted/65 italic gap-1">
+                                  <Lock className="w-2.5 h-2.5" />
+                                  <span>Complete Level {lvl.levelNumber - 1} to unlock</span>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                      <p className="text-[9px] font-mono text-text-muted truncate">Level {level.levelNumber}</p>
-                    </button>
-                  );
-                })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Render Sidebar Dictionary tab
+  const renderSidebarDictionary = () => {
+    return (
+      <div className="space-y-4 text-left">
+        <div className="px-1">
+          <h4 className="text-[10px] font-mono uppercase text-text-muted tracking-widest">My Vocabulary</h4>
+          <p className="text-[11px] text-text-muted">Search and review emotional words you have unlocked.</p>
+        </div>
+
+        {/* Filters */}
+        <div className="space-y-2 px-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted" />
+            <input
+              type="text"
+              placeholder="Search word or meaning..."
+              value={vocabSearch}
+              onChange={(e) => setVocabSearch(e.target.value)}
+              className="w-full text-xs font-mono bg-surface-2 border border-border rounded-xl pl-9 pr-3 py-2 text-text-primary focus:outline-none focus:border-accent"
+            />
+          </div>
+
+          <select
+            value={vocabFilterCategory}
+            onChange={(e) => setVocabFilterCategory(e.target.value)}
+            className="w-full text-xs font-mono bg-surface border border-border rounded-xl px-3 py-2 text-text-primary focus:outline-none focus:border-accent"
+          >
+            <option value="All">All Categories</option>
+            {dictionaryCategories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Dictionary Entries Deck */}
+        <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+          {filteredVocabulary.length > 0 ? (
+            filteredVocabulary.map((entry) => (
+              <button
+                key={entry.id}
+                onClick={() => {
+                  const levelIdx = QUEST_LEVELS.findIndex(l => l.name === entry.levelName);
+                  if (levelIdx !== -1) {
+                    const levelObj = QUEST_LEVELS[levelIdx];
+                    const stageIdx = levelObj.stages.findIndex(s => s.id === entry.id);
+                    if (stageIdx !== -1) {
+                      setReviewLevelNumber(levelObj.levelNumber);
+                      setReviewStageIndex(stageIdx);
+                      setIsReplaying(false);
+                    }
+                  }
+                }}
+                className="w-full text-left bg-surface border border-border hover:border-accent-gold/45 hover:bg-surface-2/40 p-3 rounded-xl transition-all space-y-1 block"
+              >
+                <div className="flex justify-between items-start">
+                  <p className="font-serif text-sm font-bold text-text-primary leading-tight">{entry.targetWord}</p>
+                  <span className="text-[8px] font-mono bg-accent-gold/15 text-accent-gold border border-accent-gold/25 px-1.5 py-0.5 rounded">
+                    Read 📖
+                  </span>
+                </div>
+                <p className="text-[8px] font-mono text-text-muted uppercase tracking-wider">{entry.category}</p>
+                <p className="text-[10px] text-text-muted font-mono line-clamp-2 leading-relaxed">
+                  {entry.definition}
+                </p>
+              </button>
+            ))
+          ) : (
+            <div className="p-8 border border-dashed border-border rounded-xl text-center font-mono text-[10px] text-text-muted leading-relaxed">
+              {vocabularyEntries.length === 0 
+                ? "No words unlocked yet. Solve stages in Clarity Quest to build your personal lexicon!"
+                : "No matching words found."}
             </div>
-          ))}
+          )}
         </div>
       </div>
     );
@@ -735,14 +1081,16 @@ export default function QuestPage() {
 
   return (
     <div className="max-w-6xl mx-auto pb-24 space-y-8 px-4">
-      {/* Supabase Schema Missing Warning */}
-      {dbWarning && (
+      {/* Supabase Schema Missing Warnings */}
+      {(dbWarning || vocabDbWarning) && (
         <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-2xl flex items-start gap-3 text-left">
           <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
           <div className="space-y-1">
             <h5 className="text-xs font-mono font-bold text-yellow-500 uppercase">Database Setup Required</h5>
             <p className="text-[11px] font-mono text-text-muted leading-relaxed">
-              Quest progress is saving locally but failed to sync online because table <strong>quest_progress</strong> does not exist in Supabase. Please ask the administrator to execute the database schema file <code>docs/quest_progress.sql</code>.
+              Quest data is saving locally but failed to sync online because required tables are missing in Supabase. Please ask the administrator to execute the database schemas:
+              {dbWarning && <span className="block mt-1">🔹 <code>docs/quest_progress.sql</code> (Progress Table)</span>}
+              {vocabDbWarning && <span className="block mt-1">🔹 <code>docs/quest_vocabulary.sql</code> (Vocabulary Table)</span>}
             </p>
           </div>
         </div>
@@ -754,7 +1102,7 @@ export default function QuestPage() {
           <Link href="/app" className="p-2 border border-border rounded-xl hover:bg-surface-2 transition-colors">
             <ChevronLeft className="w-4 h-4 text-text-muted" />
           </Link>
-          <div>
+          <div className="text-left">
             <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted font-mono">Gamified Scribe</p>
             <h1 className="text-2xl sm:text-3xl font-serif mt-1">Clarity Quest</h1>
           </div>
@@ -776,302 +1124,527 @@ export default function QuestPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Nav list (4cols) */}
+        {/* Navigation Sidebar Panel (4cols) */}
         <aside className="lg:col-span-4 space-y-6">
-          {renderLevelsNav()}
+          {/* Tab Selector */}
+          <div className="flex bg-surface-2 border border-border p-1 rounded-2xl">
+            <button
+              onClick={() => setSidebarTab('levels')}
+              className={`flex-1 text-center py-2 text-xs font-mono font-bold rounded-xl transition-all ${
+                sidebarTab === 'levels'
+                  ? 'bg-surface border border-border text-accent shadow-sm'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              🎮 Modules
+            </button>
+            <button
+              onClick={() => setSidebarTab('dictionary')}
+              className={`flex-1 text-center py-2 text-xs font-mono font-bold rounded-xl transition-all ${
+                sidebarTab === 'dictionary'
+                  ? 'bg-surface border border-border text-accent shadow-sm'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              📖 My Vocab ({vocabularyEntries.length})
+            </button>
+          </div>
+
+          {/* Tab content */}
+          {sidebarTab === 'levels' ? renderCategoryNav() : renderSidebarDictionary()}
+
+          {/* Rewards panel for large screen */}
           <div className="hidden lg:block">
             {renderRewardsHub()}
           </div>
         </aside>
 
-        {/* Quest canvas (8cols) */}
+        {/* Quest Canvas (8cols) */}
         <main className="lg:col-span-8 space-y-6">
           {activeStage ? (
             <div className="bg-surface border border-border p-5 sm:p-6 rounded-2xl relative overflow-hidden space-y-6">
               <div className="absolute inset-0 halftone-bg opacity-5 pointer-events-none" />
 
-              {/* Title, Timer & Stage indicators */}
-              <div className="flex justify-between items-center relative z-10 border-b border-border/50 pb-3">
+              {/* Header inside canvas */}
+              <div className="flex justify-between items-center relative z-10 border-b border-border/50 pb-3 text-left">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between w-full">
-                  <div className="flex flex-col gap-2 sm:gap-0 sm:flex-row sm:items-center">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-mono text-accent font-bold uppercase tracking-wider">
                       Lvl {displayLevelNumber} - Stage {displayStageNumber}
                     </span>
                     {isReviewing && (
-                      <span className="text-[9px] font-mono uppercase tracking-[0.35em] bg-surface-2 border border-border px-2 py-1 rounded-lg text-text-muted">
+                      <span className="text-[9px] font-mono uppercase tracking-wider bg-accent-gold/10 border border-accent-gold/30 px-2 py-0.5 rounded-lg text-accent-gold font-bold">
                         Review mode
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border font-bold ${
-                      !isReviewing && timeLeft < 30 
-                        ? 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse'
-                        : 'bg-surface-2 border-border text-text-muted'
-                    }`}>
-                      ⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-                    </span>
-                    {hasForfeited && (
+                    {!isReviewing && (
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border font-bold ${
+                        timeLeft < 30 
+                          ? 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse'
+                          : 'bg-surface-2 border-border text-text-muted'
+                      }`}>
+                        ⏳ {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                      </span>
+                    )}
+                    {!isReviewing && hasForfeited && (
                       <span className="text-[9px] font-mono bg-red-950/40 text-red-400 border border-red-500/25 px-1.5 py-0.5 rounded-md font-bold uppercase">
                         Forfeited Pts
                       </span>
                     )}
                   </div>
                 </div>
-                <span className="text-[10px] font-mono text-text-muted bg-surface-2 border border-border px-2 py-0.5 rounded-lg">
+                <span className="text-[10px] font-mono text-text-muted bg-surface-2 border border-border px-2 py-0.5 rounded-lg shrink-0">
                   {activeLevel?.category}
                 </span>
               </div>
 
-              {/* The Sentence with slots */}
-              <div className="space-y-4 relative z-10 text-center">
-                <p className="font-serif text-lg text-text-primary leading-relaxed px-2">
-                  {activeStage.sentence.replace('{placeholder}', '__________')}
-                </p>
+              {/* REVIEW SCREEN COMPONENT (Visible if in review mode and not replaying spelling) */}
+              {isReviewing && !isReplaying ? (
+                <div className="space-y-6 text-left relative z-10 py-2">
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-mono uppercase tracking-[0.25em] text-accent font-bold">Teachable Emotional Concept</p>
+                    <h2 className="font-serif text-3xl font-bold text-accent-gold">{activeStage.targetWord}</h2>
+                  </div>
 
-                {/* Slots container (flex wrap for mobile) */}
-                <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 py-4">
-                  {Array.from({ length: activeStage.targetWord.length }).map((_, idx) => {
-                    const selectedIdx = selectedIndices[idx];
-                    const letter = selectedIdx !== undefined ? shuffledLetters[selectedIdx] : null;
-                    return (
-                      <motion.button
-                        key={idx}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleRemoveLetter(idx)}
-                        className={`w-8 h-10 border rounded-xl font-mono text-base font-bold flex items-center justify-center transition-all ${
-                          letter
-                            ? 'bg-accent/15 border-accent text-accent cursor-pointer shadow-sm'
-                            : 'border-dashed border-border bg-surface-2/40 cursor-default'
-                        }`}
-                      >
-                        {letter || ''}
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              </div>
+                  {/* Context sentence */}
+                  <div className="p-4 bg-surface-2/60 border border-border rounded-2xl space-y-1.5">
+                    <span className="text-[9px] font-mono uppercase text-text-muted">Sentence Context</span>
+                    <p className="font-serif text-base text-text-primary italic leading-relaxed">
+                      "{activeStage.sentence.replace('{placeholder}', activeStage.targetWord)}"
+                    </p>
+                  </div>
 
-              {/* Actions & Scrambled Grid */}
-              <div className="space-y-4 relative z-10">
-                {/* Clear slots */}
-                {selectedIndices.length > 0 && !isSolved && !isFailed && (
-                  <button
-                    onClick={handleClearSlots}
-                    className="text-[9px] font-mono px-3 py-1 bg-surface-2 border border-border hover:border-red-400/30 hover:text-red-400 transition-colors rounded-lg block mx-auto"
-                  >
-                    Clear Slots
-                  </button>
-                )}
-
-                {/* Scrambled buttons */}
-                <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto pt-2">
-                  {shuffledLetters.map((l, i) => {
-                    const isUsed = selectedIndices.includes(i);
-
-                    return (
-                      <motion.button
-                        key={i}
-                        whileHover={{ scale: isUsed ? 1 : 1.1 }}
-                        whileTap={{ scale: isUsed ? 1 : 0.95 }}
-                        disabled={isUsed || isSolved || isFailed}
-                        onClick={() => handleSelectLetter(l, i)}
-                        className={`w-9 h-9 border rounded-xl font-mono text-sm font-bold flex items-center justify-center transition-all select-none ${
-                          isUsed
-                            ? 'opacity-20 cursor-not-allowed border-dashed bg-surface-2'
-                            : 'border-border bg-surface-2 text-text-primary hover:border-accent/40 shadow-sm cursor-pointer'
-                        }`}
-                      >
-                        {l}
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Hints Box */}
-              <div className="pt-2 border-t border-border/40 relative z-10 flex flex-col items-center space-y-3">
-                {aiHint ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-4 bg-accent-gold/5 border border-accent-gold/25 rounded-2xl w-full text-xs font-mono text-accent-gold text-center italic"
-                  >
-                    &quot;Clue: {aiHint}&quot;
-                  </motion.div>
-                ) : (
-                  !isSolved && (
-                    <button
-                      onClick={handleGetHint}
-                      disabled={paidLoading}
-                      className="text-[10px] font-mono text-text-muted hover:text-accent flex items-center gap-1.5 py-1.5 px-3 border border-border rounded-xl bg-surface-2/40 hover:bg-surface-2 transition-all disabled:opacity-40"
-                    >
-                      {paidLoading ? (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin text-accent" />
-                          <span>{getStepMessage()}</span>
-                        </>
-                      ) : (
-                        <>
-                          <HelpCircle className="w-3.5 h-3.5" />
-                          <span>Unlock AI Clue Hint (0.005 USDm)</span>
-                        </>
-                      )}
-                    </button>
-                  )
-                )}
-              </div>
-
-              {/* Solve success / fail overlays */}
-              <AnimatePresence>
-                {isSolved && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border-t border-accent/40 pt-6 space-y-4 text-center relative z-10"
-                  >
-                    <div className="flex items-center gap-2 justify-center text-accent-gold font-bold text-sm font-mono">
-                      <CheckCircle2 className="w-5 h-5 text-accent-gold fill-accent-gold/15" />
-                      <span>
-                        {hasForfeited 
-                          ? 'Level Solved! (0 points - timer expired)' 
-                          : `Level Solved! (+${progress.currentLevel} Clarity Points)`
-                        }
-                      </span>
+                  {/* Vocabulary card detail */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-surface-2/40 border border-border p-4 rounded-2xl space-y-2">
+                      <span className="text-[9px] font-mono uppercase text-accent font-bold">Definition</span>
+                      <p className="text-xs font-mono text-text-primary leading-relaxed">
+                        {activeStage.vocabulary?.definition ?? activeStage.clue}
+                      </p>
                     </div>
 
-                    <p className="text-xs font-mono text-text-muted max-w-sm mx-auto leading-relaxed">
-                      You mapped the flat thought to the emotionally precise target: <strong>{activeStage.targetWord}</strong>.
-                    </p>
-
-                    {/* Emotional vocabulary learning */}
-                    {activeStage.vocabulary && (
-                      <div className="space-y-3 max-w-2xl mx-auto text-left">
-                        <div className="rounded-3xl border border-accent/20 bg-accent-gold/5 p-4 text-sm text-text-primary">
-                          <p className="font-serif text-base font-semibold">{activeStage.targetWord}</p>
-                          <p className="text-xs font-mono text-text-muted leading-relaxed">
-                            {activeStage.vocabulary.definition}
-                          </p>
+                    {activeStage.vocabulary?.synonyms && activeStage.vocabulary.synonyms.length > 0 && (
+                      <div className="bg-surface-2/40 border border-border p-4 rounded-2xl space-y-2">
+                        <span className="text-[9px] font-mono uppercase text-accent font-bold">Synonyms</span>
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {activeStage.vocabulary.synonyms.map(syn => (
+                            <span key={syn} className="text-[10px] font-mono bg-accent/10 text-accent px-2.5 py-1 rounded-xl border border-accent/20">
+                              {syn}
+                            </span>
+                          ))}
                         </div>
-
-                        {activeStage.vocabulary.similarWords.length > 0 && (
-                          <div className="space-y-2">
-                            <div className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">
-                              Similar words — tap a word to learn more
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {activeStage.vocabulary.similarWords.map((item) => (
-                                <button
-                                  key={item.word}
-                                  type="button"
-                                  onClick={() => setSelectedVocabWord(item)}
-                                  className={`rounded-full border px-3 py-2 text-[10px] font-mono transition-all ${
-                                    selectedVocabWord?.word === item.word
-                                      ? 'border-accent bg-accent/10 text-accent'
-                                      : 'border-border bg-surface-2 text-text-primary hover:border-accent hover:text-accent'
-                                  }`}
-                                >
-                                  {item.word}
-                                </button>
-                              ))}
-                            </div>
-
-                            {selectedVocabWord && (
-                              <div className="rounded-3xl border border-border bg-surface-2 p-4 text-xs font-mono text-text-primary">
-                                <p className="font-semibold text-text-primary">{selectedVocabWord.word}</p>
-                                <p className="mt-1 text-text-muted leading-relaxed">
-                                  {selectedVocabWord.meaning}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     )}
+                  </div>
 
-                    {/* Paid Reframing Response */}
-                    {aiCard && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="p-5 border border-accent-gold/40 bg-gradient-to-br from-accent-gold/10 to-surface rounded-[2rem] max-w-md mx-auto space-y-3 shadow-lg shadow-accent-gold/5 text-left"
-                      >
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Sparkles className="w-4 h-4 text-accent-gold" />
-                          <span className="text-[10px] font-mono uppercase tracking-widest text-text-primary">Clarity Card Unlocked</span>
+                  {/* Granular Emotional Comparison Card ("Why this word?") */}
+                  {(() => {
+                    const comparison = getEmotionalGranularityComparison(activeStage.targetWord);
+                    return (
+                      <div className="border border-accent-gold/25 bg-accent-gold/5 p-4 sm:p-5 rounded-2xl space-y-3">
+                        <div className="flex items-center gap-2 text-accent-gold">
+                          <Sparkles className="w-4 h-4" />
+                          <h4 className="text-xs font-mono uppercase tracking-wider font-bold">Why use {activeStage.targetWord}?</h4>
                         </div>
-                        <p className="text-xs font-mono italic leading-relaxed text-text-primary whitespace-pre-line">
-                          {aiCard}
-                        </p>
-                      </motion.div>
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs leading-relaxed font-mono">
+                          <div className="md:col-span-4 bg-surface border border-border p-2.5 rounded-xl">
+                            <span className="text-[9px] text-red-400 block uppercase font-bold mb-0.5">Generic Words</span>
+                            <span className="line-through text-text-muted">{comparison.generic}</span>
+                          </div>
+                          <div className="md:col-span-8 bg-surface border border-border p-2.5 rounded-xl text-text-primary">
+                            <span className="text-[9px] text-accent block uppercase font-bold mb-0.5">Mindful Nuance</span>
+                            <span>{comparison.nuance}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Review Navigation Toolbar */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/40 pt-5">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handlePrevReviewStage}
+                        className="px-3 py-2 border border-border hover:bg-surface-2 hover:text-text-primary rounded-xl font-mono text-xs text-text-muted transition-all flex items-center gap-1"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Prev Stage</span>
+                      </button>
+                      <button
+                        onClick={handleNextReviewStage}
+                        className="px-3 py-2 border border-border hover:bg-surface-2 hover:text-text-primary rounded-xl font-mono text-xs text-text-muted transition-all flex items-center gap-1"
+                      >
+                        <span>Next Stage</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setIsReplaying(true);
+                          setSelectedIndices([]);
+                          setIsSolved(false);
+                          setIsFailed(false);
+                        }}
+                        className="px-4 py-2 border border-accent/30 bg-accent/5 hover:bg-accent/10 hover:border-accent text-accent rounded-xl font-mono text-xs font-bold transition-all flex items-center gap-1"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Replay spelling</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setReviewLevelNumber(null);
+                          setReviewStageIndex(null);
+                        }}
+                        className="px-4 py-2 bg-surface-2 hover:bg-surface border border-border hover:border-accent-gold/45 text-text-primary rounded-xl font-mono text-xs font-bold transition-all"
+                      >
+                        Resume Active Quest
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* GAME PLAY SCREEN (Active quest stage OR review stage replaying) */
+                <>
+                  {/* Replay badges */}
+                  {isReviewing && (
+                    <div className="bg-accent-gold/10 border border-accent-gold/30 p-2.5 rounded-xl flex items-center justify-between text-left relative z-10">
+                      <p className="text-[10px] font-mono text-accent-gold font-bold">
+                        🎮 Replaying Stage {displayStageNumber} for practice. Points are not awarded.
+                      </p>
+                      <button
+                        onClick={() => setIsReplaying(false)}
+                        className="text-[9px] font-mono text-text-muted hover:text-text-primary uppercase tracking-wider underline"
+                      >
+                        Show concept details
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Insight Clue Card displayed by default BEFORE solve */}
+                  {!isSolved && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-accent/5 border border-accent/15 rounded-2xl p-4 text-left space-y-1 relative z-10"
+                    >
+                      <div className="flex items-center gap-1.5 text-accent">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span className="text-[9px] font-mono uppercase tracking-wider font-bold">Emotional Clue Insight</span>
+                      </div>
+                      <p className="text-xs font-mono text-text-primary leading-relaxed">
+                        Concept definition: <span className="italic text-text-muted">"{activeStage.clue || activeStage.vocabulary?.definition}"</span>
+                      </p>
+                    </motion.div>
+                  )}
+
+                  {/* The Sentence with slots */}
+                  <div className="space-y-4 relative z-10 text-center">
+                    <p className="font-serif text-lg text-text-primary leading-relaxed px-2">
+                      {activeStage.sentence.replace('{placeholder}', '__________')}
+                    </p>
+
+                    {/* Slots container */}
+                    <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 py-4">
+                      {Array.from({ length: activeStage.targetWord.length }).map((_, idx) => {
+                        const selectedIdx = selectedIndices[idx];
+                        const letter = selectedIdx !== undefined ? shuffledLetters[selectedIdx] : null;
+                        return (
+                          <motion.button
+                            key={idx}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleRemoveLetter(idx)}
+                            className={`w-8 h-10 border rounded-xl font-mono text-base font-bold flex items-center justify-center transition-all ${
+                              letter
+                                ? 'bg-accent/15 border-accent text-accent cursor-pointer shadow-sm'
+                                : 'border-dashed border-border bg-surface-2/40 cursor-default'
+                            }`}
+                          >
+                            {letter || ''}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Actions & Scrambled Grid */}
+                  <div className="space-y-4 relative z-10">
+                    {/* Clear slots */}
+                    {selectedIndices.length > 0 && !isSolved && !isFailed && (
+                      <button
+                        onClick={handleClearSlots}
+                        className="text-[9px] font-mono px-3 py-1 bg-surface-2 border border-border hover:border-red-400/30 hover:text-red-400 transition-colors rounded-lg block mx-auto"
+                      >
+                        Clear Slots
+                      </button>
                     )}
 
-                    <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto pt-2">
-                      {!aiCard && !isReviewing && (
+                    {/* Scrambled buttons */}
+                    <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto pt-2">
+                      {shuffledLetters.map((l, i) => {
+                        const isUsed = selectedIndices.includes(i);
+
+                        return (
+                          <motion.button
+                            key={i}
+                            whileHover={{ scale: isUsed ? 1 : 1.1 }}
+                            whileTap={{ scale: isUsed ? 1 : 0.95 }}
+                            disabled={isUsed || isSolved || isFailed}
+                            onClick={() => handleSelectLetter(l, i)}
+                            className={`w-9 h-9 border rounded-xl font-mono text-sm font-bold flex items-center justify-center transition-all select-none ${
+                              isUsed
+                                ? 'opacity-20 cursor-not-allowed border-dashed bg-surface-2'
+                                : 'border-border bg-surface-2 text-text-primary hover:border-accent/40 shadow-sm cursor-pointer'
+                            }`}
+                          >
+                            {l}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* AI Hint Section */}
+                  <div className="pt-2 border-t border-border/40 relative z-10 flex flex-col items-center space-y-3">
+                    {aiHint ? (
+                      <motion.div
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 bg-accent-gold/5 border border-accent-gold/25 rounded-2xl w-full text-xs font-mono text-accent-gold text-center italic"
+                      >
+                        "Premium Context Clue: {aiHint}"
+                      </motion.div>
+                    ) : (
+                      !isSolved && (
                         <button
-                          onClick={handleUnlockCard}
+                          onClick={handleGetHint}
                           disabled={paidLoading}
-                          className="pill-button pill-button-primary w-full py-3.5 text-xs font-mono flex items-center justify-center gap-1.5 disabled:opacity-40"
+                          className="text-[10px] font-mono text-text-muted hover:text-accent flex items-center gap-1.5 py-1.5 px-3 border border-border rounded-xl bg-surface-2/40 hover:bg-surface-2 transition-all disabled:opacity-40"
                         >
                           {paidLoading ? (
                             <>
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <Loader2 className="w-3 h-3 animate-spin text-accent" />
                               <span>{getStepMessage()}</span>
                             </>
                           ) : (
                             <>
-                              <Sparkles className="w-3.5 h-3.5" />
-                              <span>AI Reframing Card (0.005 USDm)</span>
+                              <HelpCircle className="w-3.5 h-3.5" />
+                              <span>Unlock Premium AI Clue (0.005 USDm)</span>
                             </>
                           )}
                         </button>
-                      )}
+                      )
+                    )}
+                  </div>
 
-                      <button
-                        onClick={handleSolveStage}
-                        className="pill-button border border-border hover:bg-surface-2 text-text-primary w-full py-3.5 text-xs font-mono"
+                  {/* Solve success / fail overlays */}
+                  <AnimatePresence>
+                    {isSolved && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="border-t border-accent/40 pt-6 space-y-4 text-center relative z-10"
                       >
-                        Solve & Next Stage (Free)
-                      </button>
-                      {pendingDictionaryEntry && (
+                        <div className="flex items-center gap-2 justify-center text-accent-gold font-bold text-sm font-mono">
+                          <CheckCircle2 className="w-5 h-5 text-accent-gold fill-accent-gold/15" />
+                          <span>
+                            {isReviewing
+                              ? 'Stage spelled correctly!'
+                              : hasForfeited
+                              ? 'Level Solved! (0 points - timer expired)'
+                              : `Level Solved! (+${progress.currentLevel} Clarity Points)`}
+                          </span>
+                        </div>
+
+                        {/* Post-Solve Vocabulary Learning Card */}
+                        {activeStage.vocabulary && (
+                          <div className="space-y-4 max-w-2xl mx-auto text-left">
+                            <div className="rounded-2xl border border-accent/20 bg-accent/5 p-4 sm:p-5 space-y-3">
+                              <div>
+                                <p className="text-[8px] font-mono text-accent font-bold uppercase tracking-wider">Unlocked word</p>
+                                <p className="font-serif text-2xl font-bold text-text-primary leading-none mt-1">{activeStage.targetWord}</p>
+                              </div>
+                              
+                              <p className="text-xs font-mono text-text-muted leading-relaxed">
+                                <span className="font-bold text-text-primary">Meaning:</span> {activeStage.vocabulary.definition}
+                              </p>
+
+                              {activeStage.vocabulary.examples.length > 0 && (
+                                <p className="text-xs font-mono text-text-muted leading-relaxed">
+                                  <span className="font-bold text-text-primary">Examples:</span> "{activeStage.vocabulary.examples.join('" "')}"
+                                </p>
+                              )}
+
+                              {activeStage.vocabulary.synonyms.length > 0 && (
+                                <p className="text-xs font-mono text-text-muted leading-relaxed">
+                                  <span className="font-bold text-text-primary">Synonyms:</span> {activeStage.vocabulary.synonyms.join(', ')}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Granular Emotional Comparison Card ("Why this word?") */}
+                            {(() => {
+                              const comparison = getEmotionalGranularityComparison(activeStage.targetWord);
+                              return (
+                                <div className="border border-accent-gold/25 bg-accent-gold/5 p-4 rounded-2xl space-y-2.5">
+                                  <div className="flex items-center gap-1 text-accent-gold">
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    <h4 className="text-[10px] font-mono uppercase tracking-wider font-bold">Why use {activeStage.targetWord}?</h4>
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs leading-relaxed font-mono">
+                                    <div className="md:col-span-4 bg-surface border border-border p-2 rounded-xl">
+                                      <span className="text-[9px] text-red-400 block uppercase font-bold mb-0.5">Instead of</span>
+                                      <span className="line-through text-text-muted">{comparison.generic}</span>
+                                    </div>
+                                    <div className="md:col-span-8 bg-surface border border-border p-2 rounded-xl text-text-primary">
+                                      <span className="text-[9px] text-accent block uppercase font-bold mb-0.5">Say precisely</span>
+                                      <span>{comparison.nuance}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {/* Similar words drill down */}
+                            {activeStage.vocabulary.similarWords.length > 0 && (
+                              <div className="space-y-2">
+                                <div className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted">
+                                  Similar words — tap a word to learn more
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {activeStage.vocabulary.similarWords.map((item) => (
+                                    <button
+                                      key={item.word}
+                                      type="button"
+                                      onClick={() => setSelectedVocabWord(selectedVocabWord?.word === item.word ? null : item)}
+                                      className={`rounded-full border px-3 py-1.5 text-[10px] font-mono transition-all ${
+                                        selectedVocabWord?.word === item.word
+                                          ? 'border-accent bg-accent/15 text-accent shadow-sm'
+                                          : 'border-border bg-surface-2 text-text-primary hover:border-accent hover:text-accent'
+                                      }`}
+                                    >
+                                      {item.word}
+                                    </button>
+                                  ))}
+                                </div>
+
+                                {selectedVocabWord && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: 5 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="rounded-2xl border border-border bg-surface-2 p-4 text-xs font-mono text-text-primary space-y-1"
+                                  >
+                                    <p className="font-bold text-accent">{selectedVocabWord.word}</p>
+                                    <p className="text-text-muted leading-relaxed">
+                                      {selectedVocabWord.meaning}
+                                    </p>
+                                  </motion.div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Paid Reframing Response */}
+                        {aiCard && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="p-5 border border-accent-gold/40 bg-gradient-to-br from-accent-gold/10 to-surface rounded-[2rem] max-w-md mx-auto space-y-3 shadow-lg shadow-accent-gold/5 text-left"
+                          >
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Sparkles className="w-4 h-4 text-accent-gold" />
+                              <span className="text-[10px] font-mono uppercase tracking-widest text-text-primary">Clarity Card Unlocked</span>
+                            </div>
+                            <p className="text-xs font-mono italic leading-relaxed text-text-primary whitespace-pre-line">
+                              {aiCard}
+                            </p>
+                          </motion.div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto pt-2">
+                          {!aiCard && !isReviewing && (
+                            <button
+                              onClick={handleUnlockCard}
+                              disabled={paidLoading}
+                              className="pill-button pill-button-primary w-full py-3.5 text-xs font-mono flex items-center justify-center gap-1.5 disabled:opacity-40"
+                            >
+                              {paidLoading ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  <span>{getStepMessage()}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  <span>AI Reframing Card (0.005 USDm)</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+
+                          {pendingDictionaryEntry && (
+                            <button
+                              onClick={handleAddToDictionary}
+                              disabled={addingToDictWord !== null}
+                              className="pill-button pill-button-secondary bg-accent-gold/15 border border-accent-gold text-accent-gold hover:bg-accent-gold/25 w-full py-3.5 text-xs font-mono flex items-center justify-center gap-1.5 transition-all"
+                            >
+                              {addingToDictWord === activeStage.targetWord ? (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5 animate-bounce" />
+                                  <span>Saved to Dictionary ✓</span>
+                                </>
+                              ) : (
+                                <>
+                                  <BookOpen className="w-3.5 h-3.5" />
+                                  <span>Add this word to my dictionary</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+
+                          <button
+                            onClick={handleSolveStage}
+                            className="pill-button border border-border hover:bg-surface-2 text-text-primary w-full py-3.5 text-xs font-mono"
+                          >
+                            {isReviewing ? 'Finish Replay & Close' : 'Solve & Next Stage (Free)'}
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {isFailed && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="border-t border-red-500/20 pt-6 space-y-4 text-center relative z-10"
+                      >
+                        <div className="flex items-center gap-2 justify-center text-red-400 font-bold text-sm font-mono">
+                          <span>{timeLeft <= 0 && !isReviewing ? "Time's Up! ⏰" : "Incorrect spelling 😢"}</span>
+                        </div>
+
+                        <p className="text-xs font-mono text-text-muted max-w-sm mx-auto leading-relaxed">
+                          {timeLeft <= 0 && !isReviewing
+                            ? 'You ran out of time! You can retry to unlock progression, but you forfeit points for this stage.'
+                            : `"${selectedIndices.map(idx => shuffledLetters[idx]).join('')}" is not the correct mindful word.`}
+                        </p>
+
                         <button
-                          onClick={handleAddToDictionary}
-                          className="pill-button pill-button-secondary bg-surface-2 border border-border text-text-primary w-full py-3.5 text-xs font-mono"
+                          onClick={handleClearSlots}
+                          className="pill-button bg-red-950/20 border border-red-500/30 hover:border-red-400 hover:text-red-400 w-full max-w-xs py-3 text-xs font-mono mx-auto block"
                         >
-                          Add this word to my dictionary
+                          🔄 Retry Stage
                         </button>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-
-                {isFailed && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border-t border-red-500/20 pt-6 space-y-4 text-center relative z-10"
-                  >
-                    <div className="flex items-center gap-2 justify-center text-red-400 font-bold text-sm font-mono">
-                      <span>{timeLeft <= 0 ? "Time's Up! ⏰" : "Incorrect spelling 😢"}</span>
-                    </div>
-
-                    <p className="text-xs font-mono text-text-muted max-w-sm mx-auto leading-relaxed">
-                      {timeLeft <= 0 
-                        ? 'You ran out of time! You can retry to unlock progression, but you forfeit points for this stage.'
-                        : `"${selectedIndices.map(idx => shuffledLetters[idx]).join('')}" is not the correct mindful word.`
-                      }
-                    </p>
-
-                    <button
-                      onClick={handleClearSlots}
-                      className="pill-button bg-red-950/20 border border-red-500/30 hover:border-red-400 hover:text-red-400 w-full max-w-xs py-3 text-xs font-mono mx-auto block"
-                    >
-                      🔄 Retry Stage
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </>
+              )}
             </div>
           ) : (
             <div className="bg-surface border border-border p-8 rounded-2xl text-center space-y-3">
@@ -1089,43 +1662,49 @@ export default function QuestPage() {
             </div>
           )}
 
-          {/* Dictionary Showcase */}
+          {/* Dictionary Showcase Panel (Unfolded summary dictionary at the bottom) */}
           {vocabularyEntries.length > 0 && (
             <div className="space-y-4 border-t border-border/40 pt-6">
-              <h3 className="font-serif text-lg px-1 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-accent-gold" />
-                <span>My Emotional Vocabulary</span>
-              </h3>
+              <div className="flex items-center justify-between px-1">
+                <h3 className="font-serif text-lg flex items-center gap-2 text-left">
+                  <BookOpen className="w-4 h-4 text-accent" />
+                  <span>My Emotional Vocabulary Collection</span>
+                </h3>
+                <span className="text-xs font-mono text-text-muted bg-surface-2 border border-border px-2 py-0.5 rounded-lg">
+                  {vocabularyEntries.length} words unlocked
+                </span>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {vocabularyEntries.map((entry, i) => (
                   <motion.div
                     key={`${entry.id}-${i}`}
                     layout
-                    className="bg-surface border border-border rounded-[2rem] p-5 space-y-3 shadow-md hover:border-accent-gold/30 hover:shadow-accent-gold/5 transition-all relative overflow-hidden text-left"
+                    className="bg-surface border border-border rounded-3xl p-5 space-y-3 shadow-md hover:border-accent-gold/30 hover:shadow-accent-gold/5 transition-all relative overflow-hidden text-left"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">✔️</span>
-                      <div>
-                        <p className="font-serif text-lg font-semibold leading-tight">{entry.targetWord}</p>
-                        <p className="text-[10px] font-mono text-text-muted uppercase tracking-[0.35em]">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xl">📖</span>
+                      <div className="truncate">
+                        <p className="font-serif text-base font-bold leading-tight truncate">{entry.targetWord}</p>
+                        <p className="text-[9px] font-mono text-text-muted uppercase tracking-wider truncate">
                           {entry.category} • {entry.levelName}
                         </p>
                       </div>
                     </div>
 
-                    <div className="text-xs font-mono text-text-primary leading-relaxed">
-                      <span className="font-bold">Meaning:</span> {entry.definition}
+                    <div className="text-xs font-mono text-text-primary leading-relaxed bg-surface-2/50 border border-border/40 p-2.5 rounded-xl">
+                      <span className="font-bold text-accent">Meaning:</span> {entry.definition}
                     </div>
 
                     {entry.examples.length > 0 && (
-                      <div className="text-xs font-mono text-text-muted leading-relaxed">
-                        <span className="font-bold">Examples:</span> {entry.examples.join(' ')}
+                      <div className="text-[11px] font-mono text-text-muted leading-relaxed">
+                        <span className="font-bold text-text-primary">Example:</span> "{entry.examples[0]}"
                       </div>
                     )}
 
                     {entry.synonyms.length > 0 && (
-                      <div className="text-xs font-mono text-text-muted leading-relaxed">
-                        <span className="font-bold">Synonyms:</span> {entry.synonyms.join(' ')}
+                      <div className="text-[11px] font-mono text-text-muted leading-relaxed">
+                        <span className="font-bold text-text-primary">Synonyms:</span> {entry.synonyms.join(', ')}
                       </div>
                     )}
                   </motion.div>
@@ -1137,7 +1716,7 @@ export default function QuestPage() {
           {/* Cards Showcase */}
           {collectedCards.length > 0 && (
             <div className="space-y-4 border-t border-border/40 pt-6">
-              <h3 className="font-serif text-lg px-1 flex items-center gap-2">
+              <h3 className="font-serif text-lg px-1 flex items-center gap-2 text-left">
                 <Sparkles className="w-4 h-4 text-accent-gold" />
                 <span>Your Clarity Card Collection</span>
               </h3>
