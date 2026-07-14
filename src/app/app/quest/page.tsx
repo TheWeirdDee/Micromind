@@ -140,7 +140,8 @@ export default function QuestPage() {
   const [showRewardsModal, setShowRewardsModal] = useState(false);
 
   // Tab state in sidebar
-  const [sidebarTab, setSidebarTab] = useState<'levels' | 'dictionary'>('levels');
+  const [sidebarTab, setSidebarTab] = useState<'levels' | 'dictionary' | 'cards'>('levels');
+  const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
 
   // Game UI state
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
@@ -545,7 +546,6 @@ export default function QuestPage() {
         setReviewLevelNumber(nextLvl);
         setReviewStageIndex(0);
       } else {
-        // Wrap back or stay
         alert('You have reached the end of your unlocked review content!');
       }
     }
@@ -655,7 +655,6 @@ export default function QuestPage() {
         scrambledLetters: activeStage.scrambledLetters
       });
 
-      // Always use EIP-712 gasless relay signature
       const txHash = await payViaRelay(1, 'AI Hint', payload);
 
       if (txHash) {
@@ -697,7 +696,6 @@ export default function QuestPage() {
         targetWord: activeStage.targetWord
       });
 
-      // Always use EIP-712 gasless relay signature
       const txHash = await payViaRelay(1, 'AI Reframe', payload);
 
       if (txHash) {
@@ -838,7 +836,6 @@ export default function QuestPage() {
 
   // Render Category-driven navigation Accordion
   const renderCategoryNav = () => {
-    // Group levels by category
     const grouped = QUEST_LEVELS.reduce((map, level) => {
       if (!map[level.category]) map[level.category] = [];
       map[level.category].push(level);
@@ -856,7 +853,6 @@ export default function QuestPage() {
           {Object.entries(grouped).map(([catName, levels]) => {
             const isExpanded = currentCategory === catName;
             
-            // Count total stages and completed stages in this category
             let totalStages = 0;
             let completedStagesCount = 0;
             let hasUnlockedLevel = false;
@@ -868,7 +864,6 @@ export default function QuestPage() {
                 if (lvl.levelNumber < progress.currentLevel) {
                   completedStagesCount += lvl.stages.length;
                 } else {
-                  // Active level: count stages up to currentStage - 1
                   completedStagesCount += Math.min(lvl.stages.length, progress.currentStage - 1);
                 }
               }
@@ -881,7 +876,6 @@ export default function QuestPage() {
                   isExpanded ? 'border-accent/40 bg-accent/5' : 'border-border bg-surface'
                 }`}
               >
-                {/* Category Header */}
                 <button
                   onClick={() => toggleCategory(catName)}
                   className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-surface-2/50 transition-colors"
@@ -902,7 +896,6 @@ export default function QuestPage() {
                   </div>
                 </button>
 
-                {/* Levels & Stages expanded view */}
                 <AnimatePresence initial={false}>
                   {isExpanded && (
                     <motion.div
@@ -1001,7 +994,6 @@ export default function QuestPage() {
           <p className="text-[11px] text-text-muted">Search and review emotional words you have unlocked.</p>
         </div>
 
-        {/* Filters */}
         <div className="space-y-2 px-1">
           <div className="relative">
             <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-text-muted" />
@@ -1026,7 +1018,6 @@ export default function QuestPage() {
           </select>
         </div>
 
-        {/* Dictionary Entries Deck */}
         <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
           {filteredVocabulary.length > 0 ? (
             filteredVocabulary.map((entry) => (
@@ -1041,6 +1032,7 @@ export default function QuestPage() {
                       setReviewLevelNumber(levelObj.levelNumber);
                       setReviewStageIndex(stageIdx);
                       setIsReplaying(false);
+                      setIsSidebarOpenMobile(false); // Auto close sidebar on mobile solve jump
                     }
                   }
                 }}
@@ -1063,6 +1055,50 @@ export default function QuestPage() {
               {vocabularyEntries.length === 0 
                 ? "No words unlocked yet. Solve stages in Clarity Quest to build your personal lexicon!"
                 : "No matching words found."}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Render Sidebar Cards tab
+  const renderSidebarCards = () => {
+    return (
+      <div className="space-y-4 text-left">
+        <div className="px-1">
+          <h4 className="text-[10px] font-mono uppercase text-text-muted tracking-widest">My Cards</h4>
+          <p className="text-[11px] text-text-muted">Review your unlocked AI Reframing cards.</p>
+        </div>
+
+        <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+          {collectedCards.length > 0 ? (
+            collectedCards.map((card, i) => (
+              <div
+                key={card.id + i}
+                className="bg-surface border border-border p-4 rounded-2xl relative overflow-hidden text-left space-y-2.5"
+              >
+                <div className="absolute top-0 right-0 w-12 h-12 bg-accent-gold/2 rounded-full filter blur-lg pointer-events-none" />
+                
+                <div className="flex justify-between items-center border-b border-border/30 pb-1.5">
+                  <span className="text-[8px] font-mono text-accent-gold uppercase tracking-wider font-bold">{card.category}</span>
+                  <span className="text-[8px] font-mono text-text-muted">{new Date(card.unlockedAt).toLocaleDateString()}</span>
+                </div>
+
+                <p className="text-[9px] font-mono text-text-muted leading-relaxed">
+                  Context: "{card.sentence}"
+                </p>
+
+                <div className="pt-1.5 border-t border-border/25">
+                  <p className="text-xs font-mono text-text-primary leading-relaxed italic whitespace-pre-line text-text-muted">
+                    {card.cardText}
+                  </p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-8 border border-dashed border-border rounded-xl text-center font-mono text-[10px] text-text-muted leading-relaxed">
+              No cards unlocked yet. Unlock AI Reframing Cards during your quest to build your collection!
             </div>
           )}
         </div>
@@ -1124,43 +1160,8 @@ export default function QuestPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Navigation Sidebar Panel (4cols) */}
-        <aside className="lg:col-span-4 space-y-6">
-          {/* Tab Selector */}
-          <div className="flex bg-surface-2 border border-border p-1 rounded-2xl">
-            <button
-              onClick={() => setSidebarTab('levels')}
-              className={`flex-1 text-center py-2 text-xs font-mono font-bold rounded-xl transition-all ${
-                sidebarTab === 'levels'
-                  ? 'bg-surface border border-border text-accent shadow-sm'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              🎮 Modules
-            </button>
-            <button
-              onClick={() => setSidebarTab('dictionary')}
-              className={`flex-1 text-center py-2 text-xs font-mono font-bold rounded-xl transition-all ${
-                sidebarTab === 'dictionary'
-                  ? 'bg-surface border border-border text-accent shadow-sm'
-                  : 'text-text-muted hover:text-text-primary'
-              }`}
-            >
-              📖 My Vocab ({vocabularyEntries.length})
-            </button>
-          </div>
-
-          {/* Tab content */}
-          {sidebarTab === 'levels' ? renderCategoryNav() : renderSidebarDictionary()}
-
-          {/* Rewards panel for large screen */}
-          <div className="hidden lg:block">
-            {renderRewardsHub()}
-          </div>
-        </aside>
-
-        {/* Quest Canvas (8cols) */}
-        <main className="lg:col-span-8 space-y-6">
+        {/* Quest Canvas - Renders FIRST on mobile (order-1 on mobile, lg:order-2 on desktop) */}
+        <main className="lg:col-span-8 space-y-6 order-1 lg:order-2">
           {activeStage ? (
             <div className="bg-surface border border-border p-5 sm:p-6 rounded-2xl relative overflow-hidden space-y-6">
               <div className="absolute inset-0 halftone-bg opacity-5 pointer-events-none" />
@@ -1561,7 +1562,7 @@ export default function QuestPage() {
                               <Sparkles className="w-4 h-4 text-accent-gold" />
                               <span className="text-[10px] font-mono uppercase tracking-widest text-text-primary">Clarity Card Unlocked</span>
                             </div>
-                            <p className="text-xs font-mono italic leading-relaxed text-text-primary whitespace-pre-line">
+                            <p className="text-xs font-mono italic leading-relaxed text-text-primary whitespace-pre-line text-text-muted">
                               {aiCard}
                             </p>
                           </motion.div>
@@ -1661,95 +1662,87 @@ export default function QuestPage() {
               </button>
             </div>
           )}
-
-          {/* Dictionary Showcase Panel (Unfolded summary dictionary at the bottom) */}
-          {vocabularyEntries.length > 0 && (
-            <div className="space-y-4 border-t border-border/40 pt-6">
-              <div className="flex items-center justify-between px-1">
-                <h3 className="font-serif text-lg flex items-center gap-2 text-left">
-                  <BookOpen className="w-4 h-4 text-accent" />
-                  <span>My Emotional Vocabulary Collection</span>
-                </h3>
-                <span className="text-xs font-mono text-text-muted bg-surface-2 border border-border px-2 py-0.5 rounded-lg">
-                  {vocabularyEntries.length} words unlocked
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {vocabularyEntries.map((entry, i) => (
-                  <motion.div
-                    key={`${entry.id}-${i}`}
-                    layout
-                    className="bg-surface border border-border rounded-3xl p-5 space-y-3 shadow-md hover:border-accent-gold/30 hover:shadow-accent-gold/5 transition-all relative overflow-hidden text-left"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xl">📖</span>
-                      <div className="truncate">
-                        <p className="font-serif text-base font-bold leading-tight truncate">{entry.targetWord}</p>
-                        <p className="text-[9px] font-mono text-text-muted uppercase tracking-wider truncate">
-                          {entry.category} • {entry.levelName}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="text-xs font-mono text-text-primary leading-relaxed bg-surface-2/50 border border-border/40 p-2.5 rounded-xl">
-                      <span className="font-bold text-accent">Meaning:</span> {entry.definition}
-                    </div>
-
-                    {entry.examples.length > 0 && (
-                      <div className="text-[11px] font-mono text-text-muted leading-relaxed">
-                        <span className="font-bold text-text-primary">Example:</span> "{entry.examples[0]}"
-                      </div>
-                    )}
-
-                    {entry.synonyms.length > 0 && (
-                      <div className="text-[11px] font-mono text-text-muted leading-relaxed">
-                        <span className="font-bold text-text-primary">Synonyms:</span> {entry.synonyms.join(', ')}
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Cards Showcase */}
-          {collectedCards.length > 0 && (
-            <div className="space-y-4 border-t border-border/40 pt-6">
-              <h3 className="font-serif text-lg px-1 flex items-center gap-2 text-left">
-                <Sparkles className="w-4 h-4 text-accent-gold" />
-                <span>Your Clarity Card Collection</span>
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {collectedCards.map((card, i) => (
-                  <motion.div
-                    key={card.id + i}
-                    layout
-                    className="bg-surface border border-border rounded-[2rem] p-5 space-y-3 shadow-md hover:border-accent-gold/30 hover:shadow-accent-gold/5 transition-all relative overflow-hidden text-left"
-                  >
-                    <div className="absolute top-0 right-0 w-16 h-16 bg-accent-gold/2 rounded-full filter blur-lg pointer-events-none" />
-                    
-                    <div className="flex justify-between items-center border-b border-border/30 pb-2">
-                      <span className="text-[9px] font-mono text-accent-gold uppercase tracking-wider">{card.category}</span>
-                      <span className="text-[9px] font-mono text-text-muted">{new Date(card.unlockedAt).toLocaleDateString()}</span>
-                    </div>
-
-                    <p className="text-[10px] font-mono text-text-muted leading-relaxed">
-                      Context: &quot;{card.sentence}&quot;
-                    </p>
-
-                    <div className="pt-2 border-t border-border/20">
-                      <p className="text-xs font-mono text-text-primary leading-relaxed italic whitespace-pre-line">
-                        {card.cardText}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
         </main>
+
+        {/* Navigation Sidebar Panel - Renders SECOND on mobile (order-2 on mobile, lg:order-1 on desktop) */}
+        <aside className="lg:col-span-4 space-y-6 order-2 lg:order-1">
+          {/* Mobile Collapsible Folder Header */}
+          <div className="lg:hidden">
+            <button
+              onClick={() => setIsSidebarOpenMobile(!isSidebarOpenMobile)}
+              className="w-full bg-surface border border-border rounded-2xl p-4 flex items-center justify-between text-left shadow-sm hover:border-accent/40 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-accent/10 text-accent rounded-xl">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-serif font-bold text-text-primary">Quest Index & Dictionary</h4>
+                  <p className="text-[10px] font-mono text-text-muted">
+                    Lvl {progress.currentLevel} • {vocabularyEntries.length} words unlocked
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-mono uppercase bg-accent-gold/15 text-accent-gold px-2 py-0.5 rounded-lg font-bold">
+                  {isSidebarOpenMobile ? 'Close' : 'Open Index'}
+                </span>
+                {isSidebarOpenMobile ? (
+                  <ChevronUp className="w-4 h-4 text-text-muted" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-text-muted" />
+                )}
+              </div>
+            </button>
+          </div>
+
+          {/* Folder Content - Collapsed on mobile, expanded on desktop */}
+          <div className={`${isSidebarOpenMobile ? 'block' : 'hidden lg:block'} space-y-6`}>
+            {/* Tab Selector */}
+            <div className="flex bg-surface-2 border border-border p-1 rounded-2xl">
+              <button
+                onClick={() => setSidebarTab('levels')}
+                className={`flex-1 text-center py-2 text-[10px] sm:text-xs font-mono font-bold rounded-xl transition-all ${
+                  sidebarTab === 'levels'
+                    ? 'bg-surface border border-border text-accent shadow-sm'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                🎮 Modules
+              </button>
+              <button
+                onClick={() => setSidebarTab('dictionary')}
+                className={`flex-1 text-center py-2 text-[10px] sm:text-xs font-mono font-bold rounded-xl transition-all ${
+                  sidebarTab === 'dictionary'
+                    ? 'bg-surface border border-border text-accent shadow-sm'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                📖 Vocab ({vocabularyEntries.length})
+              </button>
+              <button
+                onClick={() => setSidebarTab('cards')}
+                className={`flex-1 text-center py-2 text-[10px] sm:text-xs font-mono font-bold rounded-xl transition-all ${
+                  sidebarTab === 'cards'
+                    ? 'bg-surface border border-border text-accent shadow-sm'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                🃏 Cards ({collectedCards.length})
+              </button>
+            </div>
+
+            {/* Tab contents */}
+            {sidebarTab === 'levels' && renderCategoryNav()}
+            {sidebarTab === 'dictionary' && renderSidebarDictionary()}
+            {sidebarTab === 'cards' && renderSidebarCards()}
+
+            {/* Rewards panel in sidebar content */}
+            <div className="lg:hidden">
+              {renderRewardsHub()}
+            </div>
+          </div>
+        </aside>
       </div>
 
       {/* Rewards Hub Drawer/Modal on Mobile */}
