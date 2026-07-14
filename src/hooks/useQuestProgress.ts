@@ -45,7 +45,10 @@ export function useQuestProgress(address: string | null) {
   // Load progress
   useEffect(() => {
     async function loadProgress() {
-      setLoading(true);
+      const hasLocalData = localStorage.getItem(storageKey) !== null;
+      if (!hasLocalData) {
+        setLoading(true);
+      }
       
       // 1. Try local storage first
       let local: QuestProgressState | null = null;
