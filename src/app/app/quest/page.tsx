@@ -151,6 +151,7 @@ export default function QuestPage() {
   const [aiHint, setAiHint] = useState<string | null>(null);
   const [aiCard, setAiCard] = useState<string | null>(null);
   const [selectedVocabWord, setSelectedVocabWord] = useState<{ word: string; meaning: string } | null>(null);
+  const [shuffleCount, setShuffleCount] = useState(0);
 
   // Timer states
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes (120s)
@@ -373,6 +374,7 @@ export default function QuestPage() {
     setSelectedVocabWord(null);
     setPendingDictionaryEntry(null);
     setIsReplaying(false);
+    setShuffleCount(0);
 
     if (isReviewing) {
       setTimeLeft(120);
@@ -488,6 +490,23 @@ export default function QuestPage() {
         localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: true }));
       } catch {}
     }
+  };
+
+  // Handle manual shuffle of letters (max 3 times per stage)
+  const handleShuffleLetters = () => {
+    if (shuffleCount >= 3) return;
+    const letters = [...shuffledLetters];
+    // Fisher-Yates shuffle
+    for (let i = letters.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [letters[i], letters[j]] = [letters[j], letters[i]];
+    }
+    // If the shuffled letters match the beginning of targetWord in order, reverse them
+    if (activeStage && letters.slice(0, activeStage.targetWord.length).join('') === activeStage.targetWord) {
+      letters.reverse();
+    }
+    setShuffledLetters(letters);
+    setShuffleCount(prev => prev + 1);
   };
 
   // Handle Explicit Add to Dictionary
@@ -1375,15 +1394,28 @@ export default function QuestPage() {
 
                   {/* Actions & Scrambled Grid */}
                   <div className="space-y-4 relative z-10">
-                    {/* Clear slots */}
-                    {selectedIndices.length > 0 && !isSolved && !isFailed && (
-                      <button
-                        onClick={handleClearSlots}
-                        className="text-[9px] font-mono px-3 py-1 bg-surface-2 border border-border hover:border-red-400/30 hover:text-red-400 transition-colors rounded-lg block mx-auto"
-                      >
-                        Clear Slots
-                      </button>
-                    )}
+                    {/* Action buttons (Clear / Shuffle) */}
+                    <div className="flex justify-center items-center gap-3">
+                      {selectedIndices.length > 0 && !isSolved && !isFailed && (
+                        <button
+                          onClick={handleClearSlots}
+                          className="text-[9px] font-mono px-3 py-1.5 bg-surface-2 border border-border hover:border-red-400/30 hover:text-red-400 transition-colors rounded-xl"
+                        >
+                          Clear Slots
+                        </button>
+                      )}
+
+                      {!isSolved && !isFailed && (
+                        <button
+                          onClick={handleShuffleLetters}
+                          disabled={shuffleCount >= 3}
+                          className="text-[9px] font-mono px-3 py-1.5 bg-surface-2 border border-border hover:border-accent/40 hover:text-accent transition-colors rounded-xl flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <RefreshCw className="w-2.5 h-2.5" />
+                          <span>Shuffle ({3 - shuffleCount} left)</span>
+                        </button>
+                      )}
+                    </div>
 
                     {/* Scrambled buttons */}
                     <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto pt-2">
@@ -1416,9 +1448,21 @@ export default function QuestPage() {
                       <motion.div
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="p-4 bg-accent-gold/5 border border-accent-gold/25 rounded-2xl w-full text-xs font-mono text-accent-gold text-center italic"
+                        className="p-4 bg-accent-gold/5 border border-accent-gold/25 rounded-2xl w-full text-center space-y-2.5"
                       >
-                        "Premium Context Clue: {aiHint}"
+                        <div className="flex items-center justify-center gap-1.5 text-accent-gold">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span className="text-[10px] font-mono uppercase tracking-widest font-bold">Premium Hint Unlocked</span>
+                        </div>
+                        <p className="text-xs font-mono text-text-primary">
+                          Starts with the letter:{' '}
+                          <span className="text-white text-sm font-bold bg-accent/25 border border-accent/40 px-2.5 py-1 rounded-lg font-mono">
+                            {activeStage.targetWord[0]}
+                          </span>
+                        </p>
+                        <p className="text-xs font-mono text-text-muted italic leading-relaxed">
+                          "{aiHint}"
+                        </p>
                       </motion.div>
                     ) : (
                       !isSolved && (
