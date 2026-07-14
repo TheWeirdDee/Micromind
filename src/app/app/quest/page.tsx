@@ -388,10 +388,10 @@ export default function QuestPage() {
         try {
           const { expiryTime, forfeited } = JSON.parse(stored);
           const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
-          if (remaining <= 0) {
+          if (remaining <= 0 || forfeited) {
             setTimeLeft(0);
             setHasForfeited(true);
-            setIsFailed(true);
+            setIsFailed(false); // DO NOT lock the user out from playing!
           } else {
             setTimeLeft(remaining);
             setHasForfeited(forfeited);
@@ -414,13 +414,14 @@ export default function QuestPage() {
 
   // Timer Countdown Effect
   useEffect(() => {
-    if (progressLoading || isSolved || isFailed || !activeStage || isReviewing) return;
-
+    // If they have already forfeited, do NOT run the countdown timer at all!
+    if (progressLoading || isSolved || isFailed || !activeStage || isReviewing || hasForfeited) return;
+ 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          setIsFailed(true);
+          setIsFailed(false); // DO NOT lock the user out from playing!
           setHasForfeited(true); // Player loses point eligibility for this stage
           try {
             localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: Date.now(), forfeited: true }));
@@ -430,9 +431,9 @@ export default function QuestPage() {
         return prev - 1;
       });
     }, 1000);
-
+ 
     return () => clearInterval(timer);
-  }, [progressLoading, isSolved, isFailed, activeStage, timerStorageKey, isReviewing]);
+  }, [progressLoading, isSolved, isFailed, activeStage, timerStorageKey, isReviewing, hasForfeited]);
 
   // Handle letter select by index
   const handleSelectLetter = (letter: string, index: number) => {
@@ -480,16 +481,6 @@ export default function QuestPage() {
     if (isSolved) return;
     setSelectedIndices([]);
     setIsFailed(false);
-
-    if (timeLeft <= 0 && !isReviewing) {
-      // Restart timer for retry, but keep forfeited = true
-      const newExpiry = Date.now() + 120 * 1000;
-      setTimeLeft(120);
-      setHasForfeited(true);
-      try {
-        localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: true }));
-      } catch {}
-    }
   };
 
   // Handle manual shuffle of letters (max 3 times per stage)
@@ -1191,7 +1182,7 @@ export default function QuestPage() {
           </div>
           <button
             onClick={() => setShowRewardsModal(true)}
-            className="text-[9px] font-mono bg-accent/25 hover:bg-accent/40 text-accent px-2 py-0.5 rounded-lg border border-accent/40 font-bold lg:hidden shadow-sm transition-all"
+            className="text-[9px] font-mono bg-accent/25 hover:bg-accent/40 text-accent px-2 py-0.5 rounded-lg border border-accent/40 font-bold shadow-sm transition-all"
           >
             Reward
           </button>
@@ -1220,7 +1211,7 @@ export default function QuestPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {!isReviewing && (
+                    {!isReviewing && !hasForfeited && (
                       <span className={`text-[10px] font-mono px-2 py-0.5 rounded-lg border font-bold ${
                         timeLeft < 30 
                           ? 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse'
@@ -1802,7 +1793,7 @@ export default function QuestPage() {
             {sidebarTab === 'cards' && renderSidebarCards()}
 
             {/* Rewards panel in sidebar content */}
-            <div className="lg:hidden">
+            <div className="block">
               {renderRewardsHub()}
             </div>
           </div>
