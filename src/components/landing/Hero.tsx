@@ -135,7 +135,7 @@ export function Hero() {
           {/* Stat description block */}
           <div className="lg:col-span-5 space-y-4 text-left">
             <p className="font-mono text-xs text-text-muted leading-relaxed">
-              Your journal, your voice — own your thoughts and express them fully. When you want AI to reflect on your week, surface emotional patterns, or polish a letter to a loved one, it costs just a fraction of a cent in USDm on Celo.
+              Your journal, your voice — own your thoughts and express them fully. Solve gamified Clarity Quests to earn points swap-able for USDm stablecoins, join staking challenges to build daily habits, or let AI surface emotional patterns on your own terms.
             </p>
             <Link 
               href="#features" 
