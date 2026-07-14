@@ -565,7 +565,10 @@ app.post('/api/quest/withdraw', async (req, res) => {
       .single();
 
     if (progressError || !progress) {
-      return res.status(404).json({ error: 'Quest progress record not found. Sync first.' });
+      console.error('[WITHDRAW ERROR] Database fetch failed for user', user.id, ':', progressError);
+      return res.status(404).json({ 
+        error: `Quest progress record not found. Details: ${progressError?.message || 'No record found on Supabase. Try logging out and logging back in to force a sync.'}` 
+      });
     }
 
     if (progress.clarity_points < points) {
