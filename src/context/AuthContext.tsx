@@ -11,8 +11,11 @@ interface AuthContextValue {
   signUp: (username: string, email: string, password: string, rememberMe: boolean) => Promise<void>;
   login: (email: string, password: string, rememberMe: boolean) => Promise<void>;
   logout: () => Promise<void>;
+  logoutEverywhere: () => Promise<void>;
   checkUsername: (username: string) => Promise<'available' | 'taken' | 'error'>;
   resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
+  updateEmail: (newEmail: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -45,6 +48,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           migrateLocalEntriesToSupabase();
           syncOfflineQueue();
         });
+      }
+      // Keep the profiles row in sync when an email change is confirmed
+      if (session?.user?.email && event === 'USER_UPDATED') {
+        supabase
+          .from('profiles')
+          .update({ email: session.user.email })
+          .eq('id', session.user.id)
+          .then(() => {});
       }
     });
 
@@ -157,6 +168,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  const logoutEverywhere = useCallback(async () => {
+    sessionStorage.removeItem('mm_no_persist');
+    await supabase.auth.signOut({ scope: 'global' });
+  }, []);
+
+  const updatePassword = useCallback(async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw new Error(error.message);
+  }, []);
+
+  const updateEmail = useCallback(async (newEmail: string) => {
+    const { error } = await supabase.auth.updateUser({ email: newEmail.trim().toLowerCase() });
+    if (error) throw new Error(error.message);
+  }, []);
+
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/app/reset-password` : undefined,
@@ -174,7 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, login, logout, checkUsername, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, login, logout, logoutEverywhere, checkUsername, resetPassword, updatePassword, updateEmail }}>
       {children}
     </AuthContext.Provider>
   );
