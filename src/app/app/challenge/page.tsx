@@ -107,10 +107,10 @@ export default function ChallengePage() {
           <div className="bg-surface border border-border rounded-2xl p-5 space-y-2">
             <div className="flex items-center gap-2 text-accent">
               <Flame className="w-5 h-5" />
-              <h3 className="font-serif text-base font-semibold">Gamified Commitment</h3>
+              <h3 className="font-serif text-base font-semibold">Private Daily Check-Ins</h3>
             </div>
             <p className="text-xs text-text-muted font-mono leading-relaxed">
-              Check in daily by locking a SHA-256 cryptographic hash of your journal entry on-chain. Keep your streak alive without storing personal text.
+              Write your journal entry, then tap check-in to stamp your proof of writing on the blockchain. Your words stay private — only the proof is recorded, never what you wrote.
             </p>
           </div>
 
