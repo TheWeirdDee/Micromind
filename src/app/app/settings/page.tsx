@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, User, Mail, Check, Trash2, RotateCcw, Info, Shield, Download, Upload, Bell, Lock, AlertTriangle, X } from 'lucide-react';
+import { ChevronLeft, User, Mail, Check, Trash2, RotateCcw, Info, Shield, Download, Upload, Bell, Lock, AlertTriangle, X, LogOut, KeyRound, AtSign, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -23,7 +23,7 @@ interface UserProfile {
   onboardedAt: number;
 }
 
-type DestructiveAction = 'clearHistory' | 'clearJournal' | 'resetAll';
+type DestructiveAction = 'clearHistory' | 'clearJournal' | 'resetAll' | 'deleteAccount';
 
 const ACTION_META: Record<DestructiveAction, { title: string; description: string; consequences: string[] }> = {
   clearHistory: {
@@ -33,17 +33,28 @@ const ACTION_META: Record<DestructiveAction, { title: string; description: strin
   },
   clearJournal: {
     title: 'Clear Journal Entries',
-    description: 'This will permanently delete every journal entry you have written.',
-    consequences: ['All journal entries will be deleted', 'Folder structure will be preserved', 'This cannot be undone'],
+    description: 'This will permanently delete every journal entry you have written, on this device and in the cloud.',
+    consequences: ['All journal entries will be deleted from this device', 'All synced entries will be deleted from the cloud', 'Folder structure will be preserved', 'This cannot be undone'],
   },
   resetAll: {
     title: 'Reset Everything',
-    description: 'This wipes all your data and restarts the app from the beginning.',
+    description: 'This wipes all your data — on this device and in the cloud — and restarts the app from the beginning.',
     consequences: [
-      'All journal entries will be deleted',
+      'All journal entries will be deleted (device + cloud)',
+      'Quest progress, vocabulary, and scheduled letters will be deleted',
       'AI history and chat memory will be deleted',
       'Your profile and goals will be cleared',
-      'The app will restart onboarding',
+      'Your account itself is kept — use Delete Account to remove it',
+      'This cannot be undone',
+    ],
+  },
+  deleteAccount: {
+    title: 'Delete Account',
+    description: 'This permanently deletes your account and every piece of data associated with it.',
+    consequences: [
+      'Your login and profile will be permanently deleted',
+      'All journal entries, quest progress, and letters will be erased from the cloud',
+      'All local data on this device will be wiped',
       'This cannot be undone',
     ],
   },
@@ -62,7 +73,7 @@ function ConfirmDialog({ action, userEmail, onConfirm, onCancel }: ConfirmDialog
   const [confirmText, setConfirmText] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const isReset = action === 'resetAll';
+  const isReset = action === 'resetAll' || action === 'deleteAccount';
   const needsPassword = !!userEmail;
 
   const handleConfirm = async () => {
@@ -163,7 +174,7 @@ function ConfirmDialog({ action, userEmail, onConfirm, onCancel }: ConfirmDialog
             disabled={loading}
             className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 font-mono text-xs text-white font-bold transition-colors disabled:opacity-50"
           >
-            {loading ? 'Verifying...' : isReset ? 'Reset Everything' : 'Confirm'}
+            {loading ? 'Verifying...' : isReset ? meta.title : 'Confirm'}
           </button>
         </div>
       </motion.div>
@@ -172,7 +183,8 @@ function ConfirmDialog({ action, userEmail, onConfirm, onCancel }: ConfirmDialog
 }
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, session, logout, logoutEverywhere, updatePassword, updateEmail } = useAuth();
+  const [username, setUsername] = useState<string>('');
   const [profile, setProfile] = useState<UserProfile | null>(() => {
     if (typeof window === 'undefined') return null;
     const raw = localStorage.getItem('mm_user_profile');
@@ -197,18 +209,102 @@ export default function SettingsPage() {
   );
   const [pendingAction, setPendingAction] = useState<DestructiveAction | null>(null);
 
-  // If display name is still empty, fetch username from Supabase profiles
+  // Fetch the immutable username from Supabase profiles
   useEffect(() => {
-    if (displayName || !user) return;
+    if (!user) return;
     supabase
       .from('profiles')
       .select('username')
       .eq('id', user.id)
       .maybeSingle()
       .then(({ data }) => {
-        if (data?.username) setDisplayName(data.username);
+        if (data?.username) {
+          setUsername(data.username);
+          setDisplayName((d) => d || data.username);
+        }
       });
-  }, [user, displayName]);
+  }, [user]);
+
+  const [nameSaved, setNameSaved] = useState(false);
+  const saveDisplayName = () => {
+    const updated: UserProfile = {
+      name: displayName.trim(),
+      email: user?.email || profile?.email || '',
+      goals,
+      loginMethod: profile?.loginMethod || 'credentials',
+      onboardedAt: profile?.onboardedAt || Date.now(),
+    };
+    localStorage.setItem('mm_user_profile', JSON.stringify(updated));
+    setProfile(updated);
+    setNameSaved(true);
+    setTimeout(() => setNameSaved(false), 2000);
+  };
+
+  // ── Account & Security state ──
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailStatus, setEmailStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [signOutBusy, setSignOutBusy] = useState(false);
+
+  const handleChangePassword = async () => {
+    setPasswordStatus(null);
+    if (newPassword.length < 6) {
+      setPasswordStatus({ ok: false, msg: 'New password must be at least 6 characters.' });
+      return;
+    }
+    if (!user?.email) {
+      setPasswordStatus({ ok: false, msg: 'You must be logged in to change your password.' });
+      return;
+    }
+    setPasswordBusy(true);
+    try {
+      const { error: verifyErr } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
+      if (verifyErr) {
+        setPasswordStatus({ ok: false, msg: 'Current password is incorrect.' });
+        return;
+      }
+      await updatePassword(newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setPasswordStatus({ ok: true, msg: 'Password updated successfully.' });
+    } catch (e) {
+      setPasswordStatus({ ok: false, msg: e instanceof Error ? e.message : 'Failed to update password.' });
+    } finally {
+      setPasswordBusy(false);
+    }
+  };
+
+  const handleChangeEmail = async () => {
+    setEmailStatus(null);
+    const clean = newEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
+      setEmailStatus({ ok: false, msg: 'Enter a valid email address.' });
+      return;
+    }
+    setEmailBusy(true);
+    try {
+      await updateEmail(clean);
+      setNewEmail('');
+      setEmailStatus({ ok: true, msg: `Confirmation link sent to ${clean}. Your email changes after you confirm.` });
+    } catch (e) {
+      setEmailStatus({ ok: false, msg: e instanceof Error ? e.message : 'Failed to update email.' });
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const handleSignOut = async (everywhere: boolean) => {
+    setSignOutBusy(true);
+    try {
+      if (everywhere) await logoutEverywhere(); else await logout();
+    } finally {
+      window.location.href = '/app';
+    }
+  };
 
   const toggleReminders = async () => {
     if (!remindersEnabled) {
@@ -297,19 +393,68 @@ export default function SettingsPage() {
     setTimeout(() => setGoalsSaved(false), 2000);
   };
 
-  const executeAction = (action: DestructiveAction) => {
+  const executeAction = async (action: DestructiveAction) => {
+    setPendingAction(null);
+
     if (action === 'clearHistory') {
       localStorage.removeItem('micromind_history');
       localStorage.removeItem('micromind_chat_memory');
       alert('AI history cleared.');
-    } else if (action === 'clearJournal') {
+      return;
+    }
+
+    if (action === 'clearJournal') {
+      if (user) {
+        const { error } = await supabase.from('journal_entries').delete().eq('user_id', user.id);
+        if (error) {
+          alert('Could not delete cloud entries: ' + error.message + '\nLocal entries were not touched — please try again.');
+          return;
+        }
+      }
       localStorage.removeItem('mm_journal');
-      alert('Journal cleared.');
-    } else if (action === 'resetAll') {
+      window.dispatchEvent(new Event('journal_updated'));
+      window.dispatchEvent(new Event('streak_updated'));
+      alert('Journal cleared on this device and in the cloud.');
+      return;
+    }
+
+    if (action === 'resetAll') {
+      if (user) {
+        await Promise.all([
+          supabase.from('journal_entries').delete().eq('user_id', user.id),
+          supabase.from('quest_progress').delete().eq('user_id', user.id),
+          supabase.from('quest_vocabulary').delete().eq('user_id', user.id),
+          supabase.from('scheduled_letters').delete().eq('user_id', user.id),
+        ]);
+        await logout();
+      }
       localStorage.clear();
       window.location.href = '/app';
+      return;
     }
-    setPendingAction(null);
+
+    if (action === 'deleteAccount') {
+      if (!session?.access_token) {
+        alert('You must be logged in to delete your account.');
+        return;
+      }
+      try {
+        const res = await fetch('/api/account/delete', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+          alert('Account deletion failed: ' + (data.error || res.statusText));
+          return;
+        }
+        await logout().catch(() => {});
+        localStorage.clear();
+        window.location.href = '/app';
+      } catch (e) {
+        alert('Account deletion failed: ' + (e instanceof Error ? e.message : 'network error'));
+      }
+    }
   };
 
   const userEmail = user?.email || profile?.email || '';
@@ -351,11 +496,31 @@ export default function SettingsPage() {
               <h3 className="font-mono text-[10px] uppercase tracking-widest text-text-muted px-1">Profile</h3>
               <div className="bg-surface border border-border rounded-2xl p-5 space-y-4">
                 <div className="space-y-2">
+                  <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted">Display Name</label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                    <input
+                      type="text"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && saveDisplayName()}
+                      placeholder="How should we greet you?"
+                      className="w-full bg-surface-2 border border-border rounded-xl pl-11 pr-20 py-3 text-sm font-mono text-text-primary focus:border-accent outline-none transition-colors"
+                    />
+                    <button
+                      onClick={saveDisplayName}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/30 text-accent font-mono text-[10px] font-bold hover:bg-accent/20 transition-colors"
+                    >
+                      {nameSaved ? <Check className="w-3 h-3" /> : 'Save'}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
                   <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted">Username</label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
                     <div className="w-full bg-surface-2 border border-border rounded-xl px-11 py-3 text-sm font-mono text-text-primary">
-                      {displayName || <span className="text-text-muted">—</span>}
+                      {username || <span className="text-text-muted">—</span>}
                     </div>
                   </div>
                 </div>
@@ -368,7 +533,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
-                <p className="font-mono text-[9px] text-text-muted px-1">Username and email cannot be changed.</p>
+                <p className="font-mono text-[9px] text-text-muted px-1">Username cannot be changed. Email can be changed under Account & Security.</p>
               </div>
             </section>
 
@@ -404,6 +569,103 @@ export default function SettingsPage() {
               >
                 {goalsSaved ? <span className="inline-flex items-center gap-1.5"><Check className="w-3.5 h-3.5" /> Goals Saved</span> : 'Save Goals'}
               </button>
+            </section>
+
+            {/* Account & Security */}
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 px-1">
+                <KeyRound className="w-3 h-3 text-text-muted" />
+                <h3 className="font-mono text-[10px] uppercase tracking-widest text-text-muted">Account & Security</h3>
+              </div>
+              <div className="bg-surface border border-border rounded-2xl overflow-hidden divide-y divide-border">
+                {/* Change Password */}
+                <div className="px-5 py-4 space-y-3">
+                  <p className="font-mono text-xs text-text-primary">Change Password</p>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                    <input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Current password"
+                      className="w-full bg-surface-2 border border-border rounded-xl px-9 py-2.5 text-sm font-mono focus:border-accent outline-none transition-colors"
+                    />
+                  </div>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleChangePassword()}
+                      placeholder="New password (min. 6 characters)"
+                      className="w-full bg-surface-2 border border-border rounded-xl px-9 py-2.5 text-sm font-mono focus:border-accent outline-none transition-colors"
+                    />
+                  </div>
+                  {passwordStatus && (
+                    <p className={`font-mono text-[10px] ${passwordStatus.ok ? 'text-accent-green' : 'text-red-400'}`}>{passwordStatus.msg}</p>
+                  )}
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={passwordBusy || !currentPassword || !newPassword}
+                    className="pill-button pill-button-outline w-full py-2.5 text-[10px] font-mono uppercase tracking-widest disabled:opacity-40"
+                  >
+                    {passwordBusy ? 'Updating…' : 'Update Password'}
+                  </button>
+                </div>
+
+                {/* Change Email */}
+                <div className="px-5 py-4 space-y-3">
+                  <p className="font-mono text-xs text-text-primary">Change Email</p>
+                  <p className="font-mono text-[10px] text-text-muted -mt-1.5">We&apos;ll send a confirmation link to the new address</p>
+                  <div className="relative">
+                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
+                    <input
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleChangeEmail()}
+                      placeholder="new@email.com"
+                      className="w-full bg-surface-2 border border-border rounded-xl px-9 py-2.5 text-sm font-mono focus:border-accent outline-none transition-colors"
+                    />
+                  </div>
+                  {emailStatus && (
+                    <p className={`font-mono text-[10px] ${emailStatus.ok ? 'text-accent-green' : 'text-red-400'}`}>{emailStatus.msg}</p>
+                  )}
+                  <button
+                    onClick={handleChangeEmail}
+                    disabled={emailBusy || !newEmail}
+                    className="pill-button pill-button-outline w-full py-2.5 text-[10px] font-mono uppercase tracking-widest disabled:opacity-40"
+                  >
+                    {emailBusy ? 'Sending…' : 'Send Confirmation Link'}
+                  </button>
+                </div>
+
+                {/* Sign out */}
+                <button
+                  onClick={() => handleSignOut(false)}
+                  disabled={signOutBusy}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group disabled:opacity-50"
+                >
+                  <div>
+                    <p className="font-mono text-xs text-text-primary">Sign Out</p>
+                    <p className="font-mono text-[10px] text-text-muted mt-0.5">End your session on this device</p>
+                  </div>
+                  <LogOut className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors shrink-0 ml-4" />
+                </button>
+
+                <button
+                  onClick={() => handleSignOut(true)}
+                  disabled={signOutBusy}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group disabled:opacity-50"
+                >
+                  <div>
+                    <p className="font-mono text-xs text-text-primary">Sign Out Everywhere</p>
+                    <p className="font-mono text-[10px] text-text-muted mt-0.5">End your session on all devices</p>
+                  </div>
+                  <LogOut className="w-4 h-4 text-text-muted group-hover:text-accent-gold transition-colors shrink-0 ml-4" />
+                </button>
+              </div>
             </section>
           </div>
 
@@ -473,9 +735,16 @@ export default function SettingsPage() {
                 <button onClick={() => setPendingAction('resetAll')} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">
                   <div>
                     <p className="font-mono text-xs text-red-400">Reset Everything</p>
-                    <p className="font-mono text-[10px] text-text-muted mt-0.5">Wipes all data and restarts onboarding</p>
+                    <p className="font-mono text-[10px] text-text-muted mt-0.5">Wipes all data (device + cloud) and restarts onboarding</p>
                   </div>
                   <RotateCcw className="w-4 h-4 text-red-400/40 group-hover:text-red-400 transition-colors shrink-0 ml-4" />
+                </button>
+                <button onClick={() => setPendingAction('deleteAccount')} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">
+                  <div>
+                    <p className="font-mono text-xs text-red-400">Delete Account</p>
+                    <p className="font-mono text-[10px] text-text-muted mt-0.5">Permanently erase your account and all data</p>
+                  </div>
+                  <UserX className="w-4 h-4 text-red-400/40 group-hover:text-red-400 transition-colors shrink-0 ml-4" />
                 </button>
               </div>
             </section>
