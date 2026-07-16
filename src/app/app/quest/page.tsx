@@ -1832,11 +1832,6 @@ export default function QuestPage() {
             {sidebarTab === 'levels' && renderCategoryNav()}
             {sidebarTab === 'dictionary' && renderSidebarDictionary()}
             {sidebarTab === 'cards' && renderSidebarCards()}
-
-            {/* Rewards panel in sidebar content */}
-            <div className="block">
-              {renderRewardsHub()}
-            </div>
           </div>
         </aside>
       </div>
