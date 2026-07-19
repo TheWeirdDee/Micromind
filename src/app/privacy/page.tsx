@@ -1,6 +1,6 @@
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
-import { Shield, Lock, EyeOff } from "lucide-react";
+import { Shield, Lock } from "lucide-react";
 
 export default function PrivacyPage() {
   return (
