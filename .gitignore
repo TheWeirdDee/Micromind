@@ -66,3 +66,4 @@ dist/
 !**/readme.md
 !**/README.MD
 !**/README
+.vercel
