@@ -26,7 +26,6 @@ export default function ChallengePage() {
     params,
     step,
     error,
-    txHash,
     isDeployed,
     hasCheckedInToday,
     getDaysRemaining,
@@ -34,6 +33,11 @@ export default function ChallengePage() {
     checkIn,
     withdraw,
   } = useStakingChallenge();
+
+  const [currentTime, setCurrentTime] = React.useState<number>(0);
+  React.useEffect(() => {
+    setCurrentTime(Math.floor(Date.now() / 1000));
+  }, []);
 
   const latestEntry = typeof window !== 'undefined' ? getLastEntry() : null;
 
@@ -194,7 +198,7 @@ export default function ChallengePage() {
     });
 
     // Generate grid items
-    const elapsed = Math.floor(Date.now() / 1000) - challenge.startTime;
+    const elapsed = currentTime ? currentTime - challenge.startTime : 0;
     const currentDayIndex = Math.floor(elapsed / 86400);
 
     return (
