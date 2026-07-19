@@ -42,6 +42,26 @@ export function useQuestProgress(address: string | null) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Push updates to database
+  const pushToDatabase = useCallback(async (updated: QuestProgressState, userId: string) => {
+    try {
+      const { error } = await supabase.from('quest_progress').upsert({
+        user_id: userId,
+        current_level: updated.currentLevel,
+        current_stage: updated.currentStage,
+        completed_levels: updated.completedLevels,
+        clarity_points: updated.clarityPoints,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+      
+      if (error) {
+        console.error('[SYNC QUEST PROGRESS DATABASE ERROR]', error);
+      }
+    } catch (e) {
+      console.error('[SYNC QUEST PROGRESS ERROR]', e);
+    }
+  }, []);
+
   // Load progress
   useEffect(() => {
     async function loadProgress() {
@@ -118,27 +138,7 @@ export function useQuestProgress(address: string | null) {
     }
  
     loadProgress();
-  }, [dbUser, storageKey]);
- 
-  // Push updates to database
-  const pushToDatabase = useCallback(async (updated: QuestProgressState, userId: string) => {
-    try {
-      const { error } = await supabase.from('quest_progress').upsert({
-        user_id: userId,
-        current_level: updated.currentLevel,
-        current_stage: updated.currentStage,
-        completed_levels: updated.completedLevels,
-        clarity_points: updated.clarityPoints,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
-      
-      if (error) {
-        console.error('[SYNC QUEST PROGRESS DATABASE ERROR]', error);
-      }
-    } catch (e) {
-      console.error('[SYNC QUEST PROGRESS ERROR]', e);
-    }
-  }, []);
+  }, [dbUser, storageKey, pushToDatabase]);
 
   // Complete current stage
   const solveStage = useCallback(async (pointsEarned: number) => {
