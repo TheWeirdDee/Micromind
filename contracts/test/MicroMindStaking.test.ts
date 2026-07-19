@@ -18,12 +18,12 @@ describe("MicroMindStaking", function () {
 
     // Deploy Mock USDm
     const MockERC20Factory = await ethers.getContractFactory("MockERC20");
-    usdm = (await MockERC20Factory.deploy()) as MockERC20;
+    usdm = (await MockERC20Factory.deploy()) as unknown as MockERC20;
     await usdm.waitForDeployment();
 
     // Deploy MicroMindStaking
     const MicroMindStakingFactory = await ethers.getContractFactory("MicroMindStaking");
-    staking = (await MicroMindStakingFactory.deploy(await usdm.getAddress())) as MicroMindStaking;
+    staking = (await MicroMindStakingFactory.deploy(await usdm.getAddress())) as unknown as MicroMindStaking;
     await staking.waitForDeployment();
 
     // Transfer relayer rights to the relayer wallet by using setParams or standard Ownable transferOwnership
