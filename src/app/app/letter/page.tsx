@@ -13,6 +13,7 @@ import { getHistory, saveToHistory } from '@/lib/storage';
 import { updateStreak } from '@/lib/journal';
 import { generateEncryptionKey, encryptText } from '@/lib/crypto';
 import { supabase } from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 
@@ -56,7 +57,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
   const [activeTab, setActiveTab] = useState<'instant' | 'schedule'>('instant');
 
   // Database session
-  const [dbUser, setDbUser] = useState<any>(null);
+  const [dbUser, setDbUser] = useState<User | null>(null);
 
   // Scheduled escrow list
   const [scheduledLetters, setScheduledLetters] = useState<ScheduledLetter[]>([]);
@@ -91,9 +92,8 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
   const [sending, setSending] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [polishedResponse, setPolishedResponse] = useState<string | null>(initialData?.polishedResponse ?? null);
-  const [lastSubmission, setLastSubmission] = useState<null | { toolId: number; toolName: string; prompt: string }>(null);
 
-  const { payAndGenerate, payViaRelay, loading: paidLoading, step: paidStep, error: paidError } = usePayForPrompt();
+  const { payAndGenerate, payViaRelay, loading: paidLoading, step: paidStep } = usePayForPrompt();
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
   const isFormValid = recipientEmail.includes('@') && senderName.trim().length > 0 && content.trim().length >= 5;
@@ -115,15 +115,6 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch scheduled letters when database session changes
-  useEffect(() => {
-    if (dbUser) {
-      fetchScheduledLetters();
-    } else {
-      setScheduledLetters([]);
-    }
-  }, [dbUser]);
-
   const fetchScheduledLetters = async () => {
     setLoadingLetters(true);
     try {
@@ -140,6 +131,21 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
       setLoadingLetters(false);
     }
   };
+
+  // Fetch scheduled letters when database session changes
+  useEffect(() => {
+    if (dbUser) {
+      const timer = setTimeout(() => {
+        fetchScheduledLetters();
+      }, 0);
+      return () => clearTimeout(timer);
+    } else {
+      const timer = setTimeout(() => {
+        setScheduledLetters([]);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [dbUser]);
 
   const toggleStar = () => {
     const email = recipientEmail.trim();
@@ -199,8 +205,8 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
         timestamp: Date.now(),
       });
       setContent('');
-    } catch (e: any) {
-      alert(`Failed to send letter: ${e.message}`);
+    } catch (e) {
+      alert(`Failed to send letter: ${(e as Error).message}`);
     } finally {
       setSending(false);
     }
@@ -222,8 +228,6 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
         recipientEmail: recipientEmail.trim(),
         senderName: senderName.trim(),
       });
-
-      setLastSubmission({ toolId: 5, toolName: 'Letter', prompt: payload });
 
       const aiResponse = isMiniPay
         ? await payViaRelay(5, 'Letter', payload)
@@ -277,8 +281,8 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
       setSuccessMsg(`Letter scheduled successfully for delivery on ${new Date(releaseDate).toLocaleDateString()}!`);
       setContent('');
       fetchScheduledLetters();
-    } catch (e: any) {
-      alert(`Scheduling failed: ${e.message}`);
+    } catch (e) {
+      alert(`Scheduling failed: ${(e as Error).message}`);
     } finally {
       setSending(false);
     }
@@ -304,8 +308,6 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
         recipientEmail: recipientEmail.trim(),
         senderName: senderName.trim(),
       });
-
-      setLastSubmission({ toolId: 5, toolName: 'Letter', prompt: payload });
 
       const aiResponse = isMiniPay
         ? await payViaRelay(5, 'Letter', payload)
@@ -333,8 +335,8 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
 
       if (error) throw error;
       fetchScheduledLetters();
-    } catch (e: any) {
-      alert(`Failed to cancel: ${e.message}`);
+    } catch (e) {
+      alert(`Failed to cancel: ${(e as Error).message}`);
     }
   };
 
