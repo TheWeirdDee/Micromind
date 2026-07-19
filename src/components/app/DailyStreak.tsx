@@ -94,13 +94,16 @@ export function DailyStreak() {
 
   // Load streak state from localStorage on mount and listen to updates
   useEffect(() => {
-    // Recalculate once on load
-    updateStreak(address);
-    refreshStreak();
+    // Recalculate once on load (async to avoid render-phase state update)
+    const timer = setTimeout(() => {
+      updateStreak(address);
+      refreshStreak();
+    }, 0);
 
     window.addEventListener('streak_updated', refreshStreak);
     window.addEventListener('journal_updated', refreshStreak);
     return () => {
+      clearTimeout(timer);
       window.removeEventListener('streak_updated', refreshStreak);
       window.removeEventListener('journal_updated', refreshStreak);
     };
