@@ -51,16 +51,16 @@ export async function encryptText(text: string, keyHex: string): Promise<Encrypt
   const rawKey = hexToBuffer(keyHex);
   const cryptoKey = await window.crypto.subtle.importKey(
     'raw',
-    rawKey as any,
+    rawKey.buffer as unknown as ArrayBuffer,
     { name: 'AES-GCM' },
     false,
     ['encrypt']
   );
 
   const encrypted = await window.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: iv as any },
+    { name: 'AES-GCM', iv: iv },
     cryptoKey,
-    data as any
+    data
   );
 
   return {
@@ -77,16 +77,16 @@ export async function decryptText(ciphertext: string, ivHex: string, keyHex: str
 
   const cryptoKey = await window.crypto.subtle.importKey(
     'raw',
-    rawKey as any,
+    rawKey.buffer as unknown as ArrayBuffer,
     { name: 'AES-GCM' },
     false,
     ['decrypt']
   );
 
   const decrypted = await window.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: iv as any },
+    { name: 'AES-GCM', iv: iv.buffer as unknown as ArrayBuffer },
     cryptoKey,
-    data as any
+    data.buffer as unknown as ArrayBuffer
   );
 
   const decoder = new TextDecoder();
