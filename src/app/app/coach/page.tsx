@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Brain, Sparkles, AlertTriangle, Loader2, RefreshCw, PenTool, CheckCircle } from 'lucide-react';
+import { ChevronLeft, Brain, AlertTriangle, Loader2, RefreshCw, PenTool, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useWallet } from '@/context/WalletContext';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { updateStreak } from '@/lib/journal';
+import { ConnectWalletModal } from '@/components/app/ConnectWalletModal';
 
 export default function CoachPage() {
   const { address, isConnected, isMiniPay } = useWallet();
@@ -18,51 +19,6 @@ export default function CoachPage() {
   const [currentStep, setCurrentStep] = useState<'idle' | 'paying' | 'streaming' | 'complete'>('idle');
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const handleAnalyze = async () => {
-    if (!text.trim() || loading) return;
-
-    if (!isConnected || !address) {
-      setShowWalletModal(true);
-      return;
-    }
-
-    setCoachResponse('');
-    setCurrentStep('paying');
-    reset();
-
-    const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
-    if (!agentUrl) {
-      setCurrentStep('idle');
-      return;
-    }
-
-    try {
-      // Step 1: Pay for the prompt on-chain (using Tool ID 1 - Chat, same price 0.005 USDm)
-      let txHashResult: string | undefined;
-      
-      if (isMiniPay) {
-        // Gasless relay path
-        const res = await payViaRelay(1, 'AI Coach', text.trim());
-        if (res) {
-          // Relayer completed immediately or cached
-          // Retrieve the txHash from usePayForPrompt state
-        }
-      } else {
-        // Direct on-chain path
-        await payAndGenerate(1, 'AI Coach', text.trim());
-      }
-
-      // We need to fetch the txHash. Let's poll for usePayForPrompt's txHash or trigger streaming.
-      // Wait, payViaRelay and payAndGenerate return the AI Response directly or set the txHash.
-      // To get real-time streaming, we can hook into the txHash as soon as it's set.
-      // Since we want streaming, we can run the payment, catch the txHash, and stream.
-      // Let's implement the streaming helper inside this function.
-    } catch (err) {
-      console.error('Coaching failed:', err);
-      setCurrentStep('idle');
-    }
-  };
 
   // Standard SSE streaming executor
   const startStreaming = async (txHash: string, promptText: string) => {
@@ -108,7 +64,7 @@ export default function CoachPage() {
               } else if (parsed.error) {
                 throw new Error(parsed.error);
               }
-            } catch (e) {
+            } catch {
               // skip parse issues
             }
           }
@@ -117,40 +73,11 @@ export default function CoachPage() {
 
       setCurrentStep('complete');
       updateStreak(address);
-    } catch (streamErr: any) {
-      console.error('[STREAM ERROR]', streamErr);
-      setCoachResponse(prev => prev + `\n\n[Coaching error: ${streamErr.message}]`);
+    } catch (streamErr) {
+      const err = streamErr as Error;
+      console.error('[STREAM ERROR]', err);
+      setCoachResponse(prev => prev + `\n\n[Coaching error: ${err.message}]`);
       setCurrentStep('complete');
-    }
-  };
-
-  // We wrap the payment flow to capture the txHash and then run startStreaming.
-  const handlePaymentAndStream = async () => {
-    if (!text.trim() || loading) return;
-    setCoachResponse('');
-    setCurrentStep('paying');
-
-    const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
-    if (!agentUrl) return;
-
-    // Use a custom inline execution to get the txHash BEFORE generating
-    try {
-      // 1. Get price
-      const toolId = 1; // Chat/Coach
-      
-      // Simulate/trigger standard hook flow but hijack the streaming path
-      // We will execute the paying state using our usePayForPrompt logic.
-      // Wait, let's call the hook! In usePayForPrompt, we set the state `txHash`.
-      // We can watch for `txHash` changes, or we can just run the transaction here
-      // to make it 100% reliable for streaming.
-      // Let's execute the transaction directly using the user's wallet!
-      // This is extremely simple and reliable.
-      
-      // If we use usePayForPrompt, we can write a custom effect or let it do the payment
-      // and then open the stream once the txHash is available.
-      // Let's check how to handle this elegantly:
-    } catch (e) {
-      setCurrentStep('idle');
     }
   };
 
@@ -300,8 +227,12 @@ export default function CoachPage() {
       <StreamTrigger
         txHash={txHash}
         currentStep={currentStep}
-        promptText={text}
         onStreamStart={(hash) => startStreaming(hash, text.trim())}
+      />
+
+      <ConnectWalletModal
+        isOpen={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
       />
     </div>
   );
@@ -311,20 +242,20 @@ export default function CoachPage() {
 function StreamTrigger({
   txHash,
   currentStep,
-  promptText,
   onStreamStart
 }: {
   txHash: string | null;
   currentStep: string;
-  promptText: string;
   onStreamStart: (hash: string) => void;
 }) {
   const triggeredRef = useRef<string | null>(null);
 
-  if (txHash && currentStep === 'paying' && triggeredRef.current !== txHash) {
-    triggeredRef.current = txHash;
-    setTimeout(() => onStreamStart(txHash), 0);
-  }
+  useEffect(() => {
+    if (txHash && currentStep === 'paying' && triggeredRef.current !== txHash) {
+      triggeredRef.current = txHash;
+      onStreamStart(txHash);
+    }
+  }, [txHash, currentStep, onStreamStart]);
 
   return null;
 }
