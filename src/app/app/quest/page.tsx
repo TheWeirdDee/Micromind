@@ -131,6 +131,33 @@ function getEmotionalGranularityComparison(word: string): { generic: string; nua
   };
 }
 
+interface QuestVocabularyRow {
+  stage_id: string;
+  level_name: string;
+  category: string;
+  target_word: string;
+  definition: string;
+  examples?: string[];
+  synonyms?: string[];
+  unlocked_at: string;
+}
+
+function shuffleLetters(scrambledLetters: string[], targetWord: string): string[] {
+  const letters = [...scrambledLetters];
+  for (let i = letters.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [letters[i], letters[j]] = [letters[j], letters[i]];
+  }
+  if (letters.slice(0, targetWord.length).join('') === targetWord) {
+    letters.reverse();
+  }
+  return letters;
+}
+
+function getCurrentTimestamp(): number {
+  return Date.now();
+}
+
 export default function QuestPage() {
   const { address, isConnected } = useWallet();
   const { progress, loading: progressLoading, dbWarning, solveStage, deductPoints, resetProgress } = useQuestProgress(address);
@@ -224,29 +251,35 @@ export default function QuestPage() {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(cardsStorageKey);
-      if (stored) {
-        try {
-          setCollectedCards(JSON.parse(stored));
-        } catch {}
-      } else {
-        setCollectedCards([]);
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(cardsStorageKey);
+        if (stored) {
+          try {
+            setCollectedCards(JSON.parse(stored));
+          } catch {}
+        } else {
+          setCollectedCards([]);
+        }
       }
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [cardsStorageKey]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(vocabStorageKey);
-      if (stored) {
-        try {
-          setVocabularyEntries(JSON.parse(stored));
-        } catch {}
-      } else {
-        setVocabularyEntries([]);
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(vocabStorageKey);
+        if (stored) {
+          try {
+            setVocabularyEntries(JSON.parse(stored));
+          } catch {}
+        } else {
+          setVocabularyEntries([]);
+        }
       }
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [vocabStorageKey]);
 
   const saveVocabularyEntries = useCallback((entries: VocabularyEntry[]) => {
@@ -266,7 +299,7 @@ export default function QuestPage() {
       ? stage.vocabulary.examples 
       : [stage.sentence.replace('{placeholder}', stage.targetWord)],
     synonyms: stage.vocabulary?.synonyms ?? [],
-    unlockedAt: Date.now(),
+    unlockedAt: getCurrentTimestamp(),
   }), []);
 
   const syncVocabularyEntryToSupabase = async (entry: VocabularyEntry, userId: string) => {
@@ -287,9 +320,10 @@ export default function QuestPage() {
       );
       if (error) throw error;
       setVocabDbWarning(false);
-    } catch (err: any) {
-      console.warn('[SYNC VOCABULARY ERROR]', err);
-      if (err && (err.code === 'PGRST205' || err.message?.includes('relation "quest_vocabulary" does not exist') || err.message?.includes('does not exist'))) {
+    } catch (err) {
+      const errorVal = err as { code?: string; message?: string };
+      console.warn('[SYNC VOCABULARY ERROR]', errorVal);
+      if (errorVal && (errorVal.code === 'PGRST205' || errorVal.message?.includes('relation "quest_vocabulary" does not exist') || errorVal.message?.includes('does not exist'))) {
         setVocabDbWarning(true);
       }
     }
@@ -310,7 +344,7 @@ export default function QuestPage() {
       if (error) throw error;
       if (!data) return;
 
-      const remoteEntries = data.map((row: any) => ({
+      const remoteEntries = data.map((row: QuestVocabularyRow) => ({
         id: row.stage_id,
         levelName: row.level_name,
         category: row.category,
@@ -331,97 +365,110 @@ export default function QuestPage() {
         localStorage.setItem(vocabStorageKey, JSON.stringify(merged));
       }
       setVocabDbWarning(false);
-    } catch (err: any) {
-      console.warn('[LOAD VOCABULARY ERROR]', err);
-      if (err && (err.code === 'PGRST205' || err.message?.includes('relation "quest_vocabulary" does not exist') || err.message?.includes('does not exist'))) {
+    } catch (err) {
+      const errorVal = err as { code?: string; message?: string };
+      console.warn('[LOAD VOCABULARY ERROR]', errorVal);
+      if (errorVal && (errorVal.code === 'PGRST205' || errorVal.message?.includes('relation "quest_vocabulary" does not exist') || errorVal.message?.includes('does not exist'))) {
         setVocabDbWarning(true);
       }
     }
   }, [vocabStorageKey]);
 
   useEffect(() => {
-    loadVocabularyEntriesFromSupabase();
+    const timer = setTimeout(() => {
+      loadVocabularyEntriesFromSupabase();
+    }, 0);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        loadVocabularyEntriesFromSupabase();
+        setTimeout(() => {
+          loadVocabularyEntriesFromSupabase();
+        }, 0);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timer);
+      subscription.unsubscribe();
+    };
   }, [loadVocabularyEntriesFromSupabase]);
 
   // Set default withdrawal address when connected
   useEffect(() => {
     if (address) {
-      setWithdrawAddress(address);
+      const timer = setTimeout(() => {
+        setWithdrawAddress(address);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [address]);
 
   // Shuffle scrambled letters dynamically when stage changes
   useEffect(() => {
     if (activeStage) {
-      const letters = [...activeStage.scrambledLetters];
-      // Fisher-Yates shuffle
-      for (let i = letters.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [letters[i], letters[j]] = [letters[j], letters[i]];
-      }
-      // If the shuffled letters still match the beginning of targetWord in order, reverse them
-      if (letters.slice(0, activeStage.targetWord.length).join('') === activeStage.targetWord) {
-        letters.reverse();
-      }
-      setShuffledLetters(letters);
+      const letters = shuffleLetters(activeStage.scrambledLetters, activeStage.targetWord);
+      const timer = setTimeout(() => {
+        setShuffledLetters(letters);
+      }, 0);
+      return () => clearTimeout(timer);
     } else {
-      setShuffledLetters([]);
+      const timer = setTimeout(() => {
+        setShuffledLetters([]);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [activeStage]);
 
   // Reset stage letters and load/initialize timer when level/stage changes
   useEffect(() => {
-    setSelectedIndices([]);
-    setIsSolved(false);
-    setIsFailed(false);
-    setAiHint(null);
-    setAiCard(null);
-    setSelectedVocabWord(null);
-    setPendingDictionaryEntry(null);
-    setIsReplaying(false);
-    setShuffleCount(0);
+    const timer = setTimeout(() => {
+      setSelectedIndices([]);
+      setIsSolved(false);
+      setIsFailed(false);
+      setAiHint(null);
+      setAiCard(null);
+      setSelectedVocabWord(null);
+      setPendingDictionaryEntry(null);
+      setIsReplaying(false);
+      setShuffleCount(0);
 
-    if (isReviewing) {
-      setTimeLeft(120);
-      setHasForfeited(false);
-      return;
-    }
+      if (isReviewing) {
+        setTimeLeft(120);
+        setHasForfeited(false);
+        return;
+      }
 
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(timerStorageKey);
-      if (stored) {
-        try {
-          const { expiryTime, forfeited } = JSON.parse(stored);
-          const remaining = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
-          if (remaining <= 0 || forfeited) {
-            setTimeLeft(0);
-            setHasForfeited(true);
-            setIsFailed(false); // DO NOT lock the user out from playing!
-          } else {
-            setTimeLeft(remaining);
-            setHasForfeited(forfeited);
-            setIsFailed(false);
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem(timerStorageKey);
+        if (stored) {
+          try {
+            const { expiryTime, forfeited } = JSON.parse(stored);
+            const remaining = Math.max(0, Math.floor((expiryTime - getCurrentTimestamp()) / 1000));
+            if (remaining <= 0 || forfeited) {
+              setTimeLeft(0);
+              setHasForfeited(true);
+              setIsFailed(false); // DO NOT lock the user out from playing!
+            } else {
+              setTimeLeft(remaining);
+              setHasForfeited(forfeited);
+              setIsFailed(false);
+            }
+          } catch {
+            const newExpiry = getCurrentTimestamp() + 120 * 1000;
+            setTimeLeft(120);
+            setHasForfeited(false);
+            localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: false }));
           }
-        } catch {
-          const newExpiry = Date.now() + 120 * 1000;
+        } else {
+          const newExpiry = getCurrentTimestamp() + 120 * 1000;
           setTimeLeft(120);
           setHasForfeited(false);
           localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: false }));
         }
-      } else {
-        const newExpiry = Date.now() + 120 * 1000;
-        setTimeLeft(120);
-        setHasForfeited(false);
-        localStorage.setItem(timerStorageKey, JSON.stringify({ expiryTime: newExpiry, forfeited: false }));
       }
-    }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [progress.currentLevel, progress.currentStage, timerStorageKey, isReviewing]);
 
   // Timer Countdown Effect
@@ -787,7 +834,7 @@ export default function QuestPage() {
           targetWord: activeStage.targetWord,
           sentence: activeStage.sentence.replace('{placeholder}', activeStage.targetWord),
           cardText: data.cardText,
-          unlockedAt: Date.now()
+          unlockedAt: getCurrentTimestamp()
         };
  
         const updated = [newCard, ...collectedCards];
@@ -919,12 +966,10 @@ export default function QuestPage() {
           {Object.entries(grouped).map(([catName, levels]) => {
             const isExpanded = currentCategory === catName;
             
-            let totalStages = 0;
             let completedStagesCount = 0;
             let hasUnlockedLevel = false;
 
             levels.forEach(lvl => {
-              totalStages += lvl.stages.length;
               if (lvl.levelNumber <= progress.currentLevel) {
                 hasUnlockedLevel = true;
                 if (lvl.levelNumber < progress.currentLevel) {
@@ -1157,7 +1202,7 @@ export default function QuestPage() {
                 </div>
 
                 <p className="text-[9px] font-mono text-text-muted leading-relaxed">
-                  Context: "{card.sentence}"
+                  Context: &quot;{card.sentence}&quot;
                 </p>
 
                 <div className="pt-1.5 border-t border-border/25">
@@ -1285,7 +1330,7 @@ export default function QuestPage() {
                   <div className="p-4 bg-surface-2/60 border border-border rounded-2xl space-y-1.5">
                     <span className="text-[9px] font-mono uppercase text-text-muted">Sentence Context</span>
                     <p className="font-serif text-base text-text-primary italic leading-relaxed">
-                      "{activeStage.sentence.replace('{placeholder}', activeStage.targetWord)}"
+                      &quot;{activeStage.sentence.replace('{placeholder}', activeStage.targetWord)}&quot;
                     </p>
                   </div>
 
@@ -1410,7 +1455,7 @@ export default function QuestPage() {
                         <span className="text-[9px] font-mono uppercase tracking-wider font-bold">Emotional Clue Insight</span>
                       </div>
                       <p className="text-xs font-mono text-text-primary leading-relaxed">
-                        Concept definition: <span className="italic text-text-muted">"{activeStage.clue || activeStage.vocabulary?.definition}"</span>
+                        Concept definition: <span className="italic text-text-muted">&quot;{activeStage.clue || activeStage.vocabulary?.definition}&quot;</span>
                       </p>
                     </motion.div>
                   )}
@@ -1513,7 +1558,7 @@ export default function QuestPage() {
                           </span>
                         </p>
                         <p className="text-xs font-mono text-text-muted italic leading-relaxed">
-                          "{aiHint}"
+                          &quot;{aiHint}&quot;
                         </p>
                       </motion.div>
                     ) : (
@@ -1573,7 +1618,7 @@ export default function QuestPage() {
 
                               {activeStage.vocabulary.examples.length > 0 && (
                                 <p className="text-xs font-mono text-text-muted leading-relaxed">
-                                  <span className="font-bold text-text-primary">Examples:</span> "{activeStage.vocabulary.examples.join('" "')}"
+                                  <span className="font-bold text-text-primary">Examples:</span> &quot;{activeStage.vocabulary.examples.join('" "')}&quot;
                                 </p>
                               )}
 
