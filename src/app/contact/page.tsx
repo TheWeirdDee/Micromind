@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
-import { Mail, MessageSquare, Send, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
+import { Send, ChevronRight, AlertCircle } from "lucide-react";
 
 export default function ContactPage() {
   const [formType, setFormType] = useState<"bug" | "feedback" | "general">("bug");
