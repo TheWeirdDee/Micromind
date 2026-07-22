@@ -13,6 +13,46 @@ export interface HistoryItem {
 const HISTORY_KEY = 'micromind_history';
 
 /**
+ * Pulls the authoritative prompt_history rows (written server-side by the agent)
+ * and merges them into localStorage — mirrors journal.ts's loadEntriesFromSupabase.
+ * De-dupes by txHash (not id, since ids are generated independently client/server-side).
+ * Old, local-only history predating this feature is never migrated up — accepted gap.
+ */
+export async function loadHistoryFromSupabase(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const { supabase } = await import('./supabase');
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+
+  const { data } = await supabase
+    .from('prompt_history')
+    .select('*')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false });
+
+  if (!data || data.length === 0) return;
+
+  const remote: HistoryItem[] = data.map((row) => ({
+    id: row.id,
+    toolId: row.tool_id,
+    toolName: row.tool_name,
+    prompt: row.prompt,
+    response: row.response,
+    cost: row.cost,
+    txHash: row.tx_hash,
+    timestamp: new Date(row.created_at).getTime(),
+  }));
+
+  const local = getHistory();
+  const remoteTxHashes = new Set(remote.map((r) => r.txHash));
+  const localOnly = local.filter((l) => !remoteTxHashes.has(l.txHash));
+  const merged = [...remote, ...localOnly].sort((a, b) => b.timestamp - a.timestamp);
+
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
+  window.dispatchEvent(new Event('journal_updated'));
+}
+
+/**
  * Prepends a new item to the local prompt history.
  * Safe to call server-side — returns early if window is undefined.
  */
