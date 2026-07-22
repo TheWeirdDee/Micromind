@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       from: FROM,
       to: recipientEmail,
       subject: customSubject ?? `A letter for you, from ${senderName}`,
-      text: `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app`,
+      text: `${content}\n\n---\nSent via MicroMind · https://micromindapp.xyz/app`,
     });
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
