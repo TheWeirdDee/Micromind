@@ -6,7 +6,7 @@ MicroMind is a mobile-first, privacy-first AI journaling app built on Celo and d
 
 Built for MiniPay users across Africa and beyond.
 
-> Live Dapp: [micromind-three.vercel.app](https://micromind-three.vercel.app)  
+> Live Dapp: [micromindapp.xyz](https://micromindapp.xyz)  
 > Live AI Relayer: [strong-possibility-production.up.railway.app](https://strong-possibility-production.up.railway.app)
 
 ---
