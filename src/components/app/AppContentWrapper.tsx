@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { X, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { useWallet } from '@/context/WalletContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { OnboardingWizard } from '@/components/app/OnboardingWizard';
 
@@ -14,14 +13,13 @@ interface AppContentWrapperProps {
 
 export function AppContentWrapper({ children }: AppContentWrapperProps) {
   const { user, loading } = useAuth();
-  const { isMiniPay } = useWallet();
   const [showReminder, setShowReminder] = useState(false);
-  const [miniPayOnboarded, setMiniPayOnboarded] = useState<boolean>(() => {
+  const [onboarded, setOnboarded] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('mm_onboarding_completed') === 'true';
   });
 
-  const isAuthed = isMiniPay ? miniPayOnboarded : !!user;
+  const isAuthed = !!user && onboarded;
 
   useEffect(() => {
     if (!isAuthed || typeof window === 'undefined') return;
@@ -93,18 +91,7 @@ export function AppContentWrapper({ children }: AppContentWrapperProps) {
     </div>
   );
 
-  // MiniPay: wallet-based onboarding gate — must complete wizard before accessing /app
-  if (isMiniPay) {
-    if (!miniPayOnboarded) {
-      return <OnboardingWizard onComplete={() => {
-        localStorage.setItem('mm_onboarding_completed', 'true');
-        setMiniPayOnboarded(true);
-      }} />;
-    }
-    return <>{children}{reminderBanner}</>;
-  }
-
-  // Non-MiniPay: Supabase auth gate
+  // All users — wallet type included — authenticate through the same Supabase account gate.
   if (loading) {
     return (
       <div className="h-[60vh] flex flex-col items-center justify-center space-y-4">
@@ -116,6 +103,13 @@ export function AppContentWrapper({ children }: AppContentWrapperProps) {
 
   if (!user) {
     return <AuthModal />;
+  }
+
+  if (!onboarded) {
+    return <OnboardingWizard onComplete={() => {
+      localStorage.setItem('mm_onboarding_completed', 'true');
+      setOnboarded(true);
+    }} />;
   }
 
   return <>{children}{reminderBanner}</>;
