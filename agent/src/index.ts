@@ -40,6 +40,54 @@ const publicClient = createPublicClient({
   transport: http('https://rpc.ankr.com/celo')
 });
 
+// Shared toolId -> name/price lookup for the authoritative prompt_history record
+// (never trust a client-supplied cost/name for that table).
+const TOOL_INFO: Record<number, { name: string; price: string }> = {
+  1: { name: 'Chat', price: '0.005' },
+  2: { name: 'Tweet', price: '0.005' },
+  3: { name: 'Reflect', price: '0.005' },
+  4: { name: 'Pattern', price: '0.005' },
+  5: { name: 'Letter', price: '0.01' },
+};
+
+/** Resolves a Supabase user id from an `Authorization: Bearer <token>` header. Never throws. */
+async function resolveUserId(authHeader?: string): Promise<string | null> {
+  if (!authHeader || !supabase) return null;
+  const token = authHeader.split(' ')[1];
+  if (!token) return null;
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    return user.id;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Best-effort write to the authoritative prompt_history table.
+ * Never throws — a failed history write must never break the user's AI response.
+ */
+async function recordPromptHistory(row: {
+  user_id: string;
+  tool_id: number;
+  tool_name: string;
+  prompt: string;
+  response: string;
+  cost: string;
+  tx_hash: string;
+}): Promise<void> {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase
+      .from('prompt_history')
+      .upsert(row, { onConflict: 'tx_hash', ignoreDuplicates: true });
+    if (error) console.warn('[HISTORY] Failed to record prompt history:', error.message);
+  } catch (err) {
+    console.warn('[HISTORY] Failed to record prompt history:', err);
+  }
+}
+
 let redis: {
   set: (key: string, value: string, options?: { ex: number }) => Promise<unknown>;
   get: (key: string) => Promise<string | null>;
@@ -118,8 +166,8 @@ async function sendEmail(to: string, senderName: string, content: string, isPoli
 
   const subject = `A letter for you, from ${senderName}`;
   const text = isPolished
-    ? `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app\n✨ This letter was enhanced with AI`
-    : `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app`;
+    ? `${content}\n\n---\nSent via MicroMind · https://micromindapp.xyz/app\n✨ This letter was enhanced with AI`
+    : `${content}\n\n---\nSent via MicroMind · https://micromindapp.xyz/app`;
 
   await resend.emails.send({
     from: RESEND_FROM,
@@ -661,15 +709,17 @@ app.post('/api/prompt/submit', async (req, res) => {
     return res.status(400).json({ error: 'Missing fields' });
   }
 
+  const userId = await resolveUserId(req.headers.authorization);
+
   const { keccak256, toBytes } = await import('viem');
   const nonce = reqNonce || Date.now().toString();
   const promptHash = keccak256(
     toBytes(`${prompt}:${userAddress}:${nonce}`)
   );
-  
+
   console.log('[SUBMIT] promptHash:', promptHash);
   await storeData(`prompt:${promptHash}`, JSON.stringify({
-    prompt, toolId: Number(toolId), user: userAddress, nonce
+    prompt, toolId: Number(toolId), user: userAddress, nonce, userId
   }));
   
   res.json({ promptHash });
@@ -715,7 +765,7 @@ app.get('/api/response/:txHash', async (req, res) => {
       return res.json({ status: 'prompt_not_found', promptHash });
     }
 
-    const { prompt } = JSON.parse(storedStr);
+    const { prompt, userId } = JSON.parse(storedStr);
     console.log('[RESPONSE] Calling AI for tool:', toolId);
     if (toolId === undefined) {
       console.log('[RESPONSE] toolId is undefined in event log');
@@ -723,8 +773,22 @@ app.get('/api/response/:txHash', async (req, res) => {
     }
     const parsedToolId = Number(toolId);
     const aiResponse = await callAI(parsedToolId, prompt);
-    
+
     await storeData(`resp:${txHash}`, aiResponse, 86400);
+
+    if (userId) {
+      const info = TOOL_INFO[parsedToolId];
+      recordPromptHistory({
+        user_id: userId,
+        tool_id: parsedToolId,
+        tool_name: info?.name ?? `Tool ${parsedToolId}`,
+        prompt,
+        response: aiResponse,
+        cost: info ? `${info.price} USDm` : 'unknown',
+        tx_hash: txHash,
+      });
+    }
+
     res.json({ status: 'ready', response: aiResponse });
   } catch (e) {
     console.error('[RESPONSE] Error:', e);
@@ -744,10 +808,24 @@ app.post('/api/process-direct', async (req, res) => {
 
   try {
     const response = await callAI(parsedToolId, prompt);
-    
+
     await storeData(`resp:${txHash}`, response, 86400);
     console.log('[DIRECT] Success, response length:', response.length);
-    
+
+    const userId = await resolveUserId(req.headers.authorization);
+    if (userId) {
+      const info = TOOL_INFO[parsedToolId];
+      recordPromptHistory({
+        user_id: userId,
+        tool_id: parsedToolId,
+        tool_name: info?.name ?? `Tool ${parsedToolId}`,
+        prompt,
+        response,
+        cost: info ? `${info.price} USDm` : 'unknown',
+        tx_hash: txHash,
+      });
+    }
+
     res.json({ status: 'ready', response });
   } catch (e) {
     const err = e as Error;
@@ -769,6 +847,8 @@ app.post('/api/relay', async (req, res) => {
   if (!signature || !toolId || !promptHash || !userAddress || !nonce || !deadline || !prompt) {
     return res.status(400).json({ error: 'Missing required relay fields' });
   }
+
+  const userId = await resolveUserId(req.headers.authorization);
 
   const parsedToolId = parseInt(toolId, 10);
   if (!Number.isInteger(parsedToolId) || parsedToolId < 1 || parsedToolId > 5) {
@@ -815,10 +895,30 @@ app.post('/api/relay', async (req, res) => {
     const aiResponse = await callAI(parsedToolId, prompt);
     await storeData(`resp:${result.txHash}`, aiResponse, 86400);
     console.log(`[RELAY] AI cached under txHash: ${result.txHash}`);
+
+    if (userId) {
+      const info = TOOL_INFO[parsedToolId];
+      recordPromptHistory({
+        user_id: userId,
+        tool_id: parsedToolId,
+        tool_name: info?.name ?? `Tool ${parsedToolId}`,
+        prompt,
+        response: aiResponse,
+        cost: info ? `${info.price} USDm` : 'unknown',
+        tx_hash: result.txHash,
+      });
+    }
+
     res.json({ status: 'ready', txHash: result.txHash, response: aiResponse });
   } catch (e) {
     const err = e as Error;
     console.error('[RELAY] AI generation failed:', err.message);
+    // Payment went through but AI generation failed — cache the prompt context
+    // (mirroring /api/prompt/submit's shape) so a later /api/response/:txHash
+    // poll can still find it and attribute the eventual history record.
+    await storeData(`prompt:${promptHash}`, JSON.stringify({
+      prompt, toolId: parsedToolId, user: userAddress, nonce, userId
+    }));
     // Payment went through — return txHash so frontend can poll later
     res.json({ status: 'processing', txHash: result.txHash });
   }
