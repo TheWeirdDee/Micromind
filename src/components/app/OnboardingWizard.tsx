@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Check, User, Mail, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
+import { Check, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
 
 interface OnboardingWizardProps {
   onComplete: () => void;
@@ -17,28 +17,7 @@ const GOALS = [
 ];
 
 export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
-  const [step, setStep] = useState<number>(() => {
-    if (typeof window === 'undefined') return 1;
-    try {
-      const raw = localStorage.getItem('mm_user_profile');
-      return raw && JSON.parse(raw).name ? 2 : 1;
-    } catch { return 1; }
-  });
-  const [name, setName] = useState<string>(() => {
-    if (typeof window === 'undefined') return '';
-    try {
-      const raw = localStorage.getItem('mm_user_profile');
-      return raw ? (JSON.parse(raw).name ?? '') : '';
-    } catch { return ''; }
-  });
-  const [email, setEmail] = useState<string>(() => {
-    if (typeof window === 'undefined') return '';
-    try {
-      const raw = localStorage.getItem('mm_user_profile');
-      return raw ? (JSON.parse(raw).email ?? '') : '';
-    } catch { return ''; }
-  });
-  const [error, setError] = useState('');
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [goals, setGoals] = useState<string[]>(() => {
     if (typeof window === 'undefined') return [];
     try {
@@ -48,24 +27,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   });
 
   useEffect(() => {
-    if (step !== 3) return;
-    const t = setTimeout(() => setStep(4), 2500);
+    if (step !== 2) return;
+    const t = setTimeout(() => setStep(3), 2500);
     return () => clearTimeout(t);
   }, [step]);
-
-  const submitProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      setError('Please enter your name.');
-      return;
-    }
-    if (email.trim() && !email.includes('@')) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-    setError('');
-    setStep(2);
-  };
 
   const handleSelectGoal = (goal: string) => {
     setGoals((prev) =>
@@ -74,14 +39,13 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   };
 
   const handleFinalize = () => {
-    const profile = {
-      name: name.trim() || 'Mindful Writer',
-      email: email.trim(),
-      goals,
-      loginMethod: 'email',
-      onboardedAt: Date.now(),
-    };
-    localStorage.setItem('mm_user_profile', JSON.stringify(profile));
+    let profile: Record<string, unknown> = {};
+    try {
+      const raw = localStorage.getItem('mm_user_profile');
+      if (raw) profile = JSON.parse(raw);
+    } catch { /* ignore */ }
+
+    localStorage.setItem('mm_user_profile', JSON.stringify({ ...profile, goals }));
     localStorage.setItem('mm_onboarding_completed', 'true');
     onComplete();
   };
@@ -94,16 +58,9 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
       <div className="w-full max-w-[390px] flex flex-col flex-1 relative z-10 min-h-0">
 
-        {step <= 2 && (
-          <div className="flex gap-2 pt-4 pb-6 flex-shrink-0">
-            <div className={`h-1 flex-1 rounded-full transition-colors duration-500 ${step >= 1 ? 'bg-accent' : 'bg-border'}`} />
-            <div className={`h-1 flex-1 rounded-full transition-colors duration-500 ${step >= 2 ? 'bg-accent' : 'bg-border'}`} />
-          </div>
-        )}
-
         <AnimatePresence mode="wait">
 
-          {/* STEP 1 — Name & Email */}
+          {/* STEP 1 — Goals */}
           {step === 1 && (
             <motion.div
               key="step1"
@@ -111,78 +68,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.35 }}
-              className="flex-1 flex flex-col min-h-0"
-            >
-              <div className="flex flex-col justify-center flex-1 space-y-8 py-4">
-                <div className="text-center space-y-3">
-                  <div className="inline-flex p-3 rounded-full bg-accent/5 border border-accent/10 mb-2">
-                    <Sparkles className="w-6 h-6 text-accent" />
-                  </div>
-                  <h2 className="text-3xl font-serif tracking-tight leading-tight">
-                    Your thoughts <br />deserve a private home.
-                  </h2>
-                  <p className="font-mono text-xs text-text-muted max-w-[280px] mx-auto leading-relaxed">
-                    MicroMind is local-first. Your journal stays on your device — nothing leaves without your permission.
-                  </p>
-                </div>
-
-                <form onSubmit={submitProfile} className="space-y-4 px-2">
-                  <div className="space-y-2">
-                    <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted px-1">Your Name</label>
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-                      <input
-                        type="text"
-                        value={name}
-                        autoFocus
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Alex"
-                        className="w-full bg-surface border border-border rounded-2xl px-12 py-3.5 text-sm font-mono focus:border-accent outline-none transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted px-1">
-                      Email Address <span className="text-[8px] opacity-50">(optional)</span>
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="alex@example.com"
-                        className="w-full bg-surface border border-border rounded-2xl px-12 py-3.5 text-sm font-mono focus:border-accent outline-none transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  {error && (
-                    <p className="text-[10px] font-mono text-accent-gold text-center">{error}</p>
-                  )}
-
-                  <button
-                    type="submit"
-                    className="pill-button pill-button-primary w-full py-4 text-xs font-mono uppercase tracking-widest font-bold mt-2"
-                  >
-                    <span className="inline-flex items-center justify-center gap-1.5">Continue <ArrowRight className="w-3.5 h-3.5" /></span>
-                  </button>
-
-                </form>
-              </div>
-            </motion.div>
-          )}
-
-          {/* STEP 2 — Goals */}
-          {step === 2 && (
-            <motion.div
-              key="step2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.35 }}
-              className="flex-1 flex flex-col min-h-0"
+              className="flex-1 flex flex-col min-h-0 pt-8"
             >
               <div className="text-center space-y-2 py-4 flex-shrink-0">
                 <span className="font-mono text-[9px] uppercase tracking-widest text-accent-gold">Goals</span>
@@ -220,15 +106,9 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
 
               <div className="flex gap-3 pt-4 pb-2 flex-shrink-0">
                 <button
-                  onClick={() => setStep(1)}
-                  className="pill-button pill-button-outline w-1/3 py-4 text-xs font-mono uppercase tracking-widest"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => setStep(3)}
+                  onClick={() => setStep(2)}
                   disabled={goals.length === 0}
-                  className="pill-button pill-button-primary w-2/3 py-4 text-xs font-mono uppercase tracking-widest font-bold disabled:opacity-40"
+                  className="pill-button pill-button-primary w-full py-4 text-xs font-mono uppercase tracking-widest font-bold disabled:opacity-40"
                 >
                   Create Space
                 </button>
@@ -236,10 +116,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             </motion.div>
           )}
 
-          {/* STEP 3 — Loading */}
-          {step === 3 && (
+          {/* STEP 2 — Loading */}
+          {step === 2 && (
             <motion.div
-              key="step3"
+              key="step2"
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.02 }}
@@ -255,10 +135,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             </motion.div>
           )}
 
-          {/* STEP 4 — Ready */}
-          {step === 4 && (
+          {/* STEP 3 — Ready */}
+          {step === 3 && (
             <motion.div
-              key="step4"
+              key="step3"
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               className="flex-1 flex flex-col justify-center space-y-8 overflow-y-auto py-4"
