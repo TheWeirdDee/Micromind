@@ -23,6 +23,13 @@ const DIRECT_FETCH_TIMEOUT_MS = 30_000;
 /** Abort timeout for each individual /api/response poll request. */
 const POLL_FETCH_TIMEOUT_MS = 5_000;
 
+/** Current Supabase access token, if any — sent so the agent can attribute a prompt_history record to a real account. */
+async function getAccessToken(): Promise<string | null> {
+  const { supabase } = await import('@/lib/supabase');
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
+}
+
 export type PaymentStep =
   | 'idle'
   | 'checking'
@@ -107,11 +114,15 @@ export function usePayForPrompt() {
       const nonce = Date.now().toString();
       const promptHash = keccak256(toBytes(`${finalPrompt}:${address}:${nonce}`));
 
+      // Sent so the agent can attribute the eventual prompt_history record to a real account.
+      const accessToken = await getAccessToken();
+      const authHeaders: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+
       // Notify agent in the background so it can cache the prompt for polling fallback
       if (agentUrl) {
         fetch(`${agentUrl}/api/prompt/submit`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify({ prompt: finalPrompt, toolId, userAddress: address, nonce }),
         }).catch(() => { /* agent offline — payment still proceeds */ });
       }
@@ -245,7 +256,7 @@ export function usePayForPrompt() {
         try {
           const directRes = await fetch(`${agentUrl}/api/process-direct`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...authHeaders },
             body: JSON.stringify({
               txHash: payTx,
               prompt: finalPrompt,
@@ -301,7 +312,7 @@ export function usePayForPrompt() {
               console.log('[POLL] Agent reports prompt not found. Resubmitting...');
               await fetch(`${agentUrl}/api/prompt/submit`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeaders },
                 body: JSON.stringify({ prompt: finalPrompt, toolId, userAddress: address, nonce }),
               }).catch(() => { /* ignore error, retry on next poll */ });
             }
@@ -413,9 +424,13 @@ export function usePayForPrompt() {
 
       setStep('paying'); // backend is now executing the relay
 
+      // Sent so the agent can attribute the eventual prompt_history record to a real account.
+      const accessToken = await getAccessToken();
+      const authHeaders: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+
       const relayRes = await fetch(`${agentUrl}/api/relay`, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({
           signature,
           toolId,
