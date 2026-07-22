@@ -1,0 +1,27 @@
+name: Release scheduled letters
+
+# Nothing else was triggering the agent's /api/cron/release-letters endpoint,
+# so scheduled escrow letters never actually got sent. This workflow calls it
+# on a schedule instead.
+#
+# Requires two repo secrets (Settings > Secrets and variables > Actions):
+#   AGENT_API_URL — the agent's base URL (same value as NEXT_PUBLIC_AGENT_API_URL)
+#   CRON_SECRET   — must match the CRON_SECRET env var set on the agent (Railway)
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  release-letters:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call release-letters cron endpoint
+        run: |
+          curl --fail --show-error --silent \
+            -X POST "${AGENT_API_URL}/api/cron/release-letters" \
+            -H "Authorization: Bearer ${CRON_SECRET}"
+        env:
+          AGENT_API_URL: ${{ secrets.AGENT_API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

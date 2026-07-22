@@ -4,6 +4,55 @@ import { Smile, Laugh, Meh, Angry, Frown } from 'lucide-react';
 const JOURNAL_KEY = "mm_journal";
 const FOLDERS_KEY = "mm_journal_folders";
 
+// -- Journal content encryption (Supabase sync boundary only) -----------------
+//
+// Journal content is kept in localStorage as plaintext (device-local threat
+// model is out of scope) but encrypted client-side before it ever reaches
+// Supabase, using an escrowed per-account AES-GCM-256 key (see AuthContext's
+// resolveJournalKey). This protects against a database breach, not against
+// the app operator, since the key is escrowed server-side too — the same
+// tradeoff already made for the scheduled-letters feature.
+//
+// Ciphertext is wrapped in a JSON envelope inside the existing `content`
+// column so legacy plaintext rows (written before this shipped) keep
+// working untouched — they simply fail the `__enc` check and pass through.
+// Those legacy rows are NOT retroactively re-encrypted.
+
+let journalKey: string | null = null;
+
+/** Sets (or clears, on sign-out) the in-memory key used to encrypt/decrypt journal content. */
+export function setJournalKey(key: string | null): void {
+  journalKey = key;
+}
+
+async function encryptContent(content: string): Promise<string> {
+  if (!journalKey) return content;
+  const { encryptText } = await import('./crypto');
+  const { ciphertext, iv } = await encryptText(content, journalKey);
+  return JSON.stringify({ __enc: true, ciphertext, iv });
+}
+
+async function decryptContent(raw: string): Promise<string> {
+  let parsed: { __enc?: boolean; ciphertext?: string; iv?: string };
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return raw; // not JSON — legacy plaintext row
+  }
+  if (!parsed || !parsed.__enc) return raw;
+  if (!journalKey) {
+    console.warn('No journal key available to decrypt entry');
+    return '[Encrypted — key unavailable]';
+  }
+  try {
+    const { decryptText } = await import('./crypto');
+    return await decryptText(parsed.ciphertext!, parsed.iv!, journalKey);
+  } catch (err) {
+    console.warn('Failed to decrypt journal entry content', err);
+    return '[Could not decrypt this entry]';
+  }
+}
+
 // -- Supabase sync helpers (fire-and-forget, never block the UI) --------------
 
 async function getSupabaseSession() {
@@ -21,7 +70,7 @@ async function pushEntryToSupabase(entry: JournalEntry) {
     const { error } = await supabase.from('journal_entries').upsert({
       id: entry.id,
       user_id: session.user.id,
-      content: entry.content,
+      content: await encryptContent(entry.content),
       mood: entry.mood,
       timestamp: entry.timestamp,
       folder_id: entry.folderId ?? null,
@@ -62,16 +111,16 @@ export async function loadEntriesFromSupabase(): Promise<void> {
 
   if (!data || data.length === 0) return;
 
-  const remote: JournalEntry[] = data.map((row) => ({
+  const remote: JournalEntry[] = await Promise.all(data.map(async (row) => ({
     id: row.id,
     date: row.date,
-    content: row.content,
+    content: await decryptContent(row.content),
     mood: row.mood,
     timestamp: row.timestamp,
     folderId: row.folder_id ?? undefined,
     image: row.image ?? undefined,
     tags: row.tags ?? [],
-  }));
+  })));
 
   // Merge: remote wins on conflict (same id), keep any local-only entries
   const local = getEntries();
@@ -92,17 +141,17 @@ export async function migrateLocalEntriesToSupabase(): Promise<void> {
   const entries = getEntries();
   if (!entries.length) return;
   const { supabase } = await import('./supabase');
-  const rows = entries.map(e => ({
+  const rows = await Promise.all(entries.map(async (e) => ({
     id: e.id,
     user_id: session.user.id,
-    content: e.content,
+    content: await encryptContent(e.content),
     mood: e.mood,
     timestamp: e.timestamp,
     folder_id: e.folderId ?? null,
     tags: e.tags ?? [],
     date: e.date,
     image: e.image ?? null,
-  }));
+  })));
   await supabase.from('journal_entries').upsert(rows, { onConflict: 'id', ignoreDuplicates: true });
 }
 
@@ -452,7 +501,7 @@ export async function syncOfflineQueue(): Promise<void> {
         const { error } = await supabase.from('journal_entries').upsert({
           id: op.entry.id,
           user_id: session.user.id,
-          content: op.entry.content,
+          content: await encryptContent(op.entry.content),
           mood: op.entry.mood,
           timestamp: op.entry.timestamp,
           folder_id: op.entry.folderId ?? null,

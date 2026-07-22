@@ -109,7 +109,7 @@ function TweetPageInner({ historyId }: { historyId: string | null }) {
         {hasNoCelo && (
           <div className="p-4 rounded-xl bg-red-950/30 border border-red-900/60 text-xs text-red-200 font-mono leading-relaxed flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
-            <span>You need a small amount of CELO for gas fees (~0.001 CELO per prompt). Get CELO via MiniPay or any Celo exchange before using AI tools.</span>
+            <span>This wallet needs a small amount of CELO for gas fees (~0.001 CELO per prompt). Open MicroMind inside the MiniPay app instead for a fully gasless experience — no CELO required there.</span>
           </div>
         )}
 

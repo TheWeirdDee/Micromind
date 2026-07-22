@@ -130,7 +130,7 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
                 </p>
                 <div className="p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-2xl text-[10px] text-yellow-400/80 font-mono leading-relaxed text-center">
                   <AlertCircle className="w-3.5 h-3.5 inline-block mr-1.5 align-middle" />
-                  You will also need a minuscule amount of CELO (~0.001 CELO) in your wallet to cover transaction gas fees.
+                  External wallets like MetaMask need a minuscule amount of CELO (~0.001 CELO) to cover gas fees. Open MicroMind inside the MiniPay app instead for a fully gasless experience — no CELO required.
                 </div>
               </div>
 

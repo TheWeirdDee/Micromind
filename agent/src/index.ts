@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import Groq from 'groq-sdk';
 import { createPublicClient, http, decodeEventLog } from 'viem';
-import { celo, celoAlfajores } from 'viem/chains';
+import { celo } from 'viem/chains';
 import { MICROMIND_ABI, MICROMIND_STAKING_ABI } from './lib/contract';
 import { Resend } from 'resend';
 import {
@@ -17,12 +17,12 @@ import {
 } from './lib/relayer';
 import { decryptAESGCM } from './lib/crypto';
 import { supabase } from './lib/supabase';
+import type { Redis } from '@upstash/redis';
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
-const IS_TESTNET = process.env.IS_TESTNET === 'true';
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS as `0x${string}`;
 const STAKING_CONTRACT_ADDRESS = process.env.STAKING_CONTRACT_ADDRESS as `0x${string}`;
 
@@ -40,8 +40,58 @@ const publicClient = createPublicClient({
   transport: http('https://rpc.ankr.com/celo')
 });
 
-let useRedis = false;
-let redis: any = null;
+// Shared toolId -> name/price lookup for the authoritative prompt_history record
+// (never trust a client-supplied cost/name for that table).
+const TOOL_INFO: Record<number, { name: string; price: string }> = {
+  1: { name: 'Chat', price: '0.005' },
+  2: { name: 'Tweet', price: '0.005' },
+  3: { name: 'Reflect', price: '0.005' },
+  4: { name: 'Pattern', price: '0.005' },
+  5: { name: 'Letter', price: '0.01' },
+};
+
+/** Resolves a Supabase user id from an `Authorization: Bearer <token>` header. Never throws. */
+async function resolveUserId(authHeader?: string): Promise<string | null> {
+  if (!authHeader || !supabase) return null;
+  const token = authHeader.split(' ')[1];
+  if (!token) return null;
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user) return null;
+    return user.id;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Best-effort write to the authoritative prompt_history table.
+ * Never throws — a failed history write must never break the user's AI response.
+ */
+async function recordPromptHistory(row: {
+  user_id: string;
+  tool_id: number;
+  tool_name: string;
+  prompt: string;
+  response: string;
+  cost: string;
+  tx_hash: string;
+}): Promise<void> {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase
+      .from('prompt_history')
+      .upsert(row, { onConflict: 'tx_hash', ignoreDuplicates: true });
+    if (error) console.warn('[HISTORY] Failed to record prompt history:', error.message);
+  } catch (err) {
+    console.warn('[HISTORY] Failed to record prompt history:', err);
+  }
+}
+
+let redis: {
+  set: (key: string, value: string, options?: { ex: number }) => Promise<unknown>;
+  get: (key: string) => Promise<string | null>;
+} | null = null;
 
 async function initStorage() {
   if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
@@ -51,7 +101,6 @@ async function initStorage() {
         url: process.env.UPSTASH_REDIS_REST_URL,
         token: process.env.UPSTASH_REDIS_REST_TOKEN,
       });
-      useRedis = true;
       console.log('Using Upstash Redis for storage');
     } catch (e) {
       console.error('Failed to init Redis, falling back to memory', e);
@@ -64,7 +113,7 @@ async function initStorage() {
 const memoryStore = new Map<string, string>();
 
 async function storeData(key: string, value: string, ttl = 3600) {
-  if (useRedis) {
+  if (redis) {
     await redis.set(key, value, { ex: ttl });
   } else {
     memoryStore.set(key, value);
@@ -73,7 +122,7 @@ async function storeData(key: string, value: string, ttl = 3600) {
 }
 
 async function getData(key: string): Promise<string | null> {
-  if (useRedis) {
+  if (redis) {
     return await redis.get(key);
   }
   return memoryStore.get(key) ?? null;
@@ -117,8 +166,8 @@ async function sendEmail(to: string, senderName: string, content: string, isPoli
 
   const subject = `A letter for you, from ${senderName}`;
   const text = isPolished
-    ? `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app\n✨ This letter was enhanced with AI`
-    : `${content}\n\n---\nSent via MicroMind · https://micromind-three.vercel.app/app`;
+    ? `${content}\n\n---\nSent via MicroMind · https://micromindapp.xyz/app\n✨ This letter was enhanced with AI`
+    : `${content}\n\n---\nSent via MicroMind · https://micromindapp.xyz/app`;
 
   await resend.emails.send({
     from: RESEND_FROM,
@@ -144,12 +193,12 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
         finalPrompt = parsed.content || '';
         recipientEmail = parsed.recipientEmail || '';
         senderName = parsed.senderName || '';
-      } catch (e) {
+      } catch {
         console.log('[AI] Failed to parse JSON prompt for Letter tool, using raw prompt');
       }
     }
 
-    let messages: any[] = [
+    let messages: { role: string; content: string }[] = [
       { role: "system", content: SYSTEM_PROMPTS[toolId] ?? SYSTEM_PROMPTS[0] }
     ];
 
@@ -188,9 +237,10 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
     }
 
     return result;
-  } catch (error: any) {
-    console.error('[AI] Groq Error:', error.message);
-    return `AI generation failed: ${error.message}`;
+  } catch (error) {
+    const err = error as Error;
+    console.error('[AI] Groq Error:', err.message);
+    return `AI generation failed: ${err.message}`;
   }
 }
 
@@ -250,8 +300,9 @@ app.post('/api/reflection/email', async (req, res) => {
       text: `${greeting}\n\nHere's your MicroMind insight:\n\n${content}\n\n---\nGenerated privately on MicroMind · micromind.app`,
     });
     res.json({ success: true });
-  } catch (e: any) {
-    console.error('[REFLECTION EMAIL]', e.message);
+  } catch (e) {
+    const err = e as Error;
+    console.error('[REFLECTION EMAIL]', err.message);
     res.status(500).json({ error: 'Email delivery failed' });
   }
 });
@@ -267,9 +318,10 @@ app.post('/api/letter/send', async (req, res) => {
   try {
     await sendEmail(recipientEmail, senderName, content, false);
     res.json({ success: true });
-  } catch (e: any) {
-    console.error('[LETTER] Free send failed:', e);
-    res.status(500).json({ error: e.message || 'Email delivery failed' });
+  } catch (e) {
+    const err = e as Error;
+    console.error('[LETTER] Free send failed:', err);
+    res.status(500).json({ error: err.message || 'Email delivery failed' });
   }
 });
 
@@ -300,8 +352,9 @@ app.post('/api/letter/polish', async (req, res) => {
       try {
         await sendEmail(recipientEmail, senderName, polished, true);
         sent = true;
-      } catch (e: any) {
-        console.error('[POLISH] Email send failed:', e.message);
+      } catch (e) {
+        const err = e as Error;
+        console.error('[POLISH] Email send failed:', err.message);
       }
     }
 
@@ -310,9 +363,10 @@ app.post('/api/letter/polish', async (req, res) => {
     }
 
     res.json({ polishedContent: polished, sent });
-  } catch (e: any) {
-    console.error('[POLISH] Error:', e.message);
-    res.status(500).json({ error: e.message || 'Polish failed' });
+  } catch (e) {
+    const err = e as Error;
+    console.error('[POLISH] Error:', err.message);
+    res.status(500).json({ error: err.message || 'Polish failed' });
   }
 });
 
@@ -335,8 +389,9 @@ app.post('/api/coach', async (req, res) => {
         res.write(`data: ${JSON.stringify({ error: 'Invalid or pending payment transaction' })}\n\n`);
         return res.end();
       }
-    } catch (e: any) {
-      console.warn('[COACH] Tx verify failed (continuing for local/testnet development):', e.message);
+    } catch (e) {
+      const err = e as Error;
+      console.warn('[COACH] Tx verify failed (continuing for local/testnet development):', err.message);
     }
 
     // Call Groq streaming API
@@ -366,9 +421,10 @@ app.post('/api/coach', async (req, res) => {
 
     res.write('data: [DONE]\n\n');
     res.end();
-  } catch (err: any) {
-    console.error('[COACH STREAMING ERROR]', err);
-    res.write(`data: ${JSON.stringify({ error: err.message || 'AI coach failed' })}\n\n`);
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[COACH STREAMING ERROR]', errorVal);
+    res.write(`data: ${JSON.stringify({ error: errorVal.message || 'AI coach failed' })}\n\n`);
     res.end();
   }
 });
@@ -419,23 +475,26 @@ app.post('/api/cron/release-letters', async (req, res) => {
 
         if (updateError) throw updateError;
         successCount++;
-      } catch (err: any) {
-        console.error(`[CRON] Failed to release letter ${letter.id}:`, err.message);
+      } catch (err) {
+        const errorVal = err as Error;
+        console.error(`[CRON] Failed to release letter ${letter.id}:`, errorVal.message);
         try {
           await supabase
             .from('scheduled_letters')
             .update({ status: 'failed' })
             .eq('id', letter.id);
-        } catch (updateErr: any) {
-          console.error('[CRON] Failed to update status to failed:', updateErr.message);
+        } catch (updateErr) {
+          const updateErrorVal = updateErr as Error;
+          console.error('[CRON] Failed to update status to failed:', updateErrorVal.message);
         }
       }
     }
 
     res.json({ success: true, count: successCount });
-  } catch (err: any) {
-    console.error('[CRON ERROR]', err);
-    res.status(500).json({ error: err.message || 'Cron failed' });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[CRON ERROR]', errorVal);
+    res.status(500).json({ error: errorVal.message || 'Cron failed' });
   }
 });
 
@@ -451,8 +510,9 @@ app.post('/api/game/reframe', async (req, res) => {
       if (!receipt || receipt.status !== 'success') {
         return res.status(400).json({ error: 'Invalid or pending payment transaction' });
       }
-    } catch (e: any) {
-      console.warn('[GAME REFRAME] Tx verify failed (continuing for local/testnet development):', e.message);
+    } catch (e) {
+      const err = e as Error;
+      console.warn('[GAME REFRAME] Tx verify failed (continuing for local/testnet development):', err.message);
     }
 
     console.log('[GAME REFRAME] Querying AI reframe...');
@@ -483,9 +543,10 @@ Write in a comforting, friendly tone. Do not write anything else. Keep it under 
     await storeData(`resp:${txHash}`, cardText, 86400);
 
     res.json({ cardText });
-  } catch (err: any) {
-    console.error('[GAME REFRAME ERROR]', err);
-    res.status(500).json({ error: err.message || 'Failed to generate reframe' });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[GAME REFRAME ERROR]', errorVal);
+    res.status(500).json({ error: errorVal.message || 'Failed to generate reframe' });
   }
 });
 
@@ -501,8 +562,9 @@ app.post('/api/game/hint', async (req, res) => {
       if (!receipt || receipt.status !== 'success') {
         return res.status(400).json({ error: 'Invalid or pending payment transaction' });
       }
-    } catch (e: any) {
-      console.warn('[GAME HINT] Tx verify failed (continuing for local/testnet development):', e.message);
+    } catch (e) {
+      const err = e as Error;
+      console.warn('[GAME HINT] Tx verify failed (continuing for local/testnet development):', err.message);
     }
 
     console.log('[GAME HINT] Querying AI hint...');
@@ -529,9 +591,10 @@ Generate a short, warm hint (under 30 words) that describes the meaning of the t
     await storeData(`resp:${txHash}`, hintText, 86400);
 
     res.json({ hintText });
-  } catch (err: any) {
-    console.error('[GAME HINT ERROR]', err);
-    res.status(500).json({ error: err.message || 'Failed to generate hint' });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[GAME HINT ERROR]', errorVal);
+    res.status(500).json({ error: errorVal.message || 'Failed to generate hint' });
   }
 });
 
@@ -630,9 +693,10 @@ app.post('/api/quest/withdraw', async (req, res) => {
     console.log('[WITHDRAW] Transfer transaction sent:', txHash);
 
     res.json({ success: true, txHash, newPoints: newPointsCount });
-  } catch (err: any) {
-    console.error('[WITHDRAW ERROR]', err);
-    res.status(500).json({ error: err.message || 'Withdrawal failed' });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[WITHDRAW ERROR]', errorVal);
+    res.status(500).json({ error: errorVal.message || 'Withdrawal failed' });
   }
 });
 
@@ -645,15 +709,17 @@ app.post('/api/prompt/submit', async (req, res) => {
     return res.status(400).json({ error: 'Missing fields' });
   }
 
+  const userId = await resolveUserId(req.headers.authorization);
+
   const { keccak256, toBytes } = await import('viem');
   const nonce = reqNonce || Date.now().toString();
   const promptHash = keccak256(
     toBytes(`${prompt}:${userAddress}:${nonce}`)
   );
-  
+
   console.log('[SUBMIT] promptHash:', promptHash);
   await storeData(`prompt:${promptHash}`, JSON.stringify({
-    prompt, toolId: Number(toolId), user: userAddress, nonce
+    prompt, toolId: Number(toolId), user: userAddress, nonce, userId
   }));
   
   res.json({ promptHash });
@@ -692,18 +758,37 @@ app.get('/api/response/:txHash', async (req, res) => {
       topics: log.topics,
     });
 
-    const { promptHash, toolId } = event.args as any;
+    const { promptHash, toolId } = event.args as { promptHash?: string; toolId?: number | bigint };
     const storedStr = await getData(`prompt:${promptHash}`);
     if (!storedStr) {
       console.log('[RESPONSE] Prompt source not found for hash:', promptHash);
       return res.json({ status: 'prompt_not_found', promptHash });
     }
 
-    const { prompt } = JSON.parse(storedStr);
+    const { prompt, userId } = JSON.parse(storedStr);
     console.log('[RESPONSE] Calling AI for tool:', toolId);
-    const aiResponse = await callAI(toolId, prompt);
-    
+    if (toolId === undefined) {
+      console.log('[RESPONSE] toolId is undefined in event log');
+      return res.json({ status: 'pending' });
+    }
+    const parsedToolId = Number(toolId);
+    const aiResponse = await callAI(parsedToolId, prompt);
+
     await storeData(`resp:${txHash}`, aiResponse, 86400);
+
+    if (userId) {
+      const info = TOOL_INFO[parsedToolId];
+      recordPromptHistory({
+        user_id: userId,
+        tool_id: parsedToolId,
+        tool_name: info?.name ?? `Tool ${parsedToolId}`,
+        prompt,
+        response: aiResponse,
+        cost: info ? `${info.price} USDm` : 'unknown',
+        tx_hash: txHash,
+      });
+    }
+
     res.json({ status: 'ready', response: aiResponse });
   } catch (e) {
     console.error('[RESPONSE] Error:', e);
@@ -712,7 +797,7 @@ app.get('/api/response/:txHash', async (req, res) => {
 });
 
 app.post('/api/process-direct', async (req, res) => {
-  const { txHash, prompt, toolId, userAddress } = req.body;
+  const { txHash, prompt, toolId } = req.body;
   console.log('[DIRECT] Processing:', { txHash, toolId });
 
   // Validate toolId — must be an integer between 1 and 5 (inclusive)
@@ -723,16 +808,31 @@ app.post('/api/process-direct', async (req, res) => {
 
   try {
     const response = await callAI(parsedToolId, prompt);
-    
+
     await storeData(`resp:${txHash}`, response, 86400);
     console.log('[DIRECT] Success, response length:', response.length);
-    
+
+    const userId = await resolveUserId(req.headers.authorization);
+    if (userId) {
+      const info = TOOL_INFO[parsedToolId];
+      recordPromptHistory({
+        user_id: userId,
+        tool_id: parsedToolId,
+        tool_name: info?.name ?? `Tool ${parsedToolId}`,
+        prompt,
+        response,
+        cost: info ? `${info.price} USDm` : 'unknown',
+        tx_hash: txHash,
+      });
+    }
+
     res.json({ status: 'ready', response });
-  } catch (e: any) {
-    console.error('[DIRECT] Failed:', e.message);
+  } catch (e) {
+    const err = e as Error;
+    console.error('[DIRECT] Failed:', err.message);
     res.status(500).json({ 
       status: 'error', 
-      message: e.message 
+      message: err.message 
     });
   }
 });
@@ -747,6 +847,8 @@ app.post('/api/relay', async (req, res) => {
   if (!signature || !toolId || !promptHash || !userAddress || !nonce || !deadline || !prompt) {
     return res.status(400).json({ error: 'Missing required relay fields' });
   }
+
+  const userId = await resolveUserId(req.headers.authorization);
 
   const parsedToolId = parseInt(toolId, 10);
   if (!Number.isInteger(parsedToolId) || parsedToolId < 1 || parsedToolId > 5) {
@@ -793,9 +895,30 @@ app.post('/api/relay', async (req, res) => {
     const aiResponse = await callAI(parsedToolId, prompt);
     await storeData(`resp:${result.txHash}`, aiResponse, 86400);
     console.log(`[RELAY] AI cached under txHash: ${result.txHash}`);
+
+    if (userId) {
+      const info = TOOL_INFO[parsedToolId];
+      recordPromptHistory({
+        user_id: userId,
+        tool_id: parsedToolId,
+        tool_name: info?.name ?? `Tool ${parsedToolId}`,
+        prompt,
+        response: aiResponse,
+        cost: info ? `${info.price} USDm` : 'unknown',
+        tx_hash: result.txHash,
+      });
+    }
+
     res.json({ status: 'ready', txHash: result.txHash, response: aiResponse });
-  } catch (e: any) {
-    console.error('[RELAY] AI generation failed:', e.message);
+  } catch (e) {
+    const err = e as Error;
+    console.error('[RELAY] AI generation failed:', err.message);
+    // Payment went through but AI generation failed — cache the prompt context
+    // (mirroring /api/prompt/submit's shape) so a later /api/response/:txHash
+    // poll can still find it and attribute the eventual history record.
+    await storeData(`prompt:${promptHash}`, JSON.stringify({
+      prompt, toolId: parsedToolId, user: userAddress, nonce, userId
+    }));
     // Payment went through — return txHash so frontend can poll later
     res.json({ status: 'processing', txHash: result.txHash });
   }

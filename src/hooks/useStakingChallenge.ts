@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { erc20Abi, keccak256, toBytes } from 'viem';
+import { erc20Abi } from 'viem';
 import { celo } from 'viem/chains';
 import { useWallet } from '@/context/WalletContext';
 import { STAKING_CONTRACT_ADDRESS, MICROMIND_STAKING_ABI } from '@/lib/contract';
@@ -121,7 +121,7 @@ export function useStakingChallenge() {
       } else {
         setCheckedInDays([]);
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error('[STAKING] Failed to fetch challenge state:', e);
       setIsDeployed(false);
       setChallenge({ startTime: 0, checkInCount: 0, active: false, claimed: false });
@@ -130,12 +130,16 @@ export function useStakingChallenge() {
 
   // Load state on mount and address change
   useEffect(() => {
-    if (address) {
-      fetchChallengeState();
-    } else {
-      setChallenge(null);
-      setCheckedInDays([]);
-    }
+    const run = () => {
+      if (address) {
+        fetchChallengeState();
+      } else {
+        setChallenge(null);
+        setCheckedInDays([]);
+      }
+    };
+    const timer = setTimeout(run, 0);
+    return () => clearTimeout(timer);
   }, [address, fetchChallengeState]);
 
   /** Checks if user has checked in today (during current 24 hour window) */
@@ -180,7 +184,7 @@ export function useStakingChallenge() {
             args: [STAKING_CONTRACT_ADDRESS as `0x${string}`, params.stakeAmount],
             account: address as `0x${string}`,
             feeCurrency: USDm_ADDRESS as `0x${string}`,
-          } as any).catch(() => BigInt(100_000))
+          } as unknown as Parameters<typeof publicClient.estimateContractGas>[0]).catch(() => BigInt(100_000))
         : undefined;
 
       const approveTx = await walletClient.writeContract(Object.assign({
@@ -201,7 +205,7 @@ export function useStakingChallenge() {
       setStep('signing');
       const request = buildChallengeRelayRequest(1, '0x0000000000000000000000000000000000000000000000000000000000000000', address as `0x${string}`);
       const signature = await signChallengeRelayRequest(
-        walletClient as any,
+        walletClient as { signTypedData: (args: unknown) => Promise<`0x${string}`> },
         address as `0x${string}`,
         STAKING_CONTRACT_ADDRESS,
         request
@@ -227,9 +231,9 @@ export function useStakingChallenge() {
       setTxHash(res.txHash);
       setStep('complete');
       await fetchChallengeState();
-    } catch (e: any) {
+    } catch (e) {
       console.error('[STAKING] Start Challenge Failed:', e);
-      setError(e.message || 'Failed to start challenge');
+      setError((e as Error).message || 'Failed to start challenge');
       setStep('error');
     }
   }, [address, walletClient, params, agentUrl, isMiniPay, publicClient, fetchChallengeState]);
@@ -256,7 +260,7 @@ export function useStakingChallenge() {
       // Sign typed check-in message
       const request = buildChallengeRelayRequest(2, entryHash, address as `0x${string}`);
       const signature = await signChallengeRelayRequest(
-        walletClient as any,
+        walletClient as { signTypedData: (args: unknown) => Promise<`0x${string}`> },
         address as `0x${string}`,
         STAKING_CONTRACT_ADDRESS,
         request
@@ -282,9 +286,9 @@ export function useStakingChallenge() {
       setTxHash(res.txHash);
       setStep('complete');
       await fetchChallengeState();
-    } catch (e: any) {
+    } catch (e) {
       console.error('[STAKING] Check-In Failed:', e);
-      setError(e.message || 'Failed to check in');
+      setError((e as Error).message || 'Failed to check in');
       setStep('error');
     }
   }, [address, walletClient, agentUrl, fetchChallengeState]);
@@ -304,7 +308,7 @@ export function useStakingChallenge() {
       // Sign typed withdrawal message
       const request = buildChallengeRelayRequest(3, '0x0000000000000000000000000000000000000000000000000000000000000000', address as `0x${string}`);
       const signature = await signChallengeRelayRequest(
-        walletClient as any,
+        walletClient as { signTypedData: (args: unknown) => Promise<`0x${string}`> },
         address as `0x${string}`,
         STAKING_CONTRACT_ADDRESS,
         request
@@ -330,9 +334,9 @@ export function useStakingChallenge() {
       setTxHash(res.txHash);
       setStep('complete');
       await fetchChallengeState();
-    } catch (e: any) {
+    } catch (e) {
       console.error('[STAKING] Withdrawal Failed:', e);
-      setError(e.message || 'Failed to withdraw');
+      setError((e as Error).message || 'Failed to withdraw');
       setStep('error');
     }
   }, [address, walletClient, agentUrl, fetchChallengeState]);

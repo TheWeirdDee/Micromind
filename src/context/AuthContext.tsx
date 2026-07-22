@@ -20,6 +20,49 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Resolves the escrowed per-account journal encryption key, lazily generating
+ * and persisting one if this account predates the journal-encryption feature.
+ */
+async function resolveJournalKey(userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('journal_key_hex')
+    .eq('id', userId)
+    .maybeSingle();
+
+  // No profiles row at all — likely a signup in progress (the row is inserted
+  // moments after this can run, racing the SIGNED_IN listener). Don't generate
+  // a throwaway key that would never get persisted; signUp() sets the real
+  // one directly once its insert completes.
+  if (!data) return null;
+
+  if (data.journal_key_hex) return data.journal_key_hex;
+
+  // Row exists but has no key — a pre-existing account from before this
+  // feature shipped. Lazily generate and persist one now.
+  const { generateEncryptionKey } = await import('@/lib/crypto');
+  const newKey = await generateEncryptionKey();
+  const { error } = await supabase
+    .from('profiles')
+    .update({ journal_key_hex: newKey })
+    .eq('id', userId);
+  if (error) console.warn('Failed to persist new journal key', error);
+  return newKey;
+}
+
+async function hydrateJournalForSession(userId: string) {
+  const { setJournalKey } = await import('@/lib/journal');
+  const key = await resolveJournalKey(userId);
+  setJournalKey(key);
+  const { loadEntriesFromSupabase, migrateLocalEntriesToSupabase, syncOfflineQueue } = await import('@/lib/journal');
+  await loadEntriesFromSupabase();
+  await migrateLocalEntriesToSupabase();
+  await syncOfflineQueue();
+  const { loadHistoryFromSupabase } = await import('@/lib/storage');
+  await loadHistoryFromSupabase();
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -31,11 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       setLoading(false);
       if (session) {
-        import('@/lib/journal').then(({ loadEntriesFromSupabase, migrateLocalEntriesToSupabase, syncOfflineQueue }) => {
-          loadEntriesFromSupabase();
-          migrateLocalEntriesToSupabase();
-          syncOfflineQueue();
-        });
+        hydrateJournalForSession(session.user.id);
       }
     });
 
@@ -43,11 +82,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
-        import('@/lib/journal').then(({ loadEntriesFromSupabase, migrateLocalEntriesToSupabase, syncOfflineQueue }) => {
-          loadEntriesFromSupabase();
-          migrateLocalEntriesToSupabase();
-          syncOfflineQueue();
-        });
+        hydrateJournalForSession(session.user.id);
+      }
+      if (!session) {
+        import('@/lib/journal').then(({ setJournalKey }) => setJournalKey(null));
       }
       // Keep the profiles row in sync when an email change is confirmed
       if (session?.user?.email && event === 'USER_UPDATED') {
@@ -114,13 +152,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { session: freshSession } } = await supabase.auth.getSession();
     if (!freshSession?.user) throw new Error('Authentication session missing after signup.');
 
+    // Escrowed per-account key for encrypting journal content client-side (see resolveJournalKey)
+    const { generateEncryptionKey } = await import('@/lib/crypto');
+    const journalKeyHex = await generateEncryptionKey();
+
     // Insert profile row — now authenticated so RLS passes
     const { error: profileError } = await supabase.from('profiles').insert({
       id: freshSession.user.id,
       username: cleanUsername,
       email: cleanEmail,
+      journal_key_hex: journalKeyHex,
     });
     if (profileError) throw new Error('Could not save profile. Please try again.');
+
+    // Set the key directly rather than relying solely on the concurrent
+    // SIGNED_IN listener, which may race this insert and resolve to null.
+    import('@/lib/journal').then(({ setJournalKey }) => setJournalKey(journalKeyHex));
 
     // Seed local profile so settings page shows name/email immediately
     if (typeof window !== 'undefined') {

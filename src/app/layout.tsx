@@ -22,10 +22,10 @@ const ultra = Ultra({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL?.replace('/app', '') || 'https://micromind-three.vercel.app'),
-  title: "MicroMind | Pay-per-thought AI Agent",
-  description: "Stop paying for AI subscriptions. MicroMind offers premium AI tools with a simple pay-per-thought model using native CELO on Celo.",
-  keywords: ["AI", "Celo", "MiniPay", "Web3", "Pay-per-prompt", "Llama 3", "Crypto AI"],
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL?.replace('/app', '') || 'https://micromindapp.xyz'),
+  title: "MicroMind | Private Journaling on Celo",
+  description: "A cozy, private journal on Celo. Write your thoughts, trace emotional patterns, take on gamified Clarity Quests, and schedule encrypted letters to your future self — with optional AI reflection tools priced per prompt in USDm.",
+  keywords: ["Journaling", "Celo", "MiniPay", "Web3", "Privacy", "AI", "Mental Health", "Clarity Quest"],
   authors: [{ name: "MicroMind Team" }],
   icons: {
     icon: "/logo.svg",
@@ -33,9 +33,9 @@ export const metadata: Metadata = {
     apple: "/logo.svg",
   },
   openGraph: {
-    title: "MicroMind | Pay-per-thought AI",
-    description: "AI Tools That Cost What You Actually Use. No subscriptions. Just CELO.",
-    url: "https://micromind-three.vercel.app",
+    title: "MicroMind | Private Journaling on Celo",
+    description: "Embrace your inner clarity. A private, local-first journal with gamified Clarity Quests, encrypted future letters, and optional AI reflection tools — pay only for what you use, in USDm on Celo.",
+    url: "https://micromindapp.xyz",
     siteName: "MicroMind",
     images: [
       {
@@ -50,8 +50,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "MicroMind | AI That Costs What You Use",
-    description: "Premium AI journaling tools on Celo. Pay per prompt with USDm. No subscriptions.",
+    title: "MicroMind | Private Journaling on Celo",
+    description: "A private, local-first journal on Celo — Clarity Quests, encrypted future letters, and optional AI reflection tools priced per prompt in USDm.",
     images: ["/logo.svg"],
     creator: "@MicroMind_AI",
     site: "@MicroMind_AI",
@@ -70,9 +70,9 @@ export const metadata: Metadata = {
     // MiniPay mini-app declaration — detected by Talent Protocol indexer
     "minipay": "true",
     "minipay:name": "MicroMind",
-    "minipay:description": "Privacy-first AI journaling on Celo. Pay per prompt with USDm.",
-    "minipay:icon": "https://micromind-three.vercel.app/logo.svg",
-    "minipay:url": "https://micromind-three.vercel.app/app",
+    "minipay:description": "A private, local-first journal on Celo with gamified Clarity Quests and optional AI reflection tools, priced per prompt in USDm.",
+    "minipay:icon": "https://micromindapp.xyz/logo.svg",
+    "minipay:url": "https://micromindapp.xyz/app",
     "minipay:fee_currency": "0x765DE816845861e75A25fCA122bb6898B8B1282a",
   },
 };
