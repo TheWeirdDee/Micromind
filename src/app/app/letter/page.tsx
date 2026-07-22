@@ -399,7 +399,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
       {hasNoCelo && (
         <div className="p-4 rounded-xl bg-red-950/30 border border-red-900/60 text-xs text-red-200 font-mono leading-relaxed flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
-          <span>You need a small amount of CELO for gas fees. MiniPay users pay gasless via relayers.</span>
+          <span>This wallet needs a small amount of CELO for gas fees (~0.001 CELO per prompt). Open MicroMind inside the MiniPay app instead for a fully gasless experience — no CELO required there.</span>
         </div>
       )}
 
@@ -497,7 +497,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
               <div className="space-y-2">
                 <label className="font-mono text-[10px] uppercase text-text-muted tracking-widest px-2 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5 text-accent" />
-                  <span>Release Delivery Date</span>
+                  <span>Release Delivery Date (for this new letter)</span>
                 </label>
                 <input
                   type="datetime-local"
@@ -506,6 +506,9 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
                   disabled={sending || paidLoading}
                   className="w-full bg-surface-2 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:border-accent outline-none transition-colors"
                 />
+                <p className="font-mono text-[9px] text-text-muted/70 px-2 leading-relaxed">
+                  Defaults to tomorrow at the current time — pick any future date. This only sets the release time for the letter you're writing now; it never changes a letter you've already scheduled below.
+                </p>
               </div>
               <div className="flex items-center p-4 rounded-xl bg-surface-2/40 border border-border/60 text-[10px] font-mono text-text-muted leading-relaxed">
                 Letters are encrypted locally in your browser before saving. The server can decrypt and email it only when the release date arrives.
