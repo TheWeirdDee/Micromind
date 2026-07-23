@@ -89,6 +89,50 @@ async function recordPromptHistory(row: {
   }
 }
 
+/**
+ * Verifies a txHash is a real, successful, on-chain payment to CONTRACT_ADDRESS
+ * for the given toolId, and that it hasn't already been redeemed for an AI
+ * response — otherwise a fabricated or reused txHash lets anyone call a paid
+ * endpoint for free. Returns null if the payment is valid and unclaimed, or a
+ * user-facing error string otherwise. Any verification failure (including a
+ * receipt lookup throwing, e.g. for a malformed/never-mined hash) is treated
+ * as invalid — it must never fall through to a free AI call.
+ */
+async function verifyPaymentEvent(txHash: string, expectedToolId: number): Promise<string | null> {
+  if (await getData(`resp:${txHash}`)) {
+    return 'This payment has already been used.';
+  }
+
+  let receipt;
+  try {
+    receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+  } catch {
+    return 'Payment transaction not found.';
+  }
+  if (!receipt || receipt.status !== 'success') {
+    return 'Invalid or pending payment transaction.';
+  }
+
+  const log = receipt.logs.find(l => l.address.toLowerCase() === CONTRACT_ADDRESS.toLowerCase());
+  if (!log) {
+    return 'Transaction did not pay the MicroMind contract.';
+  }
+
+  let event;
+  try {
+    event = decodeEventLog({ abi: MICROMIND_ABI, eventName: 'PromptPaid', data: log.data, topics: log.topics });
+  } catch {
+    return 'Could not verify payment event.';
+  }
+
+  const { toolId } = event.args as { toolId?: number | bigint };
+  if (toolId === undefined || Number(toolId) !== expectedToolId) {
+    return 'Payment does not match the requested tool.';
+  }
+
+  return null;
+}
+
 let redis: {
   set: (key: string, value: string, options?: { ex: number }) => Promise<unknown>;
   get: (key: string) => Promise<string | null>;
@@ -285,6 +329,11 @@ app.post('/api/reflection/email', async (req, res) => {
   const { email, name, content, type } = req.body; // type: 'reflection' | 'pattern'
   if (!email || !content) return res.status(400).json({ error: 'Missing email or content' });
 
+  // Requires a real MicroMind session — ties every send to an accountable
+  // identity so this can't be used as an anonymous open email relay.
+  const senderId = await resolveUserId(req.headers.authorization);
+  if (!senderId) return res.status(401).json({ error: 'Sign in required to send email.' });
+
   if (!resend) return res.status(503).json({ error: 'Email not configured' });
 
   const subject = type === 'pattern'
@@ -316,6 +365,12 @@ app.post('/api/letter/send', async (req, res) => {
     return res.status(400).json({ error: 'Missing fields' });
   }
 
+  // Requires a real MicroMind session — this is a free feature, but without an
+  // auth check it doubles as an open, anonymous email relay for arbitrary
+  // content to arbitrary recipients.
+  const senderId = await resolveUserId(req.headers.authorization);
+  if (!senderId) return res.status(401).json({ error: 'Sign in required to send a letter.' });
+
   try {
     await sendEmail(recipientEmail, senderName, content, false);
     res.json({ success: true });
@@ -333,8 +388,18 @@ app.post('/api/letter/polish', async (req, res) => {
   if (!content || !senderName) {
     return res.status(400).json({ error: 'Missing required fields: content, senderName' });
   }
+  if (!txHash || typeof txHash !== 'string') {
+    return res.status(400).json({ error: 'Missing txHash' });
+  }
 
   try {
+    // Paid as tool 5 ("Letter" pricing, 0.01 USDm) — this previously had no
+    // payment check at all, unlike every other paid AI endpoint.
+    const verifyError = await verifyPaymentEvent(txHash, 5);
+    if (verifyError) {
+      return res.status(402).json({ error: verifyError });
+    }
+
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       max_tokens: 1024,
@@ -383,16 +448,11 @@ app.post('/api/coach', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
 
   try {
-    // Verify transaction exists on Celo
-    try {
-      const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
-      if (!receipt || receipt.status !== 'success') {
-        res.write(`data: ${JSON.stringify({ error: 'Invalid or pending payment transaction' })}\n\n`);
-        return res.end();
-      }
-    } catch (e) {
-      const err = e as Error;
-      console.warn('[COACH] Tx verify failed (continuing for local/testnet development):', err.message);
+    // Coach is always paid as tool 1 ("Chat" pricing) — see src/app/app/coach/page.tsx.
+    const verifyError = await verifyPaymentEvent(txHash, 1);
+    if (verifyError) {
+      res.write(`data: ${JSON.stringify({ error: verifyError })}\n\n`);
+      return res.end();
     }
 
     // Call Groq streaming API
@@ -435,7 +495,14 @@ app.post('/api/cron/release-letters', async (req, res) => {
 
   const authHeader = req.headers.authorization;
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  // Fail closed: this endpoint decrypts real letter content and sends real
+  // emails, so a missing CRON_SECRET must reject every request, not skip
+  // the check and let anyone call it.
+  if (!cronSecret) {
+    console.error('[CRON] FATAL: CRON_SECRET is not configured — refusing all requests.');
+    return res.status(503).json({ error: 'Cron endpoint not configured' });
+  }
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -506,14 +573,10 @@ app.post('/api/game/reframe', async (req, res) => {
   }
 
   try {
-    try {
-      const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
-      if (!receipt || receipt.status !== 'success') {
-        return res.status(400).json({ error: 'Invalid or pending payment transaction' });
-      }
-    } catch (e) {
-      const err = e as Error;
-      console.warn('[GAME REFRAME] Tx verify failed (continuing for local/testnet development):', err.message);
+    // Paid as tool 1 ("Chat" pricing) via payViaRelay(1, ...) — see quest/page.tsx.
+    const verifyError = await verifyPaymentEvent(txHash, 1);
+    if (verifyError) {
+      return res.status(402).json({ error: verifyError });
     }
 
     console.log('[GAME REFRAME] Querying AI reframe...');
@@ -558,14 +621,10 @@ app.post('/api/game/hint', async (req, res) => {
   }
 
   try {
-    try {
-      const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
-      if (!receipt || receipt.status !== 'success') {
-        return res.status(400).json({ error: 'Invalid or pending payment transaction' });
-      }
-    } catch (e) {
-      const err = e as Error;
-      console.warn('[GAME HINT] Tx verify failed (continuing for local/testnet development):', err.message);
+    // Paid as tool 1 ("Chat" pricing) via payViaRelay(1, ...) — see quest/page.tsx.
+    const verifyError = await verifyPaymentEvent(txHash, 1);
+    if (verifyError) {
+      return res.status(402).json({ error: verifyError });
     }
 
     console.log('[GAME HINT] Querying AI hint...');
@@ -975,8 +1034,16 @@ app.post('/api/process-direct', async (req, res) => {
   if (!Number.isInteger(parsedToolId) || parsedToolId < 1 || parsedToolId > 5) {
     return res.status(400).json({ error: 'Invalid toolId: must be an integer between 1 and 5' });
   }
+  if (!txHash || typeof txHash !== 'string') {
+    return res.status(400).json({ error: 'Missing txHash' });
+  }
 
   try {
+    const verifyError = await verifyPaymentEvent(txHash, parsedToolId);
+    if (verifyError) {
+      return res.status(402).json({ status: 'error', message: verifyError });
+    }
+
     const response = await callAI(parsedToolId, prompt);
 
     await storeData(`resp:${txHash}`, response, 86400);
