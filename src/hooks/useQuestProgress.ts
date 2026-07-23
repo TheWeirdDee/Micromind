@@ -20,6 +20,16 @@ const DEFAULT_STATE: QuestProgressState = {
   clarityPoints: 0,
 };
 
+/** Local cache shape — carries an updatedAt stamp so load-time merges can
+ * tell which copy (local vs remote) is genuinely newer, instead of assuming
+ * "more points" means "more recent." That assumption breaks for withdrawals,
+ * which legitimately *decrease* points — a stale local cache holding the
+ * pre-withdrawal total would otherwise look "ahead" and get pushed back up,
+ * resurrecting points that were already cashed out. */
+interface StoredProgress extends QuestProgressState {
+  updatedAt: number;
+}
+
 export function useQuestProgress(address: string | null) {
   const [state, setState] = useState<QuestProgressState>(DEFAULT_STATE);
   const [loading, setLoading] = useState(true);
@@ -53,13 +63,19 @@ export function useQuestProgress(address: string | null) {
         clarity_points: updated.clarityPoints,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
-      
+
       if (error) {
         console.error('[SYNC QUEST PROGRESS DATABASE ERROR]', error);
       }
     } catch (e) {
       console.error('[SYNC QUEST PROGRESS ERROR]', e);
     }
+  }, []);
+
+  /** Writes progress to localStorage stamped with the current time, for merge comparisons on next load. */
+  const persistLocal = useCallback((updated: QuestProgressState, key: string) => {
+    const stored: StoredProgress = { ...updated, updatedAt: Date.now() };
+    localStorage.setItem(key, JSON.stringify(stored));
   }, []);
 
   // Load progress
@@ -71,7 +87,7 @@ export function useQuestProgress(address: string | null) {
       }
       
       // 1. Try local storage first
-      let local: QuestProgressState | null = null;
+      let local: StoredProgress | null = null;
       const stored = localStorage.getItem(storageKey);
       if (stored) {
         try {
@@ -97,15 +113,18 @@ export function useQuestProgress(address: string | null) {
               completedLevels: data.completed_levels || [],
               clarityPoints: data.clarity_points || 0,
             };
+            const dbUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
 
-            // Merge local and remote, highest points / level wins
-            if (!local || dbState.clarityPoints >= local.clarityPoints) {
+            // Merge by recency, not by "more points wins" — a decrease (e.g. a
+            // withdrawal) is a legitimate, more-recent write that a stale local
+            // cache would otherwise look "behind" on and incorrectly overwrite.
+            if (!local || dbUpdatedAt >= local.updatedAt) {
               setState(dbState);
-              localStorage.setItem(storageKey, JSON.stringify(dbState));
+              persistLocal(dbState, storageKey);
               setLoading(false);
               return;
             } else {
-              // Local progress is ahead of remote, sync local state up
+              // Local has a genuinely newer write than remote (e.g. an offline solve) — push it up.
               setState(local);
               await pushToDatabase(local, dbUser.id);
               setLoading(false);
@@ -115,7 +134,7 @@ export function useQuestProgress(address: string | null) {
             // No record found on remote, initialize it with current local or DEFAULT_STATE
             const stateToPush = local || DEFAULT_STATE;
             setState(stateToPush);
-            localStorage.setItem(storageKey, JSON.stringify(stateToPush));
+            persistLocal(stateToPush, storageKey);
             await pushToDatabase(stateToPush, dbUser.id);
             setLoading(false);
             return;
@@ -138,7 +157,7 @@ export function useQuestProgress(address: string | null) {
     }
  
     loadProgress();
-  }, [dbUser, storageKey, pushToDatabase]);
+  }, [dbUser, storageKey, pushToDatabase, persistLocal]);
 
   // Complete current stage
   const solveStage = useCallback(async (pointsEarned: number) => {
@@ -173,7 +192,7 @@ export function useQuestProgress(address: string | null) {
     };
 
     setState(updated);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
+    persistLocal(updated, storageKey);
 
     // Update Streak check-in daily habit
     const getLocalDateString = (d: Date) => {
@@ -189,27 +208,27 @@ export function useQuestProgress(address: string | null) {
     if (dbUser) {
       await pushToDatabase(updated, dbUser.id);
     }
-  }, [state, storageKey, dbUser, pushToDatabase, address]);
+  }, [state, storageKey, dbUser, pushToDatabase, address, persistLocal]);
 
   // Deduct points (on withdrawal)
   const deductPoints = useCallback(async (amount: number) => {
     const nextPoints = Math.max(0, state.clarityPoints - amount);
     const updated = { ...state, clarityPoints: nextPoints };
     setState(updated);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
+    persistLocal(updated, storageKey);
     if (dbUser) {
       await pushToDatabase(updated, dbUser.id);
     }
-  }, [state, storageKey, dbUser, pushToDatabase]);
+  }, [state, storageKey, dbUser, pushToDatabase, persistLocal]);
 
   // Reset Progress (dev or helper option)
   const resetProgress = useCallback(async () => {
     setState(DEFAULT_STATE);
-    localStorage.setItem(storageKey, JSON.stringify(DEFAULT_STATE));
+    persistLocal(DEFAULT_STATE, storageKey);
     if (dbUser) {
       await pushToDatabase(DEFAULT_STATE, dbUser.id);
     }
-  }, [storageKey, dbUser, pushToDatabase]);
+  }, [storageKey, dbUser, pushToDatabase, persistLocal]);
 
   return {
     progress: state,
