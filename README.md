@@ -1,4 +1,4 @@
-# 🧠 MicroMind — Privacy-First AI Journaling & Gamified Scribe on Celo
+# MicroMind — Privacy-First AI Journaling & Gamified Scribe on Celo
 
 MicroMind is a mobile-first, privacy-first AI journaling app built on Celo and designed for MiniPay. Write freely with no cost. Pay only when you want an AI insight — a few cents at a time in USDm, every transaction verifiable onchain. Play our gamified Clarity Quest to sharpen your cognitive reframing, earn gameplay points, and cash them out directly to stablecoins.
 
@@ -7,11 +7,11 @@ MicroMind is a mobile-first, privacy-first AI journaling app built on Celo and d
 Built for MiniPay users across Africa and beyond.
 
 > Live Dapp: [micromindapp.xyz](https://micromindapp.xyz)  
-> Live AI Relayer: [strong-possibility-production.up.railway.app](https://strong-possibility-production.up.railway.app)
+> Live AI Relayer: [micromind-production.up.railway.app](https://micromind-production.up.railway.app)
 
 ---
 
-## 🎨 Feature Ecosystem
+## Feature Ecosystem
 
 | Feature / Tool | Price | Description |
 | :--- | :--- | :--- |
@@ -29,7 +29,7 @@ Built for MiniPay users across Africa and beyond.
 
 ---
 
-## 🎮 Clarity Quest (Gamified CBT Scribe)
+## Clarity Quest (Gamified CBT Scribe)
 
 The flagship mini-game in MicroMind is **Clarity Quest**. Instead of a mindless distraction, it is an active self-awareness tool:
 * **The Concept:** You are presented with a cognitive distortion (e.g. catastrophizing) and a flat sentence. You must unscramble the scrambled letters to find the emotionally precise **target CBT word** (e.g. *APPRECIATIVE*, *COURAGEOUS*) that reframes the thought.
@@ -42,7 +42,7 @@ The flagship mini-game in MicroMind is **Clarity Quest**. Instead of a mindless 
 
 ---
 
-## 🔒 Client-Side Escrow Letters (AES-GCM-256)
+## Client-Side Escrow Letters (AES-GCM-256)
 
 Write messages to your future self or loved ones and lock them in digital escrow:
 1. **Zero-Knowledge Encryption:** Letters are encrypted directly on your device using the **Web Crypto API (AES-GCM-256)**. The plaintext content never touches our servers.
@@ -51,7 +51,7 @@ Write messages to your future self or loved ones and lock them in digital escrow
 
 ---
 
-## ⚡ Gasless Web3 Architecture
+## Gasless Web3 Architecture
 
 MicroMind is optimized to run smoothly on low-end smartphones in emerging markets:
 * **Gasless Relayer (EIP-712):** Users sign their payment approvals off-chain (0 gas, 0 transaction complexity). Our backend Express relayer submits the transaction on-chain, paying gas in native CELO on Celo mainnet.
@@ -60,7 +60,7 @@ MicroMind is optimized to run smoothly on low-end smartphones in emerging market
 
 ---
 
-## 🛠️ Tech Stack & Environment Setup
+## Tech Stack & Environment Setup
 
 * **Frontend:** Next.js 16 (App Router), React 19, Framer Motion v12, Tailwind CSS v4.
 * **Database & Auth:** Supabase Auth (Row Level Security enabled) + PostgreSQL.
@@ -75,6 +75,7 @@ Create a `/.env.local` file in the root directory:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 NEXT_PUBLIC_CONTRACT_ADDRESS=0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c
+NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS=0xe57C982D669869673750d46a935A97eC756A2281
 NEXT_PUBLIC_AGENT_API_URL=https://your-hosted-agent.up.railway.app
 RESEND_API_KEY=re_your_resend_api_key
 RESEND_FROM_EMAIL=letters@yourdomain.com
@@ -84,6 +85,7 @@ Create a `/agent/.env` file in the agent directory:
 ```env
 PORT=3001
 CONTRACT_ADDRESS=0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c
+STAKING_CONTRACT_ADDRESS=0xe57C982D669869673750d46a935A97eC756A2281
 PRIVATE_KEY=0x_your_developer_relayer_wallet_private_key
 GROQ_API_KEY=gsk_your_groq_api_key
 RESEND_API_KEY=re_your_resend_api_key
@@ -91,11 +93,12 @@ SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-redis-token
+CRON_SECRET=your-shared-secret-for-the-release-letters-cron
 ```
 
 ---
 
-## 💾 Database Schema
+## Database Schema
 
 Execute the following script in the Supabase SQL editor:
 ```sql
@@ -157,7 +160,7 @@ CREATE POLICY "Users manage own quest progress" ON public.quest_progress FOR ALL
 
 ---
 
-## 🏃 Local Run & Build
+## Local Run & Build
 
 1. **Install Dependencies:**
    ```bash
@@ -173,5 +176,5 @@ CREATE POLICY "Users manage own quest progress" ON public.quest_progress FOR ALL
 
 ---
 
-## 📄 License
+## License
 MIT — Crafted for Celo's Proof of Ship competition. Built for frictionless mobile web3 adoption.
