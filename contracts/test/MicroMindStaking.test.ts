@@ -275,6 +275,41 @@ describe("MicroMindStaking", function () {
       await expect(staking.connect(user).withdrawExcess(100n))
         .to.be.revertedWithCustomError(staking, "OwnableUnauthorizedAccount");
     });
+
+    it("Should NOT retroactively apply setParams to an already-active challenge", async function () {
+      // User starts under the original terms: 5 USDm stake, 30-day duration, 25 required check-ins.
+      await usdm.connect(user).approve(await staking.getAddress(), STAKE_AMOUNT);
+      await staking.connect(user).startChallenge();
+
+      // Owner drastically changes the terms mid-challenge — this must not affect `user`.
+      await staking.connect(owner).setParams(
+        ethers.parseUnits("10", 18), // new stake — double the original
+        0n,                          // new duration — would let anyone withdraw instantly
+        0n,                          // new required check-ins — would count as "completed" with zero
+        0n                           // new reward — would zero out any reward
+      );
+
+      // The malicious/careless duration=0 would satisfy withdraw's time check immediately
+      // under the OLD (buggy) logic. Confirm it still respects the user's original 30-day term.
+      await expect(staking.connect(user).withdraw()).to.be.revertedWithCustomError(staking, "ChallengeNotEnded");
+
+      // Complete 25 check-ins under the ORIGINAL snapshotted duration/requirement.
+      const entryHash = ethers.keccak256(ethers.toUtf8Bytes("entry"));
+      await staking.connect(user).checkIn(entryHash);
+      for (let i = 0; i < 24; i++) {
+        await ethers.provider.send("evm_increaseTime", [86400]);
+        await staking.connect(user).checkIn(ethers.keccak256(ethers.toUtf8Bytes(`entry-${i}`)));
+      }
+      await ethers.provider.send("evm_increaseTime", [6 * 86400]); // finish out the original 30-day term
+
+      const balanceBefore = await usdm.balanceOf(user.address);
+      await expect(staking.connect(user).withdraw())
+        .to.emit(staking, "ChallengeEnded")
+        .withArgs(user.address, 25, true, STAKE_AMOUNT + REWARD_AMOUNT, anyTimestamp());
+
+      // Payout matches the ORIGINAL 5 USDm stake + 0.5 USDm reward, not the new (10 USDm stake, 0 reward) terms.
+      expect(await usdm.balanceOf(user.address)).to.equal(balanceBefore + STAKE_AMOUNT + REWARD_AMOUNT);
+    });
   });
 });
 
