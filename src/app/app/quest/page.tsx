@@ -677,11 +677,19 @@ export default function QuestPage() {
       return;
     }
 
-    const pointsEarned = hasForfeited ? 0 : progress.currentLevel;
+    if (!activeLevel) return;
     try {
       localStorage.removeItem(timerStorageKey);
     } catch {}
-    await solveStage(pointsEarned);
+
+    const submittedWord = selectedIndices.map(idx => shuffledLetters[idx]).join('');
+    const result = await solveStage(activeLevel.levelNumber, activeStageIndex, submittedWord, hasForfeited);
+    if (!result.success) {
+      setErrorModal({
+        title: 'Could not save progress',
+        message: result.error || 'Something went wrong recording this stage. Please refresh and try again.',
+      });
+    }
   };
 
   // Reset progress and clean all timer records

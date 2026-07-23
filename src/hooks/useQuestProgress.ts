@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { setDailyHabitState } from '@/lib/journal';
-import { QUEST_LEVELS } from '@/constants/levels';
 
 const PROGRESS_KEY = 'mm_quest_progress';
 
@@ -20,14 +19,9 @@ const DEFAULT_STATE: QuestProgressState = {
   clarityPoints: 0,
 };
 
-/** Local cache shape — carries an updatedAt stamp so load-time merges can
- * tell which copy (local vs remote) is genuinely newer, instead of assuming
- * "more points" means "more recent." That assumption breaks for withdrawals,
- * which legitimately *decrease* points — a stale local cache holding the
- * pre-withdrawal total would otherwise look "ahead" and get pushed back up,
- * resurrecting points that were already cashed out. */
-interface StoredProgress extends QuestProgressState {
-  updatedAt: number;
+async function getAccessToken(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? null;
 }
 
 export function useQuestProgress(address: string | null) {
@@ -52,30 +46,12 @@ export function useQuestProgress(address: string | null) {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Push updates to database
-  const pushToDatabase = useCallback(async (updated: QuestProgressState, userId: string) => {
-    try {
-      const { error } = await supabase.from('quest_progress').upsert({
-        user_id: userId,
-        current_level: updated.currentLevel,
-        current_stage: updated.currentStage,
-        completed_levels: updated.completedLevels,
-        clarity_points: updated.clarityPoints,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
-
-      if (error) {
-        console.error('[SYNC QUEST PROGRESS DATABASE ERROR]', error);
-      }
-    } catch (e) {
-      console.error('[SYNC QUEST PROGRESS ERROR]', e);
-    }
-  }, []);
-
-  /** Writes progress to localStorage stamped with the current time, for merge comparisons on next load. */
+  /** Writes progress to a local cache for fast reads on next mount. This is a
+   * read-through cache only — the agent backend is the sole writer of
+   * clarity_points (see docs/quest_security_hardening.sql); the client never
+   * pushes financial state directly anymore. */
   const persistLocal = useCallback((updated: QuestProgressState, key: string) => {
-    const stored: StoredProgress = { ...updated, updatedAt: Date.now() };
-    localStorage.setItem(key, JSON.stringify(stored));
+    localStorage.setItem(key, JSON.stringify(updated));
   }, []);
 
   // Load progress
@@ -85,9 +61,8 @@ export function useQuestProgress(address: string | null) {
       if (!hasLocalData) {
         setLoading(true);
       }
-      
-      // 1. Try local storage first
-      let local: StoredProgress | null = null;
+
+      let local: QuestProgressState | null = null;
       const stored = localStorage.getItem(storageKey);
       if (stored) {
         try {
@@ -95,7 +70,6 @@ export function useQuestProgress(address: string | null) {
         } catch {}
       }
 
-      // 2. Try Supabase if logged in
       if (dbUser) {
         try {
           const { data, error } = await supabase
@@ -106,39 +80,21 @@ export function useQuestProgress(address: string | null) {
 
           if (error) throw error;
 
-          if (data) {
-            const dbState: QuestProgressState = {
-              currentLevel: data.current_level,
-              currentStage: data.current_stage,
-              completedLevels: data.completed_levels || [],
-              clarityPoints: data.clarity_points || 0,
-            };
-            const dbUpdatedAt = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+          // Remote (written only by the agent) is always authoritative once it
+          // exists. If no row exists yet, the first solve/reset call creates one
+          // server-side — there's nothing for the client to push up anymore.
+          const dbState: QuestProgressState | null = data ? {
+            currentLevel: data.current_level,
+            currentStage: data.current_stage,
+            completedLevels: data.completed_levels || [],
+            clarityPoints: data.clarity_points || 0,
+          } : null;
 
-            // Merge by recency, not by "more points wins" — a decrease (e.g. a
-            // withdrawal) is a legitimate, more-recent write that a stale local
-            // cache would otherwise look "behind" on and incorrectly overwrite.
-            if (!local || dbUpdatedAt >= local.updatedAt) {
-              setState(dbState);
-              persistLocal(dbState, storageKey);
-              setLoading(false);
-              return;
-            } else {
-              // Local has a genuinely newer write than remote (e.g. an offline solve) — push it up.
-              setState(local);
-              await pushToDatabase(local, dbUser.id);
-              setLoading(false);
-              return;
-            }
-          } else {
-            // No record found on remote, initialize it with current local or DEFAULT_STATE
-            const stateToPush = local || DEFAULT_STATE;
-            setState(stateToPush);
-            persistLocal(stateToPush, storageKey);
-            await pushToDatabase(stateToPush, dbUser.id);
-            setLoading(false);
-            return;
-          }
+          const resolved = dbState ?? local ?? DEFAULT_STATE;
+          setState(resolved);
+          persistLocal(resolved, storageKey);
+          setLoading(false);
+          return;
         } catch (e: unknown) {
           const err = e as { code?: string; message?: string };
           console.error('[LOAD QUEST PROGRESS ERROR]', err);
@@ -147,7 +103,7 @@ export function useQuestProgress(address: string | null) {
           }
         }
       }
- 
+
       if (local) {
         setState(local);
       } else {
@@ -155,80 +111,94 @@ export function useQuestProgress(address: string | null) {
       }
       setLoading(false);
     }
- 
+
     loadProgress();
-  }, [dbUser, storageKey, pushToDatabase, persistLocal]);
+  }, [dbUser, storageKey, persistLocal]);
 
-  // Complete current stage
-  const solveStage = useCallback(async (pointsEarned: number) => {
-    const levelConfig = QUEST_LEVELS.find(l => l.levelNumber === state.currentLevel);
-    if (!levelConfig) return;
+  /**
+   * Submits a solved stage to the agent, which independently verifies the
+   * answer against its own copy of the level data and only advances/awards
+   * points server-side (see POST /api/quest/solve in agent/src/index.ts).
+   * The client no longer computes or pushes clarityPoints itself.
+   */
+  const solveStage = useCallback(async (levelNumber: number, stageIndex: number, submittedWord: string, forfeited: boolean) => {
+    const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+    if (!agentUrl) {
+      console.error('[QUEST SOLVE] Agent URL not configured');
+      return { success: false, error: 'Agent URL not configured' };
+    }
 
-    const totalStages = levelConfig.stages.length;
-    let nextLevel = state.currentLevel;
-    let nextStage = state.currentStage + 1;
-    let nextCompleted = [...state.completedLevels];
+    const token = await getAccessToken();
+    if (!token) {
+      return { success: false, error: 'Not signed in' };
+    }
 
-    // Earn Clarity Points
-    const nextPoints = state.clarityPoints + pointsEarned;
+    try {
+      const res = await fetch(`${agentUrl}/api/quest/solve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ levelNumber, stageIndex, submittedWord, forfeited }),
+      });
+      const data = await res.json();
 
-    // Check if level is completed
-    if (nextStage > totalStages) {
-      nextCompleted = Array.from(new Set([...nextCompleted, state.currentLevel]));
-      if (state.currentLevel < 10) {
-        nextLevel = state.currentLevel + 1;
-        nextStage = 1;
-      } else {
-        // Mastered Level 10
-        nextStage = totalStages; // lock at final stage
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.error || 'Failed to record stage solve' };
       }
+
+      const updated: QuestProgressState = data.progress;
+      setState(updated);
+      persistLocal(updated, storageKey);
+
+      const getLocalDateString = (d: Date) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      setDailyHabitState(getLocalDateString(new Date()), { gameplayDone: true }, address);
+
+      return { success: true, pointsEarned: data.pointsEarned as number };
+    } catch (e) {
+      console.error('[QUEST SOLVE ERROR]', e);
+      return { success: false, error: 'Network error' };
     }
+  }, [storageKey, address, persistLocal]);
 
-    const updated: QuestProgressState = {
-      currentLevel: nextLevel,
-      currentStage: nextStage,
-      completedLevels: nextCompleted,
-      clarityPoints: nextPoints,
-    };
-
-    setState(updated);
-    persistLocal(updated, storageKey);
-
-    // Update Streak check-in daily habit
-    const getLocalDateString = (d: Date) => {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-    const todayStr = getLocalDateString(new Date());
-    setDailyHabitState(todayStr, { gameplayDone: true }, address);
-
-    // Sync to Supabase
-    if (dbUser) {
-      await pushToDatabase(updated, dbUser.id);
-    }
-  }, [state, storageKey, dbUser, pushToDatabase, address, persistLocal]);
-
-  // Deduct points (on withdrawal)
-  const deductPoints = useCallback(async (amount: number) => {
+  /** Reflects a withdrawal locally — the agent's /api/quest/withdraw endpoint
+   * is the one that actually deducts clarity_points server-side; this just
+   * keeps the UI/local cache in sync with what it already did. */
+  const deductPoints = useCallback((amount: number) => {
     const nextPoints = Math.max(0, state.clarityPoints - amount);
     const updated = { ...state, clarityPoints: nextPoints };
     setState(updated);
     persistLocal(updated, storageKey);
-    if (dbUser) {
-      await pushToDatabase(updated, dbUser.id);
-    }
-  }, [state, storageKey, dbUser, pushToDatabase, persistLocal]);
+  }, [state, storageKey, persistLocal]);
 
-  // Reset Progress (dev or helper option)
+  // Reset Progress — safe to keep simple since it only ever zeroes state, never grants value.
   const resetProgress = useCallback(async () => {
-    setState(DEFAULT_STATE);
-    persistLocal(DEFAULT_STATE, storageKey);
-    if (dbUser) {
-      await pushToDatabase(DEFAULT_STATE, dbUser.id);
+    const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+    const token = await getAccessToken();
+    if (!agentUrl || !token) {
+      setState(DEFAULT_STATE);
+      persistLocal(DEFAULT_STATE, storageKey);
+      return;
     }
-  }, [storageKey, dbUser, pushToDatabase, persistLocal]);
+
+    try {
+      const res = await fetch(`${agentUrl}/api/quest/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      const updated: QuestProgressState = data.progress ?? DEFAULT_STATE;
+      setState(updated);
+      persistLocal(updated, storageKey);
+    } catch (e) {
+      console.error('[QUEST RESET ERROR]', e);
+      setState(DEFAULT_STATE);
+      persistLocal(DEFAULT_STATE, storageKey);
+    }
+  }, [storageKey, persistLocal]);
 
   return {
     progress: state,
