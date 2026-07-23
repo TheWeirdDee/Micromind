@@ -36,6 +36,14 @@ contract MicroMindStaking is Ownable {
         uint16 checkInCount;
         bool active;
         bool claimed;
+        // Terms snapshotted at startChallenge/startChallengeFor time. setParams()
+        // must only affect challenges started AFTER the change — _checkIn and
+        // _withdraw read exclusively from these fields, never from the mutable
+        // global stakeAmount/challengeDuration/requiredCheckins/rewardAmount.
+        uint256 stakedAmount;
+        uint256 duration;
+        uint256 requiredCheckinsSnapshot;
+        uint256 rewardAmountSnapshot;
     }
 
     mapping(address => Challenge) public challenges;
@@ -129,24 +137,36 @@ contract MicroMindStaking is Ownable {
     function _startChallenge(address user) internal {
         if (challenges[user].active) revert ChallengeAlreadyActive();
 
-        bool ok = USDm.transferFrom(user, address(this), stakeAmount);
+        // Snapshot current terms — everything below reads these snapshotted
+        // values, not the mutable globals, so a later setParams() call cannot
+        // retroactively change the deal for a challenge already in progress.
+        uint256 snapshotStake = stakeAmount;
+        uint256 snapshotDuration = challengeDuration;
+        uint256 snapshotRequiredCheckins = requiredCheckins;
+        uint256 snapshotReward = rewardAmount;
+
+        bool ok = USDm.transferFrom(user, address(this), snapshotStake);
         if (!ok) revert TransferFailed();
 
-        totalStaked += stakeAmount;
+        totalStaked += snapshotStake;
 
         challenges[user] = Challenge({
             startTime: block.timestamp,
             checkInCount: 0,
             active: true,
-            claimed: false
+            claimed: false,
+            stakedAmount: snapshotStake,
+            duration: snapshotDuration,
+            requiredCheckinsSnapshot: snapshotRequiredCheckins,
+            rewardAmountSnapshot: snapshotReward
         });
 
-        // Reset check-in records for duration in case of re-entry
-        for (uint256 i = 0; i < challengeDuration; i++) {
+        // Reset check-in records for this challenge's snapshotted duration in case of re-entry
+        for (uint256 i = 0; i < snapshotDuration; i++) {
             checkedInDays[user][i] = false;
         }
 
-        emit ChallengeStarted(user, block.timestamp, stakeAmount);
+        emit ChallengeStarted(user, block.timestamp, snapshotStake);
     }
 
     function _checkIn(address user, bytes32 entryHash) internal {
@@ -156,7 +176,7 @@ contract MicroMindStaking is Ownable {
         uint256 elapsed = block.timestamp - c.startTime;
         uint256 dayIndex = elapsed / 1 days;
 
-        if (dayIndex >= challengeDuration) revert DayIndexOutOfBounds();
+        if (dayIndex >= c.duration) revert DayIndexOutOfBounds();
         if (checkedInDays[user][dayIndex]) revert AlreadyCheckedInToday();
 
         checkedInDays[user][dayIndex] = true;
@@ -168,24 +188,24 @@ contract MicroMindStaking is Ownable {
     function _withdraw(address user) internal {
         Challenge storage c = challenges[user];
         if (!c.active) revert NoActiveChallenge();
-        if (block.timestamp < c.startTime + (challengeDuration * 1 days)) revert ChallengeNotEnded();
+        if (block.timestamp < c.startTime + (c.duration * 1 days)) revert ChallengeNotEnded();
 
         c.active = false;
         c.claimed = true;
 
-        uint256 payout = stakeAmount;
-        bool completed = c.checkInCount >= requiredCheckins;
+        uint256 payout = c.stakedAmount;
+        bool completed = c.checkInCount >= c.requiredCheckinsSnapshot;
 
         if (completed) {
             uint256 pool = rewardPoolBalance();
-            uint256 rewardPayout = rewardAmount;
+            uint256 rewardPayout = c.rewardAmountSnapshot;
             if (rewardPayout > pool) {
                 rewardPayout = pool; // Cap at available reward pool to prevent revert and protect principal
             }
             payout += rewardPayout;
         }
 
-        totalStaked -= stakeAmount;
+        totalStaked -= c.stakedAmount;
 
         bool ok = USDm.transfer(user, payout);
         if (!ok) revert TransferFailed();
@@ -246,11 +266,14 @@ contract MicroMindStaking is Ownable {
     }
 
     /**
-     * @notice Get check-in status of a user for all days
+     * @notice Get check-in status of a user for all days of THEIR challenge
+     *         (the duration snapshotted when they started, not the current
+     *         global default — those can differ once setParams() has run).
      */
     function getCheckedInDays(address user) external view returns (bool[] memory) {
-        bool[] memory result = new bool[](challengeDuration);
-        for (uint256 i = 0; i < challengeDuration; i++) {
+        uint256 duration = challenges[user].duration > 0 ? challenges[user].duration : challengeDuration;
+        bool[] memory result = new bool[](duration);
+        for (uint256 i = 0; i < duration; i++) {
             result[i] = checkedInDays[user][i];
         }
         return result;

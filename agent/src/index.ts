@@ -929,6 +929,58 @@ app.post('/api/quest/reset', async (req, res) => {
   }
 });
 
+// ─── Quest Vocabulary Route ───────────────────────────────────────────────
+// quest_vocabulary is a personal word-definitions cache with no points/
+// currency tied to it — the content itself isn't a security boundary, so
+// unlike /api/quest/solve this doesn't re-derive the vocabulary server-side.
+// What it DOES enforce is that the row is written by the agent under the
+// caller's own verified user_id (docs/quest_vocabulary_hardening.sql revokes
+// direct client writes), not that the definition/examples/synonyms are correct.
+app.post('/api/quest/vocabulary', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const { stageId, levelName, category, targetWord, definition, examples, synonyms } = req.body;
+
+  if (!authHeader || !stageId || !levelName || !category || !targetWord || !definition) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(400).json({ error: 'Invalid auth token format' });
+  }
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database service not configured on backend relayer' });
+  }
+
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Unauthorized or invalid session' });
+    }
+
+    const { error } = await supabase.from('quest_vocabulary').upsert(
+      {
+        user_id: user.id,
+        stage_id: stageId,
+        level_name: levelName,
+        category,
+        target_word: targetWord,
+        definition,
+        examples: examples || [],
+        synonyms: synonyms || [],
+        unlocked_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,stage_id' }
+    );
+
+    if (error) throw new Error(error.message);
+    res.json({ success: true });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[QUEST VOCABULARY ERROR]', errorVal);
+    res.status(500).json({ error: errorVal.message || 'Failed to save vocabulary entry' });
+  }
+});
+
 app.post('/api/prompt/submit', async (req, res) => {
   console.log('[SUBMIT] Received:', req.body);
   const { prompt, toolId, userAddress, nonce: reqNonce } = req.body;
