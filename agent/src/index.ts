@@ -656,7 +656,7 @@ app.post('/api/quest/withdraw', async (req, res) => {
     const newPointsCount = progress.clarity_points - points;
     const { error: updateError } = await supabase
       .from('quest_progress')
-      .update({ clarity_points: newPointsCount })
+      .update({ clarity_points: newPointsCount, updated_at: new Date().toISOString() })
       .eq('user_id', user.id);
 
     if (updateError) {
