@@ -165,10 +165,17 @@ export default function QuestPage() {
 
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showRewardsModal, setShowRewardsModal] = useState(false);
-  // Guide/intro modal: auto-opens for players who have never solved a stage
-  // (below, gated on progressLoading so it doesn't flash on before progress resolves).
-  // Stays reachable any time via the header's Guide button for everyone else.
+
+  // Full tutorial modal — auto-opens for players who have never solved a stage,
+  // and re-surfaces once a day as a refresher. Always reachable via the header's Guide button.
   const [showGuide, setShowGuide] = useState(false);
+  const guideSeenKey = address ? `mm_quest_guide_seen_${address}` : 'mm_quest_guide_seen';
+  const GUIDE_REFRESH_MS = 24 * 60 * 60 * 1000; // re-show once a day
+
+  // Lightweight per-stage gate — every stage, every player must tap "Start" before
+  // the timer begins. This is the fix for the timer starting (and burning points)
+  // the instant the page loads, before anyone has had a chance to read anything.
+  const [stageStarted, setStageStarted] = useState(false);
 
   // Tab state in sidebar
   const [sidebarTab, setSidebarTab] = useState<'levels' | 'dictionary' | 'cards'>('levels');
@@ -423,18 +430,28 @@ export default function QuestPage() {
     }
   }, [activeStage]);
 
-  // Auto-open the guide for players who have never solved a single stage.
+  // Auto-open the full guide for players who have never solved a single stage,
+  // and re-surface it once a day as a refresher for everyone else.
   // Runs once progress finishes loading so it doesn't fire on the default (pre-load) state.
   useEffect(() => {
     if (progressLoading) return;
-    if (progress.completedLevels.length === 0 && progress.clarityPoints === 0) {
+    const neverPlayed = progress.completedLevels.length === 0 && progress.clarityPoints === 0;
+    let lastSeen = 0;
+    try { lastSeen = Number(localStorage.getItem(guideSeenKey)) || 0; } catch {}
+    if (neverPlayed || Date.now() - lastSeen > GUIDE_REFRESH_MS) {
       setShowGuide(true);
     }
-  }, [progressLoading, progress.completedLevels.length, progress.clarityPoints]);
+  }, [progressLoading, progress.completedLevels.length, progress.clarityPoints, guideSeenKey]);
+
+  // Reset the per-stage start gate whenever the active level/stage changes,
+  // so every stage — new or already-seen — requires an explicit tap to begin.
+  useEffect(() => {
+    setStageStarted(false);
+  }, [displayLevelNumber, displayStageNumber, isReviewing]);
 
   // Reset stage letters and load/initialize timer when level/stage changes
   useEffect(() => {
-    if (showGuide) return; // don't start/persist the timer until the intro is dismissed
+    if (showGuide || !stageStarted) return; // don't start/persist the timer until the player has started
     const timer = setTimeout(() => {
       setSelectedIndices([]);
       setIsSolved(false);
@@ -483,13 +500,13 @@ export default function QuestPage() {
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [progress.currentLevel, progress.currentStage, timerStorageKey, isReviewing, showGuide]);
+  }, [progress.currentLevel, progress.currentStage, timerStorageKey, isReviewing, showGuide, stageStarted]);
 
   // Timer Countdown Effect
   useEffect(() => {
     // If they have already forfeited, do NOT run the countdown timer at all!
-    if (progressLoading || isSolved || isFailed || !activeStage || isReviewing || hasForfeited || showGuide) return;
- 
+    if (progressLoading || isSolved || isFailed || !activeStage || isReviewing || hasForfeited || showGuide || !stageStarted) return;
+
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -504,13 +521,14 @@ export default function QuestPage() {
         return prev - 1;
       });
     }, 1000);
- 
+
     return () => clearInterval(timer);
-  }, [progressLoading, isSolved, isFailed, activeStage, timerStorageKey, isReviewing, hasForfeited, showGuide]);
+  }, [progressLoading, isSolved, isFailed, activeStage, timerStorageKey, isReviewing, hasForfeited, showGuide, stageStarted]);
 
   // Handle letter select by index
   const handleSelectLetter = (letter: string, index: number) => {
     if (isSolved || isFailed || !activeStage || !activeLevel) return;
+    if (!isReviewing && !stageStarted) return;
     const targetLength = activeStage.targetWord.length;
     if (selectedIndices.length >= targetLength) return;
 
@@ -1307,6 +1325,25 @@ export default function QuestPage() {
             <div className="bg-surface border border-border p-5 sm:p-6 rounded-2xl relative overflow-hidden space-y-6">
               <div className="absolute inset-0 halftone-bg opacity-5 pointer-events-none" />
 
+              {/* Per-stage start gate — every stage, every player, must tap Start before the timer begins */}
+              {!stageStarted && !showGuide && !isReviewing && (
+                <div className="absolute inset-0 z-20 bg-bg/95 backdrop-blur-sm flex flex-col items-center justify-center text-center p-6 space-y-4">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-accent font-bold">
+                    Lvl {displayLevelNumber} - Stage {displayStageNumber}
+                  </span>
+                  <h3 className="font-serif text-2xl font-bold text-text-primary">Ready?</h3>
+                  <p className="text-xs font-mono text-text-muted max-w-xs leading-relaxed">
+                    You&apos;ll have 2 minutes once you start. Take a moment to read the sentence below before the clock begins.
+                  </p>
+                  <button
+                    onClick={() => setStageStarted(true)}
+                    className="pill-button pill-button-primary py-3 px-8 text-xs font-mono font-bold flex items-center gap-2"
+                  >
+                    <Play className="w-3.5 h-3.5" /> Start Stage
+                  </button>
+                </div>
+              )}
+
               {/* Header inside canvas */}
               <div className="flex justify-between items-center relative z-10 border-b border-border/50 pb-3 text-left">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between w-full">
@@ -2050,7 +2087,11 @@ export default function QuestPage() {
               </div>
 
               <button
-                onClick={() => setShowGuide(false)}
+                onClick={() => {
+                  try { localStorage.setItem(guideSeenKey, String(Date.now())); } catch {}
+                  setShowGuide(false);
+                  setStageStarted(true);
+                }}
                 className="pill-button pill-button-primary w-full py-3 text-xs font-mono font-bold"
               >
                 Got it, let&apos;s play
