@@ -313,23 +313,26 @@ export default function QuestPage() {
     unlockedAt: getCurrentTimestamp(),
   }), []);
 
-  const syncVocabularyEntryToSupabase = async (entry: VocabularyEntry, userId: string) => {
+  const syncVocabularyEntryToSupabase = async (entry: VocabularyEntry, accessToken: string) => {
     try {
-      const { error } = await supabase.from('quest_vocabulary').upsert(
-        {
-          user_id: userId,
-          stage_id: entry.id,
-          level_name: entry.levelName,
+      const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+      if (!agentUrl) return;
+
+      const res = await fetch(`${agentUrl}/api/quest/vocabulary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          stageId: entry.id,
+          levelName: entry.levelName,
           category: entry.category,
-          target_word: entry.targetWord,
+          targetWord: entry.targetWord,
           definition: entry.definition,
           examples: entry.examples,
           synonyms: entry.synonyms,
-          unlocked_at: new Date(entry.unlockedAt).toISOString(),
-        },
-        { onConflict: 'user_id,stage_id' }
-      );
-      if (error) throw error;
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to save vocabulary entry');
       setVocabDbWarning(false);
     } catch (err) {
       const errorVal = err as { code?: string; message?: string };
@@ -618,8 +621,8 @@ export default function QuestPage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await syncVocabularyEntryToSupabase(pendingDictionaryEntry, session.user.id);
+      if (session?.access_token) {
+        await syncVocabularyEntryToSupabase(pendingDictionaryEntry, session.access_token);
       }
     } catch (err) {
       console.warn('[ADD TO DICTIONARY ERROR]', err);
