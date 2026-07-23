@@ -26,8 +26,7 @@ export function AppHeader() {
           <Logo className="h-[20px] w-auto" />
         </Link>
 
-        <div className="flex items-center gap-1 overflow-hidden min-w-0">
-          <WalletBadge />
+        <div className="flex items-center gap-1 min-w-0">
           {isConnected && (
             <button
               onClick={handleDisconnect}
@@ -46,6 +45,11 @@ export function AppHeader() {
           >
             <Settings className="w-4 h-4" />
           </Link>
+          {/* Settings/disconnect must never get clipped — WalletBadge is the one
+              that shrinks/truncates when space is tight (e.g. narrow MiniPay webviews). */}
+          <div className="min-w-0 overflow-hidden">
+            <WalletBadge />
+          </div>
         </div>
       </div>
     </header>

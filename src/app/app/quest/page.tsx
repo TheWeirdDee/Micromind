@@ -165,6 +165,10 @@ export default function QuestPage() {
 
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showRewardsModal, setShowRewardsModal] = useState(false);
+  // Guide/intro modal: auto-opens for players who have never solved a stage
+  // (below, gated on progressLoading so it doesn't flash on before progress resolves).
+  // Stays reachable any time via the header's Guide button for everyone else.
+  const [showGuide, setShowGuide] = useState(false);
 
   // Tab state in sidebar
   const [sidebarTab, setSidebarTab] = useState<'levels' | 'dictionary' | 'cards'>('levels');
@@ -419,8 +423,18 @@ export default function QuestPage() {
     }
   }, [activeStage]);
 
+  // Auto-open the guide for players who have never solved a single stage.
+  // Runs once progress finishes loading so it doesn't fire on the default (pre-load) state.
+  useEffect(() => {
+    if (progressLoading) return;
+    if (progress.completedLevels.length === 0 && progress.clarityPoints === 0) {
+      setShowGuide(true);
+    }
+  }, [progressLoading, progress.completedLevels.length, progress.clarityPoints]);
+
   // Reset stage letters and load/initialize timer when level/stage changes
   useEffect(() => {
+    if (showGuide) return; // don't start/persist the timer until the intro is dismissed
     const timer = setTimeout(() => {
       setSelectedIndices([]);
       setIsSolved(false);
@@ -469,12 +483,12 @@ export default function QuestPage() {
     }, 0);
 
     return () => clearTimeout(timer);
-  }, [progress.currentLevel, progress.currentStage, timerStorageKey, isReviewing]);
+  }, [progress.currentLevel, progress.currentStage, timerStorageKey, isReviewing, showGuide]);
 
   // Timer Countdown Effect
   useEffect(() => {
     // If they have already forfeited, do NOT run the countdown timer at all!
-    if (progressLoading || isSolved || isFailed || !activeStage || isReviewing || hasForfeited) return;
+    if (progressLoading || isSolved || isFailed || !activeStage || isReviewing || hasForfeited || showGuide) return;
  
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -492,7 +506,7 @@ export default function QuestPage() {
     }, 1000);
  
     return () => clearInterval(timer);
-  }, [progressLoading, isSolved, isFailed, activeStage, timerStorageKey, isReviewing, hasForfeited]);
+  }, [progressLoading, isSolved, isFailed, activeStage, timerStorageKey, isReviewing, hasForfeited, showGuide]);
 
   // Handle letter select by index
   const handleSelectLetter = (letter: string, index: number) => {
@@ -1260,18 +1274,29 @@ export default function QuestPage() {
           </div>
         </div>
 
-        {/* Score metrics & Reward mobile trigger */}
-        <div className="flex items-center gap-2 bg-surface-2 border border-border px-3 sm:px-4 py-2 rounded-2xl">
-          <div className="flex items-center gap-1.5 text-accent-gold">
-            <Trophy className="w-4 h-4" />
-            <span className="font-mono text-xs font-bold">{progress.clarityPoints} pts</span>
-          </div>
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowRewardsModal(true)}
-            className="text-[9px] font-mono bg-accent/25 hover:bg-accent/40 text-accent px-2 py-0.5 rounded-lg border border-accent/40 font-bold shadow-sm transition-all"
+            onClick={() => setShowGuide(true)}
+            title="How to play"
+            aria-label="Open guide"
+            className="p-2 border border-border rounded-xl hover:bg-surface-2 transition-colors text-text-muted hover:text-accent"
           >
-            Reward
+            <HelpCircle className="w-4 h-4" />
           </button>
+
+          {/* Score metrics & Reward mobile trigger */}
+          <div className="flex items-center gap-2 bg-surface-2 border border-border px-3 sm:px-4 py-2 rounded-2xl">
+            <div className="flex items-center gap-1.5 text-accent-gold">
+              <Trophy className="w-4 h-4" />
+              <span className="font-mono text-xs font-bold">{progress.clarityPoints} pts</span>
+            </div>
+            <button
+              onClick={() => setShowRewardsModal(true)}
+              className="text-[9px] font-mono bg-accent/25 hover:bg-accent/40 text-accent px-2 py-0.5 rounded-lg border border-accent/40 font-bold shadow-sm transition-all"
+            >
+              Reward
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1997,7 +2022,44 @@ export default function QuestPage() {
           </div>
         )}
       </AnimatePresence>
- 
+
+      {/* Guide / Intro Modal — auto-opens for first-time players, always reachable via the header's Guide button */}
+      <AnimatePresence>
+        {showGuide && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-surface border border-border p-6 rounded-3xl max-w-md w-full text-left shadow-2xl relative overflow-hidden space-y-5 max-h-[85vh] overflow-y-auto"
+            >
+              <div className="halftone-bg absolute inset-0 opacity-5 pointer-events-none" />
+
+              <div className="text-center space-y-2">
+                <div className="w-14 h-14 bg-accent/15 border border-accent/30 rounded-full flex items-center justify-center mx-auto text-2xl">
+                  🧩
+                </div>
+                <h3 className="font-serif text-xl font-bold text-accent">How Clarity Quest works</h3>
+              </div>
+
+              <div className="space-y-3 text-xs font-mono text-text-muted leading-relaxed">
+                <p><strong className="text-text-primary">1. Read the sentence.</strong> Each stage gives you a sentence with a blank and a clue about the emotional word that completes it.</p>
+                <p><strong className="text-text-primary">2. Tap the scrambled letters in order</strong> to spell that word. Get stuck? A paid AI clue is always available.</p>
+                <p><strong className="text-text-primary">3. You have 2 minutes per stage</strong> — the clock starts as soon as you close this guide, not before. Running out just forfeits that stage&apos;s points; it never locks you out of playing.</p>
+                <p><strong className="text-text-primary">4. Solve it</strong> to earn Clarity Points and unlock a card + a vocabulary entry you can revisit anytime from the sidebar.</p>
+              </div>
+
+              <button
+                onClick={() => setShowGuide(false)}
+                className="pill-button pill-button-primary w-full py-3 text-xs font-mono font-bold"
+              >
+                Got it, let&apos;s play
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
     </div>
   );
