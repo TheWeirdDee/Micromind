@@ -17,6 +17,7 @@ import {
 } from './lib/relayer';
 import { decryptAESGCM } from './lib/crypto';
 import { supabase } from './lib/supabase';
+import { getStageCount, getTargetWord, TOTAL_LEVELS } from './lib/quest-levels';
 import type { Redis } from '@upstash/redis';
 
 dotenv.config();
@@ -598,19 +599,6 @@ Generate a short, warm hint (under 30 words) that describes the meaning of the t
   }
 });
 
-app.get('/api/quest/debug', async (req, res) => {
-  const url = process.env.SUPABASE_URL || 'https://vxjibxhedfeyzddvfxdn.supabase.co';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  
-  res.json({
-    supabaseUrl: url,
-    hasServiceKey: !!key,
-    serviceKeyLength: key ? key.length : 0,
-    serviceKeyPrefix: key ? key.substring(0, 7) : 'none',
-    envKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE') || k.includes('KEY') || k.includes('URL') || k.includes('SECRET')),
-  });
-});
-
 app.post('/api/quest/withdraw', async (req, res) => {
   const authHeader = req.headers.authorization;
   const { userAddress, points } = req.body;
@@ -642,8 +630,8 @@ app.post('/api/quest/withdraw', async (req, res) => {
 
     if (progressError || !progress) {
       console.error('[WITHDRAW ERROR] Database fetch failed for user', user.id, ':', progressError);
-      return res.status(404).json({ 
-        error: `Quest progress record not found. Details: ${progressError?.message || 'No record found on Supabase. Try logging out and logging back in to force a sync.'}` 
+      return res.status(404).json({
+        error: `Quest progress record not found. Details: ${progressError?.message || 'No record found on Supabase. Try logging out and logging back in to force a sync.'}`
       });
     }
 
@@ -653,14 +641,24 @@ app.post('/api/quest/withdraw', async (req, res) => {
 
     const amountWei = BigInt(points) * 500_000_000_000_000n;
 
+    // Compare-and-swap on the balance we just read — guards against two concurrent
+    // withdrawals both passing the balance check above and both paying out, since
+    // only the request whose WHERE clause still matches the untouched balance will
+    // affect a row. If a concurrent request already moved the balance, zero rows
+    // come back and we abort here, before any on-chain transfer is attempted.
     const newPointsCount = progress.clarity_points - points;
-    const { error: updateError } = await supabase
+    const { data: updatedRows, error: updateError } = await supabase
       .from('quest_progress')
       .update({ clarity_points: newPointsCount, updated_at: new Date().toISOString() })
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .eq('clarity_points', progress.clarity_points)
+      .select();
 
     if (updateError) {
       throw new Error(`Failed to update points record: ${updateError.message}`);
+    }
+    if (!updatedRows || updatedRows.length === 0) {
+      return res.status(409).json({ error: 'Your balance changed. Please refresh and try again.' });
     }
 
     const privateKey = process.env.PRIVATE_KEY as `0x${string}`;
@@ -697,6 +695,178 @@ app.post('/api/quest/withdraw', async (req, res) => {
     const errorVal = err as Error;
     console.error('[WITHDRAW ERROR]', errorVal);
     res.status(500).json({ error: errorVal.message || 'Withdrawal failed' });
+  }
+});
+
+const DEFAULT_QUEST_STATE = {
+  current_level: 1,
+  current_stage: 1,
+  completed_levels: [] as number[],
+  clarity_points: 0,
+};
+
+// ─── Quest Solve Route ────────────────────────────────────────────────────
+// The client can no longer write clarity_points directly (RLS now blocks
+// it — see docs/quest_security_hardening.sql). Instead it submits the word
+// it assembled, and this endpoint independently verifies it against the
+// server's own copy of the level data (agent/src/lib/quest-levels.ts)
+// before granting any points, and only advances the row via a compare-and-
+// swap on the caller's *current* level/stage so a race can't double-award.
+app.post('/api/quest/solve', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const { levelNumber, stageIndex, submittedWord, forfeited } = req.body;
+
+  if (
+    !authHeader ||
+    typeof levelNumber !== 'number' ||
+    typeof stageIndex !== 'number' ||
+    typeof submittedWord !== 'string'
+  ) {
+    return res.status(400).json({ error: 'Missing or invalid fields' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(400).json({ error: 'Invalid auth token format' });
+  }
+
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database service not configured on backend relayer' });
+  }
+
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Unauthorized or invalid session' });
+    }
+
+    const stageNumber = stageIndex + 1;
+
+    let { data: progress } = await supabase
+      .from('quest_progress')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!progress) {
+      const { data: inserted, error: insertError } = await supabase
+        .from('quest_progress')
+        .insert({ user_id: user.id, ...DEFAULT_QUEST_STATE, updated_at: new Date().toISOString() })
+        .select()
+        .single();
+      if (insertError || !inserted) {
+        throw new Error(`Failed to initialize quest progress: ${insertError?.message}`);
+      }
+      progress = inserted;
+    }
+
+    if (levelNumber !== progress.current_level || stageNumber !== progress.current_stage) {
+      return res.status(409).json({ error: 'Stage mismatch — refresh your progress and try again.' });
+    }
+
+    const expectedWord = getTargetWord(levelNumber, stageNumber);
+    if (!expectedWord || submittedWord.trim().toUpperCase() !== expectedWord) {
+      return res.status(400).json({ error: 'Incorrect answer.' });
+    }
+
+    const totalStages = getStageCount(levelNumber);
+    let nextLevel = levelNumber;
+    let nextStage = stageNumber + 1;
+    let nextCompleted: number[] = [...(progress.completed_levels || [])];
+    const pointsEarned = forfeited ? 0 : levelNumber;
+
+    if (nextStage > totalStages) {
+      nextCompleted = Array.from(new Set([...nextCompleted, levelNumber]));
+      if (levelNumber < TOTAL_LEVELS) {
+        nextLevel = levelNumber + 1;
+        nextStage = 1;
+      } else {
+        nextStage = totalStages;
+      }
+    }
+
+    const nextPoints = (progress.clarity_points || 0) + pointsEarned;
+
+    // Compare-and-swap on the exact (level, stage) we validated against — a
+    // concurrent duplicate solve of the same stage will find zero rows here
+    // once the first request commits, since current_stage will have moved on.
+    const { data: updatedRows, error: updateError } = await supabase
+      .from('quest_progress')
+      .update({
+        current_level: nextLevel,
+        current_stage: nextStage,
+        completed_levels: nextCompleted,
+        clarity_points: nextPoints,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id)
+      .eq('current_level', levelNumber)
+      .eq('current_stage', stageNumber)
+      .select()
+      .single();
+
+    if (updateError || !updatedRows) {
+      return res.status(409).json({ error: 'Stage already advanced — refresh your progress.' });
+    }
+
+    res.json({
+      success: true,
+      progress: {
+        currentLevel: updatedRows.current_level,
+        currentStage: updatedRows.current_stage,
+        completedLevels: updatedRows.completed_levels || [],
+        clarityPoints: updatedRows.clarity_points || 0,
+      },
+      pointsEarned,
+    });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[QUEST SOLVE ERROR]', errorVal);
+    res.status(500).json({ error: errorVal.message || 'Failed to record stage solve' });
+  }
+});
+
+// ─── Quest Reset Route ────────────────────────────────────────────────────
+// Resetting only ever zeroes a user's own progress, never grants value, so
+// this is safe to expose without the compare-and-swap machinery above.
+app.post('/api/quest/reset', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(400).json({ error: 'Missing auth header' });
+  }
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(400).json({ error: 'Invalid auth token format' });
+  }
+  if (!supabase) {
+    return res.status(500).json({ error: 'Database service not configured on backend relayer' });
+  }
+
+  try {
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Unauthorized or invalid session' });
+    }
+
+    const { error } = await supabase
+      .from('quest_progress')
+      .upsert({ user_id: user.id, ...DEFAULT_QUEST_STATE, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+
+    if (error) throw new Error(error.message);
+
+    res.json({
+      success: true,
+      progress: {
+        currentLevel: DEFAULT_QUEST_STATE.current_level,
+        currentStage: DEFAULT_QUEST_STATE.current_stage,
+        completedLevels: DEFAULT_QUEST_STATE.completed_levels,
+        clarityPoints: DEFAULT_QUEST_STATE.clarity_points,
+      },
+    });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[QUEST RESET ERROR]', errorVal);
+    res.status(500).json({ error: errorVal.message || 'Failed to reset progress' });
   }
 });
 
