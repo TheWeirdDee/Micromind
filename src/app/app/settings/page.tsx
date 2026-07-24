@@ -23,6 +23,18 @@ interface UserProfile {
   onboardedAt: number;
 }
 
+/** Converts the VAPID public key (base64url) into the Uint8Array format PushManager.subscribe() expects. */
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 type DestructiveAction = 'clearHistory' | 'clearJournal' | 'resetAll' | 'deleteAccount';
 
 const ACTION_META: Record<DestructiveAction, { title: string; description: string; consequences: string[] }> = {
@@ -306,20 +318,84 @@ export default function SettingsPage() {
     }
   };
 
+  const [reminderBusy, setReminderBusy] = useState(false);
+  const [reminderError, setReminderError] = useState<string | null>(null);
+
+  // Reflect the real push-subscription state on load, not just the localStorage flag —
+  // e.g. if the user cleared site data or the permission was revoked in the browser.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    navigator.serviceWorker.getRegistration('/sw.js').then(async (registration) => {
+      const subscription = await registration?.pushManager.getSubscription();
+      setRemindersEnabled(!!subscription);
+      localStorage.setItem('mm_daily_reminder', subscription ? 'true' : 'false');
+    }).catch(() => {});
+  }, []);
+
   const toggleReminders = async () => {
+    setReminderError(null);
+
     if (!remindersEnabled) {
-      if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (!user) {
+        setReminderError('Sign in to enable reminders.');
+        return;
+      }
+      if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setReminderError('Push notifications are not supported in this browser.');
+        return;
+      }
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapidKey) {
+        setReminderError('Reminders are not configured yet.');
+        return;
+      }
+
+      setReminderBusy(true);
+      try {
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
-          alert('Notification permission denied. Please allow notifications in your browser settings to enable reminders.');
+          setReminderError('Notification permission denied. Allow notifications in your browser settings to enable reminders.');
           return;
         }
+
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
+        });
+
+        const json = subscription.toJSON();
+        const { error } = await supabase.from('push_subscriptions').upsert({
+          user_id: user.id,
+          endpoint: json.endpoint,
+          p256dh: json.keys?.p256dh,
+          auth: json.keys?.auth,
+        }, { onConflict: 'endpoint' });
+        if (error) throw error;
+
+        localStorage.setItem('mm_daily_reminder', 'true');
+        setRemindersEnabled(true);
+      } catch (e) {
+        setReminderError(e instanceof Error ? e.message : 'Failed to enable reminders.');
+      } finally {
+        setReminderBusy(false);
       }
-      localStorage.setItem('mm_daily_reminder', 'true');
-      setRemindersEnabled(true);
     } else {
-      localStorage.setItem('mm_daily_reminder', 'false');
-      setRemindersEnabled(false);
+      setReminderBusy(true);
+      try {
+        const registration = await navigator.serviceWorker.getRegistration('/sw.js');
+        const subscription = await registration?.pushManager.getSubscription();
+        if (subscription) {
+          await supabase.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint);
+          await subscription.unsubscribe();
+        }
+      } catch (e) {
+        console.warn('Failed to fully clean up push subscription:', e);
+      } finally {
+        localStorage.setItem('mm_daily_reminder', 'false');
+        setRemindersEnabled(false);
+        setReminderBusy(false);
+      }
     }
   };
 
@@ -677,19 +753,25 @@ export default function SettingsPage() {
                 <h3 className="font-mono text-[10px] uppercase tracking-widest text-text-muted">Utilities & Reminders</h3>
               </div>
               <div className="bg-surface border border-border rounded-2xl overflow-hidden divide-y divide-border">
-                <div className="flex items-center justify-between px-5 py-4">
-                  <div>
-                    <p className="font-mono text-xs text-text-primary">Daily Writing Reminders</p>
-                    <p className="font-mono text-[10px] text-text-muted mt-0.5">Receive browser notifications to write daily</p>
+                <div className="px-5 py-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-mono text-xs text-text-primary">Daily Writing Reminders</p>
+                      <p className="font-mono text-[10px] text-text-muted mt-0.5">Get a real notification if you haven&apos;t journaled in 24h</p>
+                    </div>
+                    <button
+                      onClick={toggleReminders}
+                      disabled={reminderBusy}
+                      className={`w-12 h-6 rounded-full p-1 transition-colors relative duration-200 focus:outline-none disabled:opacity-50 ${
+                        remindersEnabled ? 'bg-accent' : 'bg-surface-2 border border-border'
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full bg-bg shadow-sm transition-transform duration-200 ${remindersEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
                   </div>
-                  <button
-                    onClick={toggleReminders}
-                    className={`w-12 h-6 rounded-full p-1 transition-colors relative duration-200 focus:outline-none ${
-                      remindersEnabled ? 'bg-accent' : 'bg-surface-2 border border-border'
-                    }`}
-                  >
-                    <div className={`w-4 h-4 rounded-full bg-bg shadow-sm transition-transform duration-200 ${remindersEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-                  </button>
+                  {reminderError && (
+                    <p className="font-mono text-[10px] text-accent-red">{reminderError}</p>
+                  )}
                 </div>
 
                 <button onClick={exportJournal} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">
