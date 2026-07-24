@@ -18,6 +18,7 @@ import {
 import { decryptAESGCM } from './lib/crypto';
 import { supabase } from './lib/supabase';
 import { getStageCount, getTargetWord, TOTAL_LEVELS } from './lib/quest-levels';
+import webpush from 'web-push';
 import type { Redis } from '@upstash/redis';
 
 dotenv.config();
@@ -35,6 +36,17 @@ if (!CONTRACT_ADDRESS || CONTRACT_ADDRESS === '0x0000000000000000000000000000000
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+const vapidConfigured = !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.VAPID_SUBJECT);
+if (vapidConfigured) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT as string,
+    process.env.VAPID_PUBLIC_KEY as string,
+    process.env.VAPID_PRIVATE_KEY as string,
+  );
+} else {
+  console.warn('[STARTUP] VAPID keys not configured — /api/cron/send-reminder-pushes will be a no-op.');
+}
 
 const publicClient = createPublicClient({
   chain: celo,
@@ -559,6 +571,100 @@ app.post('/api/cron/release-letters', async (req, res) => {
     }
 
     res.json({ success: true, count: successCount });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[CRON ERROR]', errorVal);
+    res.status(500).json({ error: errorVal.message || 'Cron failed' });
+  }
+});
+
+// ─── Reminder Push Cron ───────────────────────────────────────────────────
+// Sends a real Web Push notification to anyone who hasn't journaled in 24h
+// and hasn't already been reminded in roughly the last day. Runs hourly via
+// .github/workflows/send-reminder-pushes-cron.yml.
+app.post('/api/cron/send-reminder-pushes', async (req, res) => {
+  console.log('[CRON] Starting reminder push check...');
+
+  const authHeader = req.headers.authorization;
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error('[CRON] FATAL: CRON_SECRET is not configured — refusing all requests.');
+    return res.status(503).json({ error: 'Cron endpoint not configured' });
+  }
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!supabase) {
+    return res.status(500).json({ error: 'Supabase client not initialized (missing service role key)' });
+  }
+  if (!vapidConfigured) {
+    return res.status(503).json({ error: 'VAPID keys not configured on this server' });
+  }
+
+  try {
+    const { data: subscriptions, error: fetchError } = await supabase
+      .from('push_subscriptions')
+      .select('*');
+
+    if (fetchError) throw fetchError;
+
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log('[CRON] No push subscriptions to check.');
+      return res.json({ success: true, sent: 0 });
+    }
+
+    let sentCount = 0;
+    const now = Date.now();
+
+    for (const sub of subscriptions) {
+      try {
+        const { data: entries } = await supabase
+          .from('journal_entries')
+          .select('timestamp')
+          .eq('user_id', sub.user_id)
+          .order('timestamp', { ascending: false })
+          .limit(1);
+
+        const lastEntryAt = entries?.[0]?.timestamp ?? 0;
+        const hoursSinceEntry = (now - lastEntryAt) / (1000 * 60 * 60);
+        if (hoursSinceEntry < 24) continue;
+
+        if (sub.last_reminder_sent_at) {
+          const hoursSinceReminder = (now - new Date(sub.last_reminder_sent_at).getTime()) / (1000 * 60 * 60);
+          if (hoursSinceReminder < 20) continue;
+        }
+
+        await webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: { p256dh: sub.p256dh, auth: sub.auth },
+          },
+          JSON.stringify({
+            title: 'MicroMind',
+            body: "You haven't journaled yet today. Want to take 2 minutes?",
+            url: '/app/journal',
+          }),
+        );
+
+        await supabase
+          .from('push_subscriptions')
+          .update({ last_reminder_sent_at: new Date().toISOString() })
+          .eq('id', sub.id);
+
+        sentCount++;
+      } catch (err) {
+        const errorVal = err as { statusCode?: number; message?: string };
+        if (errorVal.statusCode === 404 || errorVal.statusCode === 410) {
+          console.log(`[CRON] Subscription ${sub.id} expired/revoked — removing.`);
+          await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+        } else {
+          console.error(`[CRON] Failed to send push for subscription ${sub.id}:`, errorVal.message);
+        }
+      }
+    }
+
+    res.json({ success: true, sent: sentCount });
   } catch (err) {
     const errorVal = err as Error;
     console.error('[CRON ERROR]', errorVal);
