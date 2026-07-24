@@ -361,7 +361,7 @@ export default function SettingsPage() {
         const registration = await navigator.serviceWorker.register('/sw.js');
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+          applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
         });
 
         const json = subscription.toJSON();
