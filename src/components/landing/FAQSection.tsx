@@ -39,6 +39,10 @@ const faqs = [
     q: "Do I need a crypto wallet to use MicroMind?",
     a: "MicroMind is designed for MiniPay on Celo — a lightweight mobile wallet. You just need a small amount of USDm (Celo's stablecoin) to start using AI features.",
   },
+  {
+    q: "Is my journal encrypted?",
+    a: "Your writing is encrypted before it leaves your device. We hold the key so we can support password resets — this protects you from a database breach, not from us. It's the same model used by most mainstream note apps (Apple Notes, Google Keep, Notion), not a weaker version of privacy.",
+  },
 ];
 
 export function FAQSection() {
