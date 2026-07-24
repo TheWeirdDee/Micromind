@@ -772,6 +772,9 @@ export default function SettingsPage() {
                   {reminderError && (
                     <p className="font-mono text-[10px] text-accent-red">{reminderError}</p>
                   )}
+                  <p className="font-mono text-[10px] text-text-muted">
+                    On iPhone, add MicroMind to your Home Screen first (Share → Add to Home Screen) — reminders only work from the installed app, not a regular Safari tab.
+                  </p>
                 </div>
 
                 <button onClick={exportJournal} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">
