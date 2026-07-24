@@ -77,6 +77,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 NEXT_PUBLIC_CONTRACT_ADDRESS=0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c
 NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS=0xe57C982D669869673750d46a935A97eC756A2281
 NEXT_PUBLIC_AGENT_API_URL=https://your-hosted-agent.up.railway.app
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
 RESEND_API_KEY=re_your_resend_api_key
 RESEND_FROM_EMAIL=letters@yourdomain.com
 ```
@@ -94,6 +95,9 @@ SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
 UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-redis-token
 CRON_SECRET=your-shared-secret-for-the-release-letters-cron
+VAPID_PUBLIC_KEY=your-vapid-public-key
+VAPID_PRIVATE_KEY=your-vapid-private-key
+VAPID_SUBJECT=mailto:you@yourdomain.com
 ```
 
 ---
