@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, User, Mail, Check, Trash2, RotateCcw, Info, Shield, Download, Upload, Bell, Lock, AlertTriangle, X, LogOut, KeyRound, AtSign, UserX } from 'lucide-react';
+import { ChevronLeft, User, Mail, Check, Trash2, RotateCcw, Info, Shield, Download, Upload, Bell, Lock, AlertTriangle, X, LogOut, KeyRound, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -195,7 +195,7 @@ function ConfirmDialog({ action, userEmail, onConfirm, onCancel }: ConfirmDialog
 }
 
 export default function SettingsPage() {
-  const { user, session, logout, logoutEverywhere, updatePassword, updateEmail } = useAuth();
+  const { user, session, logout, logoutEverywhere, updatePassword, resetPassword } = useAuth();
   const [username, setUsername] = useState<string>('');
   const [profile, setProfile] = useState<UserProfile | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -257,9 +257,8 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [passwordStatus, setPasswordStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [passwordBusy, setPasswordBusy] = useState(false);
-  const [newEmail, setNewEmail] = useState('');
-  const [emailStatus, setEmailStatus] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [emailBusy, setEmailBusy] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetStatus, setResetStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [signOutBusy, setSignOutBusy] = useState(false);
 
   const handleChangePassword = async () => {
@@ -290,22 +289,19 @@ export default function SettingsPage() {
     }
   };
 
-  const handleChangeEmail = async () => {
-    setEmailStatus(null);
-    const clean = newEmail.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) {
-      setEmailStatus({ ok: false, msg: 'Enter a valid email address.' });
-      return;
-    }
-    setEmailBusy(true);
+  // For users who don't recall their current password — emails a reset link,
+  // as distinct from "Update Password" above (which requires knowing it).
+  const handleForgotPassword = async () => {
+    setResetStatus(null);
+    if (!user?.email) return;
+    setResetBusy(true);
     try {
-      await updateEmail(clean);
-      setNewEmail('');
-      setEmailStatus({ ok: true, msg: `Confirmation link sent to ${clean}. Your email changes after you confirm.` });
+      await resetPassword(user.email);
+      setResetStatus({ ok: true, msg: `Reset link sent to ${user.email}.` });
     } catch (e) {
-      setEmailStatus({ ok: false, msg: e instanceof Error ? e.message : 'Failed to update email.' });
+      setResetStatus({ ok: false, msg: e instanceof Error ? e.message : 'Failed to send reset link.' });
     } finally {
-      setEmailBusy(false);
+      setResetBusy(false);
     }
   };
 
@@ -358,7 +354,11 @@ export default function SettingsPage() {
           return;
         }
 
-        const registration = await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.register('/sw.js');
+        // register() resolves once registration begins, not once the worker is
+        // active — pushManager.subscribe() requires an active worker, so wait
+        // for `.ready` (which resolves only once one is actually controlling).
+        const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
@@ -609,7 +609,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
-                <p className="font-mono text-[9px] text-text-muted px-1">Username cannot be changed. Email can be changed under Account & Security.</p>
+                <p className="font-mono text-[9px] text-text-muted px-1">Username and email cannot be changed after signup.</p>
               </div>
             </section>
 
@@ -681,40 +681,25 @@ export default function SettingsPage() {
                   {passwordStatus && (
                     <p className={`font-mono text-[10px] ${passwordStatus.ok ? 'text-accent-green' : 'text-red-400'}`}>{passwordStatus.msg}</p>
                   )}
-                  <button
-                    onClick={handleChangePassword}
-                    disabled={passwordBusy || !currentPassword || !newPassword}
-                    className="pill-button pill-button-outline w-full py-2.5 text-[10px] font-mono uppercase tracking-widest disabled:opacity-40"
-                  >
-                    {passwordBusy ? 'Updating…' : 'Update Password'}
-                  </button>
-                </div>
-
-                {/* Change Email */}
-                <div className="px-5 py-4 space-y-3">
-                  <p className="font-mono text-xs text-text-primary">Change Email</p>
-                  <p className="font-mono text-[10px] text-text-muted -mt-1.5">We&apos;ll send a confirmation link to the new address</p>
-                  <div className="relative">
-                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
-                    <input
-                      type="email"
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleChangeEmail()}
-                      placeholder="new@email.com"
-                      className="w-full bg-surface-2 border border-border rounded-xl px-9 py-2.5 text-sm font-mono focus:border-accent outline-none transition-colors"
-                    />
+                  <div className="flex items-center justify-between gap-3">
+                    <button
+                      onClick={handleChangePassword}
+                      disabled={passwordBusy || !currentPassword || !newPassword}
+                      className="pill-button pill-button-outline flex-1 py-2.5 text-[10px] font-mono uppercase tracking-widest disabled:opacity-40"
+                    >
+                      {passwordBusy ? 'Updating…' : 'Update Password'}
+                    </button>
+                    <button
+                      onClick={handleForgotPassword}
+                      disabled={resetBusy}
+                      className="text-[10px] font-mono text-text-muted hover:text-accent underline underline-offset-2 whitespace-nowrap disabled:opacity-40"
+                    >
+                      {resetBusy ? 'Sending…' : "Forgot it? Email me a reset link"}
+                    </button>
                   </div>
-                  {emailStatus && (
-                    <p className={`font-mono text-[10px] ${emailStatus.ok ? 'text-accent-green' : 'text-red-400'}`}>{emailStatus.msg}</p>
+                  {resetStatus && (
+                    <p className={`font-mono text-[10px] ${resetStatus.ok ? 'text-accent-green' : 'text-red-400'}`}>{resetStatus.msg}</p>
                   )}
-                  <button
-                    onClick={handleChangeEmail}
-                    disabled={emailBusy || !newEmail}
-                    className="pill-button pill-button-outline w-full py-2.5 text-[10px] font-mono uppercase tracking-widest disabled:opacity-40"
-                  >
-                    {emailBusy ? 'Sending…' : 'Send Confirmation Link'}
-                  </button>
                 </div>
 
                 {/* Sign out */}
