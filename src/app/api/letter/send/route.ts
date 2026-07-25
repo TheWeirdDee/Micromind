@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM = process.env.RESEND_FROM_EMAIL ?? 'MicroMind Letters <onboarding@resend.dev>';
+const FROM = process.env.RESEND_FROM_EMAIL || 'MicroMind Letters <onboarding@resend.dev>';
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
