@@ -212,10 +212,12 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     }
   };
 
-  // Instant AI Polish & Send
+  // AI Polish — polishes the text and puts it back in the box for review.
+  // Does NOT send on its own; the user reviews/edits, then sends explicitly
+  // via the regular Send Letter button, same as any other draft.
   const handlePaidPolish = async () => {
     if (!isFormValid || sending || paidLoading) return;
-    setPolishedResponse(null);
+    setSuccessMsg(null);
 
     if (!isConnected || !address) {
       setShowWalletModal(true);
@@ -223,20 +225,16 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     }
 
     try {
-      const payload = JSON.stringify({
-        content: content.trim(),
-        recipientEmail: recipientEmail.trim(),
-        senderName: senderName.trim(),
-      });
-
+      // Sent as raw text (not JSON-wrapped with recipientEmail/senderName) so the
+      // agent only polishes and does not also send the email as a side effect.
       const aiResponse = isMiniPay
-        ? await payViaRelay(5, 'Letter', payload)
-        : await payAndGenerate(5, 'Letter', payload);
+        ? await payViaRelay(5, 'Letter', content.trim())
+        : await payAndGenerate(5, 'Letter', content.trim());
 
       if (aiResponse) {
-        setPolishedResponse(aiResponse);
+        setContent(aiResponse);
         updateStreak(address);
-        setContent('');
+        setSuccessMsg('Polished! Review it below and click Send when ready.');
       }
     } catch (err: unknown) {
       console.error(err);
@@ -629,11 +627,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
 
       {polishedResponse && activeTab === 'instant' && (
         <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-accent-green/10 border border-accent-green/20 text-accent-green text-xs font-mono tracking-wide flex items-center gap-2 justify-center">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>AI-Polished Letter sent instantly to {recipientEmail}!</span>
-          </div>
-          <h3 className="font-serif text-xl px-2">Polished Version Preview</h3>
+          <h3 className="font-serif text-xl px-2">Polished Version (from history)</h3>
           <ResponseCard response={polishedResponse} />
         </div>
       )}
