@@ -213,18 +213,16 @@ Do not write or rewrite their journal. Act strictly as a supportive guide.`;
 // RESEND_FROM_EMAIL must be set to an address on a domain you've verified in the
 // Resend dashboard (e.g. "MicroMind Letters <letters@yourdomain.com>").
 // Using onboarding@resend.dev only works for the Resend account owner's email.
-const RESEND_FROM = process.env.RESEND_FROM_EMAIL ?? 'MicroMind Letters <onboarding@resend.dev>';
+const RESEND_FROM = process.env.RESEND_FROM_EMAIL || 'MicroMind Letters <onboarding@resend.dev>';
 
-async function sendEmail(to: string, senderName: string, content: string, isPolished: boolean) {
+async function sendEmail(to: string, senderName: string, content: string) {
   if (!resend) {
     console.warn('[EMAIL] Resend not configured. Skipping email send.');
     return;
   }
 
   const subject = `A letter for you, from ${senderName}`;
-  const text = isPolished
-    ? `${content}\n\n---\nSent via MicroMind · https://micromindapp.xyz/app\n✨ This letter was enhanced with AI`
-    : `${content}\n\n---\nSent via MicroMind · https://micromindapp.xyz/app`;
+  const text = `${content}\n\n---\nSent via MicroMind · https://micromindapp.xyz/app`;
 
   await resend.emails.send({
     from: RESEND_FROM,
@@ -288,7 +286,7 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
     // If it is the Letter tool, send email in background
     if (toolId === 5 && recipientEmail) {
       console.log(`[EMAIL] Sending polished letter to ${recipientEmail}...`);
-      sendEmail(recipientEmail, senderName, result, true).catch(err => {
+      sendEmail(recipientEmail, senderName, result).catch(err => {
         console.error('[EMAIL] Failed to send polished letter email:', err);
       });
     }
@@ -384,7 +382,7 @@ app.post('/api/letter/send', async (req, res) => {
   if (!senderId) return res.status(401).json({ error: 'Sign in required to send a letter.' });
 
   try {
-    await sendEmail(recipientEmail, senderName, content, false);
+    await sendEmail(recipientEmail, senderName, content);
     res.json({ success: true });
   } catch (e) {
     const err = e as Error;
@@ -428,7 +426,7 @@ app.post('/api/letter/polish', async (req, res) => {
     let sent = false;
     if (recipientEmail) {
       try {
-        await sendEmail(recipientEmail, senderName, polished, true);
+        await sendEmail(recipientEmail, senderName, polished);
         sent = true;
       } catch (e) {
         const err = e as Error;
@@ -546,7 +544,7 @@ app.post('/api/cron/release-letters', async (req, res) => {
 
         const decryptedContent = decryptAESGCM(letter.ciphertext, letter.iv, letter.key_hex);
 
-        await sendEmail(letter.recipient_email, letter.sender_name, decryptedContent, false);
+        await sendEmail(letter.recipient_email, letter.sender_name, decryptedContent);
 
         const { error: updateError } = await supabase
           .from('scheduled_letters')
