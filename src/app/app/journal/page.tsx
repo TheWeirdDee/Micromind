@@ -409,83 +409,12 @@ export default function JournalPage() {
         </button>
       </div>
 
-      {/* -- Mobile folder tabs -------------------------------------------- */}
-      <div className="lg:hidden mb-5">
-        <div
-          className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide"
-        >
-          <button
-            onClick={() => setActiveFolderId(null)}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-mono whitespace-nowrap border shrink-0 transition-all ${
-              activeFolderId === null
-                ? 'bg-accent text-bg border-accent'
-                : 'border-border text-text-muted hover:bg-surface-2'
-            }`}
-          >
-            All Notes
-            <span className="opacity-60 ml-0.5">{entries.length}</span>
-          </button>
-          {folders.map(f => (
-            <button
-              key={f.id}
-              onClick={() => setActiveFolderId(f.id)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-mono whitespace-nowrap border shrink-0 transition-all ${
-                activeFolderId === f.id
-                  ? 'bg-accent text-bg border-accent'
-                  : 'border-border text-text-muted hover:bg-surface-2'
-              }`}
-            >
-              {f.name}
-              <span className="opacity-60 ml-0.5">{entries.filter(e => e.folderId === f.id).length}</span>
-            </button>
-          ))}
-          <button
-            onClick={() => setCreatingFolder(true)}
-            className="flex items-center gap-1 px-3.5 py-1.5 rounded-full text-xs font-mono whitespace-nowrap border border-dashed border-border text-text-muted hover:border-accent hover:text-accent shrink-0 transition-all"
-          >
-            <Plus className="w-3 h-3" /> Folder
-          </button>
-        </div>
-
-        {/* Mobile new folder input */}
-        <AnimatePresence>
-          {creatingFolder && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden mt-3"
-            >
-              <div className="flex gap-2">
-                <input
-                  ref={newFolderInputRef}
-                  value={newFolderName}
-                  onChange={e => setNewFolderName(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') handleCreateFolder();
-                    if (e.key === 'Escape') { setCreatingFolder(false); setNewFolderName(''); }
-                  }}
-                  placeholder="Folder name..."
-                  className="flex-1 bg-surface-2 border border-border rounded-xl px-3 py-2 text-sm text-text-primary outline-none focus:border-accent font-mono"
-                />
-                <button onClick={handleCreateFolder} className="px-3 py-2 bg-accent text-bg rounded-xl text-xs font-mono font-bold">Create</button>
-                <button
-                  onClick={() => { setCreatingFolder(false); setNewFolderName(''); }}
-                  className="px-3 py-2 border border-border rounded-xl text-xs font-mono text-text-muted"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* -- Desktop two-panel layout --------------------------------------- */}
+      {/* -- Two-panel layout: folder list stacks above entries on mobile, ------ */}
+      {/* -- sits beside them on desktop — same vertical list either way ------- */}
       <div className="lg:flex lg:gap-7">
 
-        {/* Desktop sidebar */}
-        <aside className="hidden lg:flex flex-col w-48 shrink-0">
+        {/* Folder list — full width above entries on mobile, fixed-width sidebar on desktop */}
+        <aside className="flex flex-col w-full lg:w-48 shrink-0 mb-6 lg:mb-0">
           <div className="space-y-0.5">
             {/* All Notes */}
             <div
