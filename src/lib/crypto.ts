@@ -92,3 +92,45 @@ export async function decryptText(ciphertext: string, ivHex: string, keyHex: str
   const decoder = new TextDecoder();
   return decoder.decode(decrypted);
 }
+
+/** Encrypt raw binary data (e.g. an image) using a hex-encoded AES-GCM key. No text encoding round-trip, so no size overhead. */
+export async function encryptBytes(data: ArrayBuffer, keyHex: string): Promise<{ ciphertext: ArrayBuffer; iv: string }> {
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+  const rawKey = hexToBuffer(keyHex);
+  const cryptoKey = await window.crypto.subtle.importKey(
+    'raw',
+    rawKey.buffer as unknown as ArrayBuffer,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt']
+  );
+
+  const encrypted = await window.crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    cryptoKey,
+    data
+  );
+
+  return { ciphertext: encrypted, iv: bufferToHex(iv.buffer) };
+}
+
+/** Decrypt raw binary data using a hex-encoded AES-GCM key and IV */
+export async function decryptBytes(ciphertext: ArrayBuffer, ivHex: string, keyHex: string): Promise<ArrayBuffer> {
+  const rawKey = hexToBuffer(keyHex);
+  const iv = hexToBuffer(ivHex);
+
+  const cryptoKey = await window.crypto.subtle.importKey(
+    'raw',
+    rawKey.buffer as unknown as ArrayBuffer,
+    { name: 'AES-GCM' },
+    false,
+    ['decrypt']
+  );
+
+  return window.crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv.buffer as unknown as ArrayBuffer },
+    cryptoKey,
+    ciphertext
+  );
+}
