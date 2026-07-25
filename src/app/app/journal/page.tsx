@@ -7,6 +7,7 @@ import {
   Smile, Laugh, Meh, Angry, Frown, ChevronRight,
   FolderPlus, Folder as FolderIcon, MoreHorizontal, Sparkles,
   Copy, Command, CornerDownLeft, Mail,
+  Image as ImageIcon, Mic, Loader2,
 } from 'lucide-react';
 
 import Link from 'next/link';
@@ -17,6 +18,7 @@ import {
   updateStreak, MOOD_ICONS,
   type JournalEntry, type Folder,
 } from '@/lib/journal';
+import { uploadJournalImage, deleteJournalImage, fetchJournalImage, transcribeVoiceNote } from '@/lib/journalMedia';
 import { THERAPEUTIC_PROMPTS, DEFAULT_PROMPTS } from '@/constants/prompts';
 
 const MOODS = [
@@ -115,6 +117,170 @@ function FolderPills({
   );
 }
 
+function PhotoAttachButton({
+  previewUrl,
+  onSelect,
+  onRemove,
+}: { previewUrl: string | null; onSelect: (file: File) => void; onRemove: () => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  if (previewUrl) {
+    return (
+      <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-border shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={previewUrl} alt="Attached" className="w-full h-full object-cover" />
+        <button
+          type="button"
+          onClick={onRemove}
+          className="absolute top-0.5 right-0.5 p-0.5 bg-bg/80 rounded-full text-text-muted hover:text-red-400"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => {
+          const file = e.target.files?.[0];
+          if (file) onSelect(file);
+          e.target.value = '';
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors"
+      >
+        <ImageIcon className="w-3.5 h-3.5" /> Add Photo
+      </button>
+    </>
+  );
+}
+
+function VoiceRecordButton({ onTranscribed }: { onTranscribed: (text: string) => void }) {
+  const [isRecording, setIsRecording]       = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [seconds, setSeconds]               = useState(0);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef        = useRef<Blob[]>([]);
+  const timerRef         = useRef<ReturnType<typeof setInterval> | null>(null);
+  const streamRef        = useRef<MediaStream | null>(null);
+
+  const stopStream = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+  };
+
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    stopStream();
+  }, []);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        stopStream();
+        if (timerRef.current) clearInterval(timerRef.current);
+        setSeconds(0);
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        setIsTranscribing(true);
+        try {
+          const text = await transcribeVoiceNote(blob);
+          if (text.trim()) onTranscribed(text.trim());
+        } catch (err) {
+          console.warn('Transcription failed', err);
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setSeconds(0);
+      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+    } catch (err) {
+      console.warn('Mic permission denied or unavailable', err);
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  };
+
+  if (isTranscribing) {
+    return (
+      <span className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Transcribing...
+      </span>
+    );
+  }
+
+  if (isRecording) {
+    const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const ss = String(seconds % 60).padStart(2, '0');
+    return (
+      <button
+        type="button"
+        onClick={stopRecording}
+        className="flex items-center gap-1.5 px-3 py-1.5 border border-red-400/40 bg-red-400/10 rounded-lg text-xs font-mono text-red-400"
+      >
+        <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+        {mm}:{ss} · Stop
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={startRecording}
+      className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors"
+    >
+      <Mic className="w-3.5 h-3.5" /> Record
+    </button>
+  );
+}
+
+function EntryImage({ raw }: { raw: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    fetchJournalImage(raw).then(u => {
+      if (cancelled) { if (u) URL.revokeObjectURL(u); return; }
+      objectUrl = u;
+      setUrl(u);
+    });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [raw]);
+
+  if (!url) {
+    return <div className="w-full max-w-xs h-32 rounded-xl bg-surface-2 animate-pulse" />;
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={url} alt="Journal attachment" className="w-full max-w-xs rounded-xl border border-border object-cover" />
+  );
+}
+
 export default function JournalPage() {
   const { address } = useWallet();
 
@@ -140,12 +306,17 @@ export default function JournalPage() {
   const [editContent, setEditContent] = useState('');
   const [editMood, setEditMood]       = useState('happy');
   const [editFolder, setEditFolder]   = useState<string | undefined>(undefined);
+  const [editImageFile, setEditImageFile]             = useState<File | null>(null);
+  const [editImagePreviewUrl, setEditImagePreviewUrl] = useState<string | null>(null);
+  const [editHasExistingImage, setEditHasExistingImage] = useState(false);
 
   // Compose
   const [showCompose, setShowCompose]       = useState(false);
   const [composeContent, setComposeContent] = useState('');
   const [composeMood, setComposeMood]       = useState('happy');
   const [composeFolder, setComposeFolder]   = useState<string | undefined>(undefined);
+  const [composeImageFile, setComposeImageFile]             = useState<File | null>(null);
+  const [composeImagePreviewUrl, setComposeImagePreviewUrl] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState<boolean>(() =>
     typeof window !== 'undefined' && !!localStorage.getItem('mm_journal_draft')
   );
@@ -257,16 +428,31 @@ export default function JournalPage() {
 
   // -- Entry handlers --------------------------------------------------------
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!composeContent.trim()) return;
-    saveEntry({ content: composeContent.trim(), mood: composeMood, folderId: composeFolder });
+    const newEntry = saveEntry({ content: composeContent.trim(), mood: composeMood, folderId: composeFolder });
     updateStreak(address);
+
+    let message = 'Entry saved';
+    if (composeImageFile) {
+      try {
+        const envelope = await uploadJournalImage(newEntry.id, composeImageFile);
+        editEntry(newEntry.id, { image: envelope });
+      } catch (err) {
+        console.warn('Image upload failed', err);
+        message = 'Entry saved, but image upload failed';
+      }
+    }
+
+    if (composeImagePreviewUrl) URL.revokeObjectURL(composeImagePreviewUrl);
     setComposeContent('');
     setComposeMood('happy');
+    setComposeImageFile(null);
+    setComposeImagePreviewUrl(null);
     setShowCompose(false);
     localStorage.removeItem('mm_journal_draft');
     setHasDraft(false);
-    showToast('Entry saved');
+    showToast(message);
   };
 
   const restoreDraft = () => {
@@ -288,15 +474,39 @@ export default function JournalPage() {
     setHasDraft(false);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingId || !editContent.trim()) return;
-    editEntry(editingId, { content: editContent.trim(), mood: editMood, folderId: editFolder });
+
+    const updates: Partial<Pick<JournalEntry, 'content' | 'mood' | 'folderId' | 'image' | 'tags'>> = {
+      content: editContent.trim(), mood: editMood, folderId: editFolder,
+    };
+
+    let message = 'Entry updated';
+    if (editImageFile) {
+      try {
+        updates.image = await uploadJournalImage(editingId, editImageFile);
+      } catch (err) {
+        console.warn('Image upload failed', err);
+        message = 'Entry updated, but image upload failed';
+      }
+    } else if (!editHasExistingImage) {
+      const original = entries.find(e => e.id === editingId);
+      if (original?.image) deleteJournalImage(original.image).catch(() => {});
+      updates.image = undefined;
+    }
+
+    editEntry(editingId, updates);
+    if (editImagePreviewUrl && editImageFile) URL.revokeObjectURL(editImagePreviewUrl);
     setEditingId(null);
-    showToast('Entry updated');
+    setEditImageFile(null);
+    setEditImagePreviewUrl(null);
+    showToast(message);
   };
 
   const handleDelete = (id: string) => {
     if (!window.confirm('Delete this entry?')) return;
+    const entry = entries.find(e => e.id === id);
+    if (entry?.image) deleteJournalImage(entry.image).catch(() => {});
     deleteEntry(id);
     if (expandedId === id) setExpandedId(null);
     if (editingId === id) setEditingId(null);
@@ -308,6 +518,12 @@ export default function JournalPage() {
     setEditMood(entry.mood);
     setEditFolder(entry.folderId);
     setExpandedId(entry.id);
+    setEditImageFile(null);
+    setEditImagePreviewUrl(null);
+    setEditHasExistingImage(!!entry.image);
+    if (entry.image) {
+      fetchJournalImage(entry.image).then(url => { if (url) setEditImagePreviewUrl(url); });
+    }
   };
 
   const toggleExpand = (id: string) => {
@@ -618,6 +834,25 @@ export default function JournalPage() {
 
                   <FolderPills folders={folders} value={composeFolder} onChange={v => setComposeFolder(v)} />
 
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <PhotoAttachButton
+                      previewUrl={composeImagePreviewUrl}
+                      onSelect={file => {
+                        if (composeImagePreviewUrl) URL.revokeObjectURL(composeImagePreviewUrl);
+                        setComposeImageFile(file);
+                        setComposeImagePreviewUrl(URL.createObjectURL(file));
+                      }}
+                      onRemove={() => {
+                        if (composeImagePreviewUrl) URL.revokeObjectURL(composeImagePreviewUrl);
+                        setComposeImageFile(null);
+                        setComposeImagePreviewUrl(null);
+                      }}
+                    />
+                    <VoiceRecordButton
+                      onTranscribed={text => setComposeContent(prev => (prev.trim() ? `${prev.trim()}\n\n${text}` : text))}
+                    />
+                  </div>
+
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleSave}
@@ -732,6 +967,27 @@ export default function JournalPage() {
 
                                 <FolderPills folders={folders} value={editFolder} onChange={v => setEditFolder(v)} />
 
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <PhotoAttachButton
+                                    previewUrl={editImagePreviewUrl}
+                                    onSelect={file => {
+                                      if (editImagePreviewUrl) URL.revokeObjectURL(editImagePreviewUrl);
+                                      setEditImageFile(file);
+                                      setEditImagePreviewUrl(URL.createObjectURL(file));
+                                      setEditHasExistingImage(false);
+                                    }}
+                                    onRemove={() => {
+                                      if (editImagePreviewUrl) URL.revokeObjectURL(editImagePreviewUrl);
+                                      setEditImageFile(null);
+                                      setEditImagePreviewUrl(null);
+                                      setEditHasExistingImage(false);
+                                    }}
+                                  />
+                                  <VoiceRecordButton
+                                    onTranscribed={text => setEditContent(prev => (prev.trim() ? `${prev.trim()}\n\n${text}` : text))}
+                                  />
+                                </div>
+
                                 <div className="flex gap-2">
                                   <button
                                     onClick={handleSaveEdit}
@@ -754,6 +1010,7 @@ export default function JournalPage() {
                                 <p className="font-mono text-sm leading-relaxed text-text-primary whitespace-pre-wrap">
                                   {entry.content}
                                 </p>
+                                {entry.image && <EntryImage raw={entry.image} />}
                                 <div className="flex gap-2">
                                   <button
                                     onClick={() => handleCopy(entry.id, entry.content)}
