@@ -25,6 +25,11 @@ export function setJournalKey(key: string | null): void {
   journalKey = key;
 }
 
+/** Returns the in-memory journal encryption key, for use by journalMedia.ts. */
+export function getJournalKey(): string | null {
+  return journalKey;
+}
+
 async function encryptContent(content: string): Promise<string> {
   if (!journalKey) return content;
   const { encryptText } = await import('./crypto');
