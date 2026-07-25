@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import multer from 'multer';
 import Groq from 'groq-sdk';
 import { createPublicClient, http, decodeEventLog } from 'viem';
 import { celo } from 'viem/chains';
@@ -1373,6 +1374,35 @@ app.post('/api/challenge/relay', async (req, res) => {
   res.json({ status: 'ready', txHash: result.txHash });
 });
 
+// ─── Voice dictation ──────────────────────────────────────────────────────────
+// Free utility, not a priced tool — it's an input method for the existing
+// free-to-write journal textarea, not a distinct AI generation. Still requires
+// a signed-in session so it can't be used as an anonymous Groq quota drain.
+const transcribeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB — generous for a short voice note
+});
+
+app.post('/api/transcribe', transcribeUpload.single('audio'), async (req, res) => {
+  const userId = await resolveUserId(req.headers.authorization);
+  if (!userId) return res.status(401).json({ error: 'Sign in required to use voice dictation.' });
+
+  if (!req.file) return res.status(400).json({ error: 'Missing audio file' });
+
+  try {
+    const transcription = await groq.audio.transcriptions.create({
+      file: new File([new Uint8Array(req.file.buffer)], req.file.originalname || 'note.webm', {
+        type: req.file.mimetype || 'audio/webm',
+      }),
+      model: 'whisper-large-v3',
+    });
+    res.json({ text: transcription.text });
+  } catch (e) {
+    const err = e as Error;
+    console.error('[TRANSCRIBE] Failed:', err.message);
+    res.status(500).json({ error: 'Transcription failed' });
+  }
+});
 
 initStorage().then(() => {
   app.listen(port, () => {
