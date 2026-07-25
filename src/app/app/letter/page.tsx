@@ -286,14 +286,16 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     }
   };
 
-  // Schedule AI Polish & Escrow
+  // AI Polish (schedule tab) — same principle as the instant tab: polishes the
+  // text and puts it back in the box for review. Does not auto-schedule; the
+  // user reviews/edits, then clicks Schedule Letter themselves when ready.
   const handleSchedulePolish = async () => {
     if (!dbUser) {
       alert('Please log in with Supabase to escrow scheduled letters.');
       return;
     }
     if (!isFormValid || sending || paidLoading) return;
-    setPolishedResponse(null);
+    setSuccessMsg(null);
 
     if (!isConnected || !address) {
       setShowWalletModal(true);
@@ -301,20 +303,16 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     }
 
     try {
-      const payload = JSON.stringify({
-        content: content.trim(),
-        recipientEmail: recipientEmail.trim(),
-        senderName: senderName.trim(),
-      });
-
+      // Sent as raw text so the agent only polishes and doesn't also
+      // instant-send an email as a side effect.
       const aiResponse = isMiniPay
-        ? await payViaRelay(5, 'Letter', payload)
-        : await payAndGenerate(5, 'Letter', payload);
+        ? await payViaRelay(5, 'Letter', content.trim())
+        : await payAndGenerate(5, 'Letter', content.trim());
 
       if (aiResponse) {
-        // Schedule using the polished AI content output
-        await handleScheduleSend(aiResponse);
+        setContent(aiResponse);
         updateStreak(address);
+        setSuccessMsg('Polished! Review it below and click Schedule when ready.');
       }
     } catch (err: unknown) {
       console.error(err);
@@ -563,7 +561,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      <span>AI Polish & Send (0.01 USDm)</span>
+                      <span>AI Polish (0.01 USDm)</span>
                     </>
                   )}
                 </button>
@@ -600,7 +598,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      <span>AI Polish & Schedule (0.01 USDm)</span>
+                      <span>AI Polish (0.01 USDm)</span>
                     </>
                   )}
                 </button>
