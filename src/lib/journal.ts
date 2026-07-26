@@ -193,6 +193,18 @@ const LEGACY_MOOD_MAP: Record<string, string> = {
   '😔': 'sad',
 };
 
+/** Strips common markdown tokens for the plain-text one-line list preview. */
+export function stripMarkdownForPreview(text: string): string {
+  return text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^[-*]\s+/gm, '')
+    .replace(/^\d+\.\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/~~([^~]+)~~/g, '$1')
+    .replace(/(?<![\w*])\*([^*]+)\*(?!\w)/g, '$1')
+    .replace(/(?<![\w_])_([^_]+)_(?!\w)/g, '$1');
+}
+
 function newId(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
