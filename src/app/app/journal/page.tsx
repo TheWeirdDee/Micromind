@@ -3,287 +3,27 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BookOpen, PenTool, Trash2, Pencil, Check, X, Plus,
-  Smile, Laugh, Meh, Angry, Frown, ChevronRight,
+  BookOpen, Smile, ChevronRight,
   FolderPlus, Folder as FolderIcon, MoreHorizontal, Sparkles,
-  Copy, Command, CornerDownLeft, Mail,
-  Image as ImageIcon, Mic, Loader2,
+  Plus, PenTool,
 } from 'lucide-react';
 
 import Link from 'next/link';
-import { useWallet } from '@/context/WalletContext';
 import {
-  getEntries, saveEntry, editEntry, deleteEntry,
-  getFolders, createFolder, renameFolder, deleteFolder,
-  updateStreak, MOOD_ICONS,
+  getEntries, getFolders, createFolder, renameFolder, deleteFolder,
+  stripMarkdownForPreview, MOOD_ICONS,
   type JournalEntry, type Folder,
 } from '@/lib/journal';
-import { uploadJournalImage, deleteJournalImage, fetchJournalImage, transcribeVoiceNote } from '@/lib/journalMedia';
-import { THERAPEUTIC_PROMPTS, DEFAULT_PROMPTS } from '@/constants/prompts';
 
-const MOODS = [
-  { mood: 'happy',   icon: Smile,  label: 'Happy'   },
-  { mood: 'excited', icon: Laugh,  label: 'Excited' },
-  { mood: 'neutral', icon: Meh,    label: 'Neutral' },
-  { mood: 'angry',   icon: Angry,  label: 'Angry'   },
-  { mood: 'sad',     icon: Frown,  label: 'Sad'     },
-];
-
-const MOOD_STYLES: Record<string, { border: string; bg: string; text: string; bgExpanded: string }> = {
-  happy: {
-    border: 'hover:border-accent/45 border-accent/15',
-    bg: 'bg-accent/2',
-    text: 'text-accent',
-    bgExpanded: 'bg-accent/5 border-accent/25'
-  },
-  excited: {
-    border: 'hover:border-accent-gold/45 border-accent-gold/15',
-    bg: 'bg-accent-gold/2',
-    text: 'text-accent-gold',
-    bgExpanded: 'bg-accent-gold/5 border-accent-gold/25'
-  },
-  neutral: {
-    border: 'hover:border-text-muted/30 border-border',
-    bg: 'bg-surface-2/30',
-    text: 'text-text-muted',
-    bgExpanded: 'bg-surface border-border'
-  },
-  sad: {
-    border: 'hover:border-blue-400/45 border-blue-400/15',
-    bg: 'bg-blue-400/2',
-    text: 'text-blue-400',
-    bgExpanded: 'bg-blue-400/5 border-blue-400/25'
-  },
-  angry: {
-    border: 'hover:border-red-400/45 border-red-400/15',
-    bg: 'bg-red-400/2',
-    text: 'text-red-400',
-    bgExpanded: 'bg-red-400/5 border-red-400/25'
-  }
+const MOOD_TEXT: Record<string, string> = {
+  happy: 'text-accent',
+  excited: 'text-accent-gold',
+  neutral: 'text-text-muted',
+  sad: 'text-blue-400',
+  angry: 'text-red-400',
 };
 
-function MoodRow({ value, onChange }: { value: string; onChange: (m: string) => void }) {
-  return (
-    <div className="flex gap-2.5">
-      {MOODS.map(m => (
-        <motion.button
-          key={m.mood}
-          type="button"
-          whileHover={{ scale: 1.15, rotate: value === m.mood ? 0 : [0, -5, 5, 0] }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onChange(m.mood)}
-          title={m.label}
-          className={`w-11 h-11 rounded-2xl flex items-center justify-center border transition-all ${
-            value === m.mood
-              ? 'bg-accent/15 border-accent shadow-sm shadow-accent/10'
-              : 'border-border hover:bg-surface-2 hover:border-text-muted/30'
-          }`}
-        >
-          <m.icon className={`w-5 h-5 transition-colors ${value === m.mood ? 'text-accent' : 'text-text-muted'}`} />
-        </motion.button>
-      ))}
-    </div>
-  );
-}
-
-function FolderPills({
-  folders,
-  value,
-  onChange,
-}: { folders: Folder[]; value: string | undefined; onChange: (id: string | undefined) => void }) {
-  if (folders.length === 0) return null;
-  return (
-    <div className="flex gap-2 flex-wrap">
-      <button
-        onClick={() => onChange(undefined)}
-        className={`px-3 py-1 rounded-full text-xs font-mono border transition-all ${
-          !value ? 'bg-accent/15 border-accent text-accent' : 'border-border text-text-muted hover:bg-surface-2'
-        }`}
-      >
-        No folder
-      </button>
-      {folders.map(f => (
-        <button
-          key={f.id}
-          onClick={() => onChange(f.id)}
-          className={`px-3 py-1 rounded-full text-xs font-mono border transition-all ${
-            value === f.id ? 'bg-accent/15 border-accent text-accent' : 'border-border text-text-muted hover:bg-surface-2'
-          }`}
-        >
-          {f.name}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function PhotoAttachButton({
-  previewUrl,
-  onSelect,
-  onRemove,
-}: { previewUrl: string | null; onSelect: (file: File) => void; onRemove: () => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  if (previewUrl) {
-    return (
-      <div className="relative w-14 h-14 rounded-lg overflow-hidden border border-border shrink-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={previewUrl} alt="Attached" className="w-full h-full object-cover" />
-        <button
-          type="button"
-          onClick={onRemove}
-          className="absolute top-0.5 right-0.5 p-0.5 bg-bg/80 rounded-full text-text-muted hover:text-red-400"
-        >
-          <X className="w-3 h-3" />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={e => {
-          const file = e.target.files?.[0];
-          if (file) onSelect(file);
-          e.target.value = '';
-        }}
-      />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors"
-      >
-        <ImageIcon className="w-3.5 h-3.5" /> Add Photo
-      </button>
-    </>
-  );
-}
-
-function VoiceRecordButton({ onTranscribed }: { onTranscribed: (text: string) => void }) {
-  const [isRecording, setIsRecording]       = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [seconds, setSeconds]               = useState(0);
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef        = useRef<Blob[]>([]);
-  const timerRef         = useRef<ReturnType<typeof setInterval> | null>(null);
-  const streamRef        = useRef<MediaStream | null>(null);
-
-  const stopStream = () => {
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
-  };
-
-  useEffect(() => () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    stopStream();
-  }, []);
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
-      recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onstop = async () => {
-        stopStream();
-        if (timerRef.current) clearInterval(timerRef.current);
-        setSeconds(0);
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
-        setIsTranscribing(true);
-        try {
-          const text = await transcribeVoiceNote(blob);
-          if (text.trim()) onTranscribed(text.trim());
-        } catch (err) {
-          console.warn('Transcription failed', err);
-        } finally {
-          setIsTranscribing(false);
-        }
-      };
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      setIsRecording(true);
-      setSeconds(0);
-      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
-    } catch (err) {
-      console.warn('Mic permission denied or unavailable', err);
-    }
-  };
-
-  const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
-    setIsRecording(false);
-  };
-
-  if (isTranscribing) {
-    return (
-      <span className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted">
-        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Transcribing...
-      </span>
-    );
-  }
-
-  if (isRecording) {
-    const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
-    const ss = String(seconds % 60).padStart(2, '0');
-    return (
-      <button
-        type="button"
-        onClick={stopRecording}
-        className="flex items-center gap-1.5 px-3 py-1.5 border border-red-400/40 bg-red-400/10 rounded-lg text-xs font-mono text-red-400"
-      >
-        <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-        {mm}:{ss} · Stop
-      </button>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={startRecording}
-      className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors"
-    >
-      <Mic className="w-3.5 h-3.5" /> Record
-    </button>
-  );
-}
-
-function EntryImage({ raw }: { raw: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    let objectUrl: string | null = null;
-    let cancelled = false;
-    fetchJournalImage(raw).then(u => {
-      if (cancelled) { if (u) URL.revokeObjectURL(u); return; }
-      objectUrl = u;
-      setUrl(u);
-    });
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [raw]);
-
-  if (!url) {
-    return <div className="w-full max-w-xs h-32 rounded-xl bg-surface-2 animate-pulse" />;
-  }
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={url} alt="Journal attachment" className="w-full max-w-xs rounded-xl border border-border object-cover" />
-  );
-}
-
 export default function JournalPage() {
-  const { address } = useWallet();
-
   // Data
   const [folders, setFolders] = useState<Folder[]>(() =>
     typeof window !== 'undefined' ? getFolders() : []
@@ -300,65 +40,11 @@ export default function JournalPage() {
   const [renameName, setRenameName]             = useState('');
   const [folderMenuId, setFolderMenuId]         = useState<string | null>(null);
 
-  // Entry UI
-  const [expandedId, setExpandedId]   = useState<string | null>(null);
-  const [editingId, setEditingId]     = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
-  const [editMood, setEditMood]       = useState('happy');
-  const [editFolder, setEditFolder]   = useState<string | undefined>(undefined);
-  const [editImageFile, setEditImageFile]             = useState<File | null>(null);
-  const [editImagePreviewUrl, setEditImagePreviewUrl] = useState<string | null>(null);
-  const [editHasExistingImage, setEditHasExistingImage] = useState(false);
-
-  // Compose
-  const [showCompose, setShowCompose]       = useState(false);
-  const [composeContent, setComposeContent] = useState('');
-  const [composeMood, setComposeMood]       = useState('happy');
-  const [composeFolder, setComposeFolder]   = useState<string | undefined>(undefined);
-  const [composeImageFile, setComposeImageFile]             = useState<File | null>(null);
-  const [composeImagePreviewUrl, setComposeImagePreviewUrl] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState<boolean>(() =>
     typeof window !== 'undefined' && !!localStorage.getItem('mm_journal_draft')
   );
 
-  // Guided Prompts
-  const [showPrompts, setShowPrompts] = useState(false);
-  const [promptIndex, setPromptIndex] = useState(0);
-
-  const getCurrentPrompt = () => {
-    const list = THERAPEUTIC_PROMPTS[composeMood] || DEFAULT_PROMPTS;
-    return list[promptIndex % list.length]?.text || '';
-  };
-
-  const handleNextPrompt = () => {
-    setPromptIndex(prev => prev + 1);
-  };
-
-  const handleUsePrompt = () => {
-    const promptText = getCurrentPrompt();
-    if (!promptText) return;
-    setComposeContent(prev => {
-      const trimmed = prev.trim();
-      if (!trimmed) return `${promptText}\n\n`;
-      // Don't format with brackets if they have text; just append/insert naturally
-      return `${trimmed}\n\n${promptText}\n\n`;
-    });
-    if (composeRef.current) {
-      composeRef.current.focus();
-    }
-  };
-
-  const [toast, setToast] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
   const newFolderInputRef = useRef<HTMLInputElement>(null);
-  const composeRef        = useRef<HTMLTextAreaElement>(null);
-
-  const handleCopy = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
 
   const refresh = () => {
     setFolders(getFolders());
@@ -374,34 +60,16 @@ export default function JournalPage() {
     if (creatingFolder) newFolderInputRef.current?.focus();
   }, [creatingFolder]);
 
+  // Refresh in case an entry was saved/edited/deleted on the full-screen editor page
   useEffect(() => {
-    if (showCompose) composeRef.current?.focus();
-  }, [showCompose]);
-
-  useEffect(() => {
-    setTimeout(() => setComposeFolder(activeFolderId ?? undefined), 0);
-  }, [activeFolderId]);
-
-  useEffect(() => {
-    if (showCompose) {
-      if (composeContent.trim() !== '') {
-        const draft = { content: composeContent, mood: composeMood, folderId: composeFolder };
-        localStorage.setItem('mm_journal_draft', JSON.stringify(draft));
-      } else {
-        localStorage.removeItem('mm_journal_draft');
-      }
-    }
-  }, [composeContent, composeMood, composeFolder, showCompose]);
-
+    const handleFocus = () => refresh();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
 
   const filteredEntries = activeFolderId === null
     ? entries
     : entries.filter(e => e.folderId === activeFolderId);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
 
   // -- Folder handlers -------------------------------------------------------
 
@@ -426,110 +94,13 @@ export default function JournalPage() {
     refresh();
   };
 
-  // -- Entry handlers --------------------------------------------------------
-
-  const handleSave = async () => {
-    if (!composeContent.trim()) return;
-    const newEntry = saveEntry({ content: composeContent.trim(), mood: composeMood, folderId: composeFolder });
-    updateStreak(address);
-
-    let message = 'Entry saved';
-    if (composeImageFile) {
-      try {
-        const envelope = await uploadJournalImage(newEntry.id, composeImageFile);
-        editEntry(newEntry.id, { image: envelope });
-      } catch (err) {
-        console.warn('Image upload failed', err);
-        message = 'Entry saved, but image upload failed';
-      }
-    }
-
-    if (composeImagePreviewUrl) URL.revokeObjectURL(composeImagePreviewUrl);
-    setComposeContent('');
-    setComposeMood('happy');
-    setComposeImageFile(null);
-    setComposeImagePreviewUrl(null);
-    setShowCompose(false);
-    localStorage.removeItem('mm_journal_draft');
-    setHasDraft(false);
-    showToast(message);
-  };
-
   const restoreDraft = () => {
-    try {
-      const draftStr = localStorage.getItem('mm_journal_draft');
-      if (draftStr) {
-        const draft = JSON.parse(draftStr);
-        setComposeContent(draft.content || '');
-        setComposeMood(draft.mood || 'happy');
-        if (draft.folderId) setComposeFolder(draft.folderId);
-        setShowCompose(true);
-      }
-    } catch {}
     setHasDraft(false);
   };
 
   const discardDraft = () => {
     localStorage.removeItem('mm_journal_draft');
     setHasDraft(false);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingId || !editContent.trim()) return;
-
-    const updates: Partial<Pick<JournalEntry, 'content' | 'mood' | 'folderId' | 'image' | 'tags'>> = {
-      content: editContent.trim(), mood: editMood, folderId: editFolder,
-    };
-
-    let message = 'Entry updated';
-    if (editImageFile) {
-      try {
-        updates.image = await uploadJournalImage(editingId, editImageFile);
-      } catch (err) {
-        console.warn('Image upload failed', err);
-        message = 'Entry updated, but image upload failed';
-      }
-    } else if (!editHasExistingImage) {
-      const original = entries.find(e => e.id === editingId);
-      if (original?.image) deleteJournalImage(original.image).catch(() => {});
-      updates.image = undefined;
-    }
-
-    editEntry(editingId, updates);
-    if (editImagePreviewUrl && editImageFile) URL.revokeObjectURL(editImagePreviewUrl);
-    setEditingId(null);
-    setEditImageFile(null);
-    setEditImagePreviewUrl(null);
-    showToast(message);
-  };
-
-  const handleDelete = (id: string) => {
-    if (!window.confirm('Delete this entry?')) return;
-    const entry = entries.find(e => e.id === id);
-    if (entry?.image) deleteJournalImage(entry.image).catch(() => {});
-    deleteEntry(id);
-    if (expandedId === id) setExpandedId(null);
-    if (editingId === id) setEditingId(null);
-  };
-
-  const startEdit = (entry: JournalEntry) => {
-    setEditingId(entry.id);
-    setEditContent(entry.content);
-    setEditMood(entry.mood);
-    setEditFolder(entry.folderId);
-    setExpandedId(entry.id);
-    setEditImageFile(null);
-    setEditImagePreviewUrl(null);
-    setEditHasExistingImage(!!entry.image);
-    if (entry.image) {
-      fetchJournalImage(entry.image).then(url => { if (url) setEditImagePreviewUrl(url); });
-    }
-  };
-
-  const toggleExpand = (id: string) => {
-    if (editingId === id) return;
-    if (editingId) setEditingId(null);
-    setExpandedId(prev => (prev === id ? null : id));
   };
 
   // -- Sidebar folder item ---------------------------------------------------
@@ -543,7 +114,7 @@ export default function JournalPage() {
     return (
       <div key={folder.id} className="relative">
         <div
-          className={`group flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all ${
+          className={`group flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-all ${
             isActive
               ? 'bg-accent/15 text-accent'
               : 'text-text-muted hover:bg-surface-2 hover:text-text-primary'
@@ -603,6 +174,10 @@ export default function JournalPage() {
     ? (folders.find(f => f.id === activeFolderId)?.name ?? 'Folder')
     : 'All Notes';
 
+  const newEntryHref = activeFolderId
+    ? `/app/journal/new?folder=${activeFolderId}`
+    : '/app/journal/new';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -616,13 +191,13 @@ export default function JournalPage() {
           <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted font-mono">Journal</p>
           <h1 className="text-3xl font-serif mt-1">Your entries</h1>
         </div>
-        <button
-          onClick={() => setShowCompose(c => !c)}
+        <Link
+          href={newEntryHref}
           className="flex items-center gap-2 px-4 py-2.5 bg-accent text-bg rounded-2xl text-xs font-mono font-bold shadow-lg shadow-accent/20 hover:opacity-90 transition-opacity"
         >
           <Plus className="w-4 h-4" />
           New Entry
-        </button>
+        </Link>
       </div>
 
       {/* -- Two-panel layout: folder list stacks above entries on mobile, ------ */}
@@ -631,10 +206,10 @@ export default function JournalPage() {
 
         {/* Folder list — full width above entries on mobile, fixed-width sidebar on desktop */}
         <aside className="flex flex-col w-full lg:w-48 shrink-0 mb-6 lg:mb-0">
-          <div className="space-y-0.5">
+          <div className="divide-y divide-border/40 rounded-xl overflow-hidden border border-border/40">
             {/* All Notes */}
             <div
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all ${
+              className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-all ${
                 activeFolderId === null
                   ? 'bg-accent/15 text-accent'
                   : 'text-text-muted hover:bg-surface-2 hover:text-text-primary'
@@ -720,7 +295,7 @@ export default function JournalPage() {
           </div>
 
           {/* Draft banner */}
-          {hasDraft && !showCompose && (
+          {hasDraft && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -731,12 +306,13 @@ export default function JournalPage() {
                 <p className="text-sm font-mono text-text-primary">You have an unsaved draft.</p>
               </div>
               <div className="flex items-center gap-2">
-                <button
+                <Link
+                  href="/app/journal/new"
                   onClick={restoreDraft}
                   className="px-4 py-2 bg-accent-gold/20 hover:bg-accent-gold/30 text-accent-gold rounded-xl text-xs font-mono transition-colors"
                 >
                   Restore
-                </button>
+                </Link>
                 <button
                   onClick={discardDraft}
                   className="px-4 py-2 hover:bg-surface-2 text-text-muted rounded-xl text-xs font-mono transition-colors"
@@ -747,313 +323,41 @@ export default function JournalPage() {
             </motion.div>
           )}
 
-
-          {/* Compose form */}
-          <AnimatePresence>
-            {showCompose && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="bg-surface border border-accent/40 rounded-2xl p-4 space-y-4 shadow-lg shadow-accent/5 mb-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase tracking-widest font-mono text-text-muted">New entry</span>
-                    <button onClick={() => setShowCompose(false)} className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <MoodRow value={composeMood} onChange={(m) => { setComposeMood(m); setPromptIndex(0); }} />
-
-                  {/* Therapeutic Prompts Toggle & Selection */}
-                  <div className="border border-border/60 rounded-xl p-3 bg-surface-2/40 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-accent-gold" />
-                        <span className="text-xs font-mono text-text-primary">Guided Writing Prompt</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowPrompts(!showPrompts);
-                          setPromptIndex(0);
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-mono border transition-all ${
-                          showPrompts
-                            ? 'bg-accent/15 border-accent text-accent'
-                            : 'border-border text-text-muted hover:bg-surface-2'
-                        }`}
-                      >
-                        {showPrompts ? 'Enabled' : 'Disabled'}
-                      </button>
-                    </div>
-
-                    {showPrompts && (
-                      <div className="space-y-2 pt-2 border-t border-border/40">
-                        <p className="text-xs text-text-primary leading-relaxed italic">
-                          {"“" + getCurrentPrompt() + "”"}
-                        </p>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={handleNextPrompt}
-                            className="text-[9px] font-mono px-2 py-1 bg-surface border border-border rounded-lg hover:border-text-muted/30 text-text-muted transition-all"
-                          >
-                            Next Prompt
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleUsePrompt}
-                            className="text-[9px] font-mono px-2 py-1 bg-accent/10 border border-accent/20 rounded-lg hover:bg-accent/20 text-accent transition-all"
-                          >
-                            Use Prompt
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <textarea
-                    ref={composeRef}
-                    value={composeContent}
-                    onChange={e => setComposeContent(e.target.value)}
-                    placeholder="What's on your mind today?"
-                    onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSave(); }}
-                    className="w-full min-h-[120px] resize-none bg-surface-2 rounded-xl border border-border p-3 font-mono text-sm leading-relaxed text-text-primary outline-none focus:border-accent transition-colors"
-                  />
-
-                  <div className="flex justify-between items-center text-[10px] font-mono text-text-muted/60 px-1 -mt-2">
-                    <span>{composeContent.length} chars</span>
-                    <span>
-                      {composeContent.trim() === '' ? 0 : composeContent.trim().split(/\s+/).length} words
-                      {composeContent.trim() !== '' && ` · ~${Math.max(1, Math.round(composeContent.trim().split(/\s+/).length / 200))} min read`}
-                    </span>
-                  </div>
-
-                  <FolderPills folders={folders} value={composeFolder} onChange={v => setComposeFolder(v)} />
-
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <PhotoAttachButton
-                      previewUrl={composeImagePreviewUrl}
-                      onSelect={file => {
-                        if (composeImagePreviewUrl) URL.revokeObjectURL(composeImagePreviewUrl);
-                        setComposeImageFile(file);
-                        setComposeImagePreviewUrl(URL.createObjectURL(file));
-                      }}
-                      onRemove={() => {
-                        if (composeImagePreviewUrl) URL.revokeObjectURL(composeImagePreviewUrl);
-                        setComposeImageFile(null);
-                        setComposeImagePreviewUrl(null);
-                      }}
-                    />
-                    <VoiceRecordButton
-                      onTranscribed={text => setComposeContent(prev => (prev.trim() ? `${prev.trim()}\n\n${text}` : text))}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleSave}
-                      disabled={!composeContent.trim()}
-                      className="flex items-center gap-1.5 px-4 py-2.5 bg-accent text-bg rounded-xl text-xs font-mono font-bold disabled:opacity-40 hover:opacity-90 transition-opacity"
-                    >
-                      <Check className="w-3.5 h-3.5" /> Save Entry
-                    </button>
-                    <button
-                      onClick={() => { 
-                        setShowCompose(false); 
-                        setComposeContent(''); 
-                        localStorage.removeItem('mm_journal_draft');
-                        setHasDraft(false);
-                      }}
-                      className="px-4 py-2.5 border border-border rounded-xl text-xs font-mono text-text-muted hover:bg-surface-2 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <span className="ml-auto text-[10px] text-text-muted/70 font-mono hidden sm:inline-flex items-center gap-1"><Command className="w-3 h-3" /><CornerDownLeft className="w-3 h-3" /> to save</span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Entry list */}
+          {/* Entry list — flat, Notes-app style, hairline dividers between rows */}
           {filteredEntries.length > 0 ? (
-            <div className="space-y-2">
+            <div className="divide-y divide-border/40 rounded-xl border border-border/40 overflow-hidden">
               {filteredEntries.map(entry => {
-                const isExpanded = expandedId === entry.id;
-                const isEditing  = editingId  === entry.id;
-                const MoodIcon   = MOOD_ICONS[entry.mood] || Smile;
-                const lines      = entry.content.split('\n');
-                const title      = lines[0]?.trim() || '';
-                const preview    = lines.slice(1).join(' ').trim();
-                const fName      = entry.folderId
+                const MoodIcon = MOOD_ICONS[entry.mood] || Smile;
+                const lines    = entry.content.split('\n');
+                const title    = stripMarkdownForPreview(lines[0]?.trim() || '');
+                const preview  = stripMarkdownForPreview(lines.slice(1).join(' ').trim());
+                const fName    = entry.folderId
                   ? folders.find(f => f.id === entry.folderId)?.name
                   : null;
 
-                const style = MOOD_STYLES[entry.mood] || MOOD_STYLES.neutral;
-
                 return (
-                  <motion.div
+                  <Link
                     key={entry.id}
-                    layout
-                    className={`rounded-2xl border transition-all duration-200 ${
-                      isExpanded
-                        ? `${style.bgExpanded} shadow-lg shadow-black/10`
-                        : `${style.bg} ${style.border}`
-                    }`}
+                    href={`/app/journal/${entry.id}`}
+                    className="flex items-start gap-3 p-4 hover:bg-surface-2/60 transition-colors"
                   >
-                    {/* Entry header */}
-                    <div
-                      className="flex items-start gap-3 p-4 cursor-pointer select-none"
-                      onClick={() => toggleExpand(entry.id)}
-                    >
-                      <MoodIcon className={`w-4 h-4 ${style.text} mt-0.5 shrink-0`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-text-primary truncate leading-snug">
-                          {title || <span className="text-text-muted/50 italic font-normal text-xs">Untitled</span>}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className="text-[11px] text-text-muted/60 font-mono">{entry.date}</span>
-                          {activeFolderId === null && fName && (
-                            <span className="text-[11px] text-accent/60 font-mono">{fName}</span>
-                          )}
-                        </div>
-                        {!isExpanded && preview && (
-                          <p className="text-xs text-text-muted/50 mt-1 line-clamp-1 font-mono">{preview}</p>
+                    <MoodIcon className={`w-4 h-4 ${MOOD_TEXT[entry.mood] || 'text-text-muted'} mt-0.5 shrink-0`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-text-primary truncate leading-snug">
+                        {title || <span className="text-text-muted/50 italic font-normal text-xs">Untitled</span>}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[11px] text-text-muted/60 font-mono">{entry.date}</span>
+                        {activeFolderId === null && fName && (
+                          <span className="text-[11px] text-accent/60 font-mono">{fName}</span>
                         )}
                       </div>
-                      <ChevronRight
-                        className={`w-4 h-4 text-text-muted/30 shrink-0 mt-0.5 transition-transform duration-200 ${
-                          isExpanded ? 'rotate-90' : ''
-                        }`}
-                      />
-                    </div>
-
-                    {/* Expanded body */}
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.18 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="px-4 pb-4 space-y-4">
-                            <div className="h-px bg-border/50" />
-
-                            {isEditing ? (
-                              /* Edit mode */
-                              <div className="space-y-3">
-                                <MoodRow value={editMood} onChange={setEditMood} />
-
-                                <textarea
-                                  value={editContent}
-                                  onChange={e => setEditContent(e.target.value)}
-                                  autoFocus
-                                  className="w-full min-h-[140px] resize-none bg-surface-2 rounded-xl border border-border p-3 font-mono text-sm leading-relaxed text-text-primary outline-none focus:border-accent transition-colors"
-                                />
-
-                                <div className="flex justify-between items-center text-[10px] font-mono text-text-muted/60 px-1 -mt-2">
-                                  <span>{editContent.length} chars</span>
-                                  <span>
-                                    {editContent.trim() === '' ? 0 : editContent.trim().split(/\s+/).length} words
-                                    {editContent.trim() !== '' && ` · ~${Math.max(1, Math.round(editContent.trim().split(/\s+/).length / 200))} min read`}
-                                  </span>
-                                </div>
-
-                                <FolderPills folders={folders} value={editFolder} onChange={v => setEditFolder(v)} />
-
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <PhotoAttachButton
-                                    previewUrl={editImagePreviewUrl}
-                                    onSelect={file => {
-                                      if (editImagePreviewUrl) URL.revokeObjectURL(editImagePreviewUrl);
-                                      setEditImageFile(file);
-                                      setEditImagePreviewUrl(URL.createObjectURL(file));
-                                      setEditHasExistingImage(false);
-                                    }}
-                                    onRemove={() => {
-                                      if (editImagePreviewUrl) URL.revokeObjectURL(editImagePreviewUrl);
-                                      setEditImageFile(null);
-                                      setEditImagePreviewUrl(null);
-                                      setEditHasExistingImage(false);
-                                    }}
-                                  />
-                                  <VoiceRecordButton
-                                    onTranscribed={text => setEditContent(prev => (prev.trim() ? `${prev.trim()}\n\n${text}` : text))}
-                                  />
-                                </div>
-
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={handleSaveEdit}
-                                    disabled={!editContent.trim()}
-                                    className="flex items-center gap-1.5 px-4 py-2 bg-accent text-bg rounded-xl text-xs font-mono font-bold disabled:opacity-40 hover:opacity-90 transition-opacity"
-                                  >
-                                    <Check className="w-3.5 h-3.5" /> Save
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingId(null)}
-                                    className="flex items-center gap-1.5 px-4 py-2 border border-border rounded-xl text-xs font-mono text-text-muted hover:bg-surface-2 transition-colors"
-                                  >
-                                    <X className="w-3.5 h-3.5" /> Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              /* View mode */
-                              <div className="space-y-3">
-                                <p className="font-mono text-sm leading-relaxed text-text-primary whitespace-pre-wrap">
-                                  {entry.content}
-                                </p>
-                                {entry.image && <EntryImage raw={entry.image} />}
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => handleCopy(entry.id, entry.content)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors"
-                                  >
-                                    {copiedId === entry.id ? (
-                                      <>
-                                        <Check className="w-3 h-3 text-accent" />
-                                        <span className="text-accent">Copied</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Copy className="w-3 h-3" />
-                                        <span>Copy</span>
-                                      </>
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => startEdit(entry)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors"
-                                  >
-                                    <Pencil className="w-3 h-3" /> Edit
-                                  </button>
-                                  <Link
-                                    href={`/app/letter?content=${encodeURIComponent(entry.content)}`}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-surface-2 hover:text-text-primary transition-colors"
-                                  >
-                                    <Mail className="w-3 h-3" /> Send as Letter
-                                  </Link>
-                                  <button
-                                    onClick={() => handleDelete(entry.id)}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-border rounded-lg text-xs font-mono text-text-muted hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/40 transition-colors"
-                                  >
-                                    <Trash2 className="w-3 h-3" /> Delete
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </motion.div>
+                      {preview && (
+                        <p className="text-xs text-text-muted/50 mt-1 line-clamp-1 font-mono">{preview}</p>
                       )}
-                    </AnimatePresence>
-                  </motion.div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-text-muted/30 shrink-0 mt-0.5" />
+                  </Link>
                 );
               })}
             </div>
@@ -1069,31 +373,16 @@ export default function JournalPage() {
                   ? 'Write a new entry and assign it to this folder.'
                   : 'Tap New Entry to capture your first thought.'}
               </p>
-              <button
-                onClick={() => setShowCompose(true)}
+              <Link
+                href={newEntryHref}
                 className="mt-6 flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent border border-accent/30 rounded-xl text-xs font-mono hover:bg-accent/15 transition-colors"
               >
                 <Plus className="w-4 h-4" /> Write first entry
-              </button>
+              </Link>
             </div>
           )}
         </div>
       </div>
-
-      {/* Toast */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, x: 20 }}
-            animate={{ opacity: 1, y: 0, x: 0 }}
-            exit={{ opacity: 0, y: 20, x: 20 }}
-            className="fixed bottom-24 right-6 z-50 bg-accent text-bg px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest"
-          >
-            <PenTool className="w-4 h-4" />
-            <span>{toast}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }
