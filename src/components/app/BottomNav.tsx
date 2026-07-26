@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, BookOpen, History, Trophy, Mail, LayoutGrid } from 'lucide-react';
+import { Home, BookOpen, History, Trophy, Mail, LayoutGrid, Settings } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -53,14 +53,16 @@ export function BottomNav() {
     { icon: LayoutGrid, label: 'Tools', href: '/app/tools' },
     { icon: Mail, label: 'Letters', href: '/app/letter' },
     { icon: History, label: 'History', href: '/app/history' },
+    // Mobile-only — desktop keeps Settings in the top AppHeader instead.
+    { icon: Settings, label: 'Settings', href: '/app/settings', mobileOnly: true },
   ];
 
 
   if (isKeyboardOpen) return null;
 
   return (
-    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-40 flex justify-center px-6 pb-8 pointer-events-none">
-      <div className="bg-surface/80 backdrop-blur-xl border border-border rounded-full px-4 py-3 flex gap-2 pointer-events-auto shadow-2xl">
+    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-40 flex justify-center px-3 sm:px-6 pb-8 pointer-events-none">
+      <div className="bg-surface/80 backdrop-blur-xl border border-border rounded-full px-2.5 py-2.5 sm:px-4 sm:py-3 flex gap-1 sm:gap-2 pointer-events-auto shadow-2xl max-w-full overflow-x-auto">
         {navItems.map((item) => {
           const isActive = item.href === '/app/tools'
             ? pathname === '/app/tools' || ['/app/chat', '/app/tweet', '/app/reflect', '/app/pattern', '/app/coach', '/app/challenge'].includes(pathname)
@@ -72,7 +74,8 @@ export function BottomNav() {
               aria-label={item.label}
               aria-current={isActive ? 'page' : undefined}
               className={cn(
-                "p-3 rounded-full transition-all duration-300 relative group",
+                "p-2.5 sm:p-3 rounded-full transition-all duration-300 relative group shrink-0",
+                item.mobileOnly && "sm:hidden",
                 isActive ? "bg-accent text-bg" : "text-text-muted hover:text-text-primary hover:bg-surface-2"
               )}
             >
