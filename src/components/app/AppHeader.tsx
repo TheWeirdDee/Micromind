@@ -37,9 +37,11 @@ export function AppHeader() {
               <LogOut className="w-4 h-4" />
             </button>
           )}
+          {/* Hidden on mobile — Settings lives in the bottom nav there instead,
+              freeing width so the wallet badge/balance don't clip on narrow screens. */}
           <Link
             href="/app/settings"
-            className="p-1.5 text-text-muted hover:text-accent hover:bg-surface-2 rounded-full transition-all shrink-0"
+            className="hidden sm:inline-flex p-1.5 text-text-muted hover:text-accent hover:bg-surface-2 rounded-full transition-all shrink-0"
             title="Settings"
             aria-label="Open settings"
           >
