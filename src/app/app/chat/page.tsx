@@ -57,7 +57,6 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
 
-  // Persist messages
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem('micromind_chat_memory', JSON.stringify(messages));
@@ -83,7 +82,6 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
     setPrompt('');
     setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
 
-    // Send the last 5 messages as context for memory
     const historyContext: Message[] = [
       ...messages.slice(-5),
       { role: 'user', content: userPrompt }
