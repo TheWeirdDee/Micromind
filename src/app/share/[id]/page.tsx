@@ -44,7 +44,6 @@ export default function SharedReflectionPage() {
     <div className="min-h-screen bg-bg text-text-primary px-6 py-12 flex flex-col items-center">
       <div className="w-full max-w-xl space-y-8">
 
-        {/* Header */}
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-accent text-bg">
             <Sparkles className="w-4 h-4" />
@@ -57,13 +56,11 @@ export default function SharedReflectionPage() {
           </div>
         </div>
 
-        {/* Content */}
         <div className="rounded-[2rem] border border-border bg-surface-2 p-6 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
           <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted mb-4">AI-generated insight</p>
           <p className="text-sm leading-relaxed text-text-primary whitespace-pre-wrap font-mono">{content}</p>
         </div>
 
-        {/* CTA */}
         <div className="rounded-[2rem] border border-accent/20 bg-accent/5 p-6 space-y-3">
           <p className="text-sm font-serif">Start your own private journal</p>
           <p className="text-xs font-mono text-text-muted leading-relaxed">
