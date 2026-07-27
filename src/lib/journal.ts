@@ -268,8 +268,7 @@ export function saveEntry(entry: Omit<JournalEntry, 'id' | 'date' | 'timestamp'>
     timestamp: Date.now(),
   };
   localStorage.setItem(JOURNAL_KEY, JSON.stringify([newEntry, ...entries]));
-  
-  // Set habit state for journal completion
+
   const getLocalDateString = (d: Date) => {
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -406,8 +405,7 @@ export function setDailyHabitState(dateStr: string, state: Partial<DailyHabitSta
   const current = getDailyHabitState(dateStr, walletAddress);
   const updated = { ...current, ...state };
   localStorage.setItem(key, JSON.stringify(updated));
-  
-  // Trigger updateStreak to ensure streak counter stays in sync
+
   updateStreak(walletAddress);
 }
 
