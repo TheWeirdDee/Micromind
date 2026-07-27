@@ -151,8 +151,7 @@ function ReflectPageInner({ folderParam, historyId }: { folderParam: string | nu
       className="space-y-8 pb-24"
     >
       <AgentWarning />
-      
-      {/* Header */}
+
       <header className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <Link href="/app/journal" className="p-2 hover:bg-surface-2 rounded-full transition-colors">
@@ -199,7 +198,6 @@ function ReflectPageInner({ folderParam, historyId }: { folderParam: string | nu
         )
       ) : (
         <div className="space-y-6">
-          {/* Celo Gas Warning */}
           {hasNoCelo && (
             <div className="p-4 rounded-xl bg-red-950/30 border border-red-900/60 text-xs text-red-200 font-mono leading-relaxed flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
@@ -217,7 +215,6 @@ function ReflectPageInner({ folderParam, historyId }: { folderParam: string | nu
             </div>
           )}
 
-          {/* Compact Entries Preview */}
           <div className="bg-surface border border-border p-5 rounded-2xl space-y-4">
             <h3 className="font-serif text-lg">Reflecting on {entries.length} recent {entries.length === 1 ? 'entry' : 'entries'}</h3>
             <div className="divide-y divide-border/60">
@@ -262,7 +259,6 @@ function ReflectPageInner({ folderParam, historyId }: { folderParam: string | nu
         <div className="space-y-3">
           <ResponseCard response={response} />
 
-          {/* Email button */}
           <div className="flex flex-col gap-2 pt-1">
             {emailSent ? (
               <div className="flex items-center gap-2 text-xs font-mono text-accent-green px-4 py-2 rounded-xl bg-accent-green/10 border border-accent-green/20 w-fit">
