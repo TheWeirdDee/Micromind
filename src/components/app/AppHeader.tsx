@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { WalletBadge } from './WalletBadge';
+import { ConfirmDialog } from './ConfirmDialog';
 import Link from 'next/link';
 import { Logo } from '@/components/brand/Logo';
 import { useWallet } from '@/context/WalletContext';
@@ -8,12 +10,7 @@ import { LogOut, Settings } from 'lucide-react';
 
 export function AppHeader() {
   const { isConnected, disconnect } = useWallet();
-
-  const handleDisconnect = () => {
-    if (window.confirm('Disconnect your wallet?')) {
-      disconnect();
-    }
-  };
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 bg-bg/80 backdrop-blur-md border-b border-border">
@@ -29,7 +26,7 @@ export function AppHeader() {
         <div className="flex items-center gap-1 min-w-0">
           {isConnected && (
             <button
-              onClick={handleDisconnect}
+              onClick={() => setConfirmingDisconnect(true)}
               className="p-1.5 text-text-muted hover:text-accent-red hover:bg-accent-red/10 rounded-full transition-all shrink-0"
               title="Disconnect Wallet"
               aria-label="Disconnect wallet"
@@ -54,6 +51,16 @@ export function AppHeader() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmingDisconnect}
+        title="Disconnect wallet?"
+        message="You'll need to reconnect to keep using MicroMind."
+        confirmLabel="Disconnect"
+        danger
+        onConfirm={() => { setConfirmingDisconnect(false); disconnect(); }}
+        onCancel={() => setConfirmingDisconnect(false)}
+      />
     </header>
   );
 }
