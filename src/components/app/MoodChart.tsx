@@ -88,7 +88,6 @@ export function MoodChart() {
         </div>
       ) : (
         <>
-          {/* Mood distribution bars */}
           <div className="space-y-2.5">
             {MOOD_CONFIG.filter(m => counts[m.mood]).map(m => {
               const pct = Math.round((counts[m.mood] / total) * 100);
@@ -107,7 +106,6 @@ export function MoodChart() {
             })}
           </div>
 
-          {/* 7-day trend dots */}
           <div className="space-y-2">
             <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted font-mono mb-2">Last 7 days</p>
             <div className="flex items-end gap-1 justify-between">
@@ -128,7 +126,6 @@ export function MoodChart() {
             </div>
           </div>
 
-          {/* Trends Summary Stats */}
           <div className="pt-3 border-t border-border/40 grid grid-cols-2 gap-3 text-center">
             <div className="rounded-2xl bg-bg/40 p-2 border border-border/30">
               <p className="text-[9px] uppercase tracking-widest font-mono text-text-muted">Positivity</p>
