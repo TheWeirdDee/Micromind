@@ -18,6 +18,7 @@ import {
 import { uploadJournalImage, deleteJournalImage, fetchJournalImage } from '@/lib/journalMedia';
 import { PhotoAttachButton, VoiceRecordButton, EntryImage } from './JournalMediaControls';
 import { MarkdownToolbar, type TextSelection } from './MarkdownToolbar';
+import { ConfirmDialog } from './ConfirmDialog';
 import { THERAPEUTIC_PROMPTS, DEFAULT_PROMPTS } from '@/constants/prompts';
 
 const MOODS = [
@@ -258,6 +259,7 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
   };
 
   const isInTrash = entry?.folderId === RECENTLY_DELETED_FOLDER_ID;
+  const [confirmingPermanentDelete, setConfirmingPermanentDelete] = useState(false);
 
   const handleDelete = () => {
     if (!entryId) return;
@@ -269,9 +271,14 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
       return;
     }
 
-    if (!window.confirm('Permanently delete this entry? This action cannot be undone.')) return;
+    setConfirmingPermanentDelete(true);
+  };
+
+  const confirmPermanentDelete = () => {
+    if (!entryId) return;
     if (entry?.image) deleteJournalImage(entry.image).catch(() => {});
     permanentlyDeleteEntry(entryId);
+    setConfirmingPermanentDelete(false);
     router.back();
   };
 
@@ -534,6 +541,16 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
           {toast}
         </motion.div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmingPermanentDelete}
+        title="Permanently delete this entry?"
+        message="This action cannot be undone."
+        confirmLabel="Delete Forever"
+        danger
+        onConfirm={confirmPermanentDelete}
+        onCancel={() => setConfirmingPermanentDelete(false)}
+      />
     </motion.div>
   );
 }
