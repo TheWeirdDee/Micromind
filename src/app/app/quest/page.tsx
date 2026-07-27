@@ -40,7 +40,7 @@ interface CollectedCard {
   category: string;
   targetWord: string;
   sentence: string;
-  cardText: string; // generated affirmation + question
+  cardText: string;  
   unlockedAt: number;
 }
 
@@ -55,7 +55,6 @@ interface VocabularyEntry {
   unlockedAt: number;
 }
 
-// Helper to provide emotional granularity comparisons
 function getEmotionalGranularityComparison(word: string): { generic: string; nuance: string } {
   const comparisons: Record<string, { generic: string; nuance: string }> = {
     'REJUVENATING': {
@@ -177,7 +176,6 @@ export default function QuestPage() {
   // the instant the page loads, before anyone has had a chance to read anything.
   const [stageStarted, setStageStarted] = useState(false);
 
-  // Tab state in sidebar
   const [sidebarTab, setSidebarTab] = useState<'levels' | 'dictionary' | 'cards'>('levels');
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
 
@@ -250,7 +248,6 @@ export default function QuestPage() {
   const cardsStorageKey = useMemo(() => address ? `mm_quest_cards_${address}` : 'mm_quest_cards', [address]);
   const vocabStorageKey = useMemo(() => address ? `mm_quest_vocabulary_${address}` : 'mm_quest_vocabulary', [address]);
 
-  // Set default expanded category to active level's category if not set by user
   const currentCategory = expandedCategory ?? activeLevel?.category ?? '';
 
   const toggleCategory = (catName: string) => {
@@ -407,7 +404,6 @@ export default function QuestPage() {
     };
   }, [loadVocabularyEntriesFromSupabase]);
 
-  // Set default withdrawal address when connected
   useEffect(() => {
     if (address) {
       const timer = setTimeout(() => {
@@ -417,7 +413,6 @@ export default function QuestPage() {
     }
   }, [address]);
 
-  // Shuffle scrambled letters dynamically when stage changes
   useEffect(() => {
     if (activeStage) {
       const letters = shuffleLetters(activeStage.scrambledLetters, activeStage.targetWord);
@@ -528,7 +523,6 @@ export default function QuestPage() {
     return () => clearInterval(timer);
   }, [progressLoading, isSolved, isFailed, activeStage, timerStorageKey, isReviewing, hasForfeited, showGuide, stageStarted]);
 
-  // Handle letter select by index
   const handleSelectLetter = (letter: string, index: number) => {
     if (isSolved || isFailed || !activeStage || !activeLevel) return;
     if (!isReviewing && !stageStarted) return;
@@ -538,20 +532,17 @@ export default function QuestPage() {
     const nextIndices = [...selectedIndices, index];
     setSelectedIndices(nextIndices);
 
-    // Verify solution
     if (nextIndices.length === targetLength) {
       const spelledWord = nextIndices.map(idx => shuffledLetters[idx]).join('');
       if (spelledWord === activeStage.targetWord) {
         setIsSolved(true);
         setIsFailed(false);
-        // Blast confetti!
         confetti({
           particleCount: 80,
           spread: 60,
           origin: { y: 0.7 }
         });
 
-        // Set pending dictionary entry
         const entry = createDictionaryEntry(activeStage, activeLevel);
         setPendingDictionaryEntry(entry);
       } else {
@@ -561,7 +552,6 @@ export default function QuestPage() {
     }
   };
 
-  // Remove last letter
   const handleRemoveLetter = (index: number) => {
     if (isSolved) return;
     const nextIndices = [...selectedIndices];
@@ -570,37 +560,31 @@ export default function QuestPage() {
     setIsFailed(false);
   };
 
-  // Clear slots / Retry Stage
   const handleClearSlots = () => {
     if (isSolved) return;
     setSelectedIndices([]);
     setIsFailed(false);
   };
 
-  // Handle manual shuffle of letters (max 3 times per stage)
   const handleShuffleLetters = () => {
     if (shuffleCount >= 3) return;
 
-    // Find all indices that are NOT selected (i.e. currently in the word bank)
     const unselectedIndices = shuffledLetters
       .map((_, idx) => idx)
       .filter(idx => !selectedIndices.includes(idx));
 
-    if (unselectedIndices.length <= 1) return; // Nothing to shuffle
+    if (unselectedIndices.length <= 1) return;
 
-    // Copy the letters array
     const letters = [...shuffledLetters];
-    
-    // Copy the values of the unselected letters
+
     const unselectedValues = unselectedIndices.map(idx => letters[idx]);
-    
-    // Shuffle the unselected values array (Fisher-Yates)
+
+    // Fisher-Yates shuffle
     for (let i = unselectedValues.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [unselectedValues[i], unselectedValues[j]] = [unselectedValues[j], unselectedValues[i]];
     }
 
-    // Put the shuffled values back into their respective positions in the letters array
     unselectedIndices.forEach((origIdx, shuffleIdx) => {
       letters[origIdx] = unselectedValues[shuffleIdx];
     });
@@ -609,13 +593,11 @@ export default function QuestPage() {
     setShuffleCount(prev => prev + 1);
   };
 
-  // Handle Explicit Add to Dictionary
   const handleAddToDictionary = async () => {
     if (!pendingDictionaryEntry) return;
     const targetWord = pendingDictionaryEntry.targetWord;
     setAddingToDictWord(targetWord);
 
-    // Keep unique entries by targetWord
     const nextEntries = [pendingDictionaryEntry, ...vocabularyEntries.filter((item) => item.targetWord !== targetWord)];
     saveVocabularyEntries(nextEntries);
 
@@ -628,7 +610,6 @@ export default function QuestPage() {
       console.warn('[ADD TO DICTIONARY ERROR]', err);
     }
 
-    // Success animation timeout
     setTimeout(() => {
       setAddingToDictWord(null);
       setPendingDictionaryEntry(null);
@@ -695,7 +676,6 @@ export default function QuestPage() {
     }
   };
 
-  // Reset progress and clean all timer records
   const handleResetProgress = async () => {
     if (typeof window !== 'undefined') {
       try {
@@ -712,7 +692,6 @@ export default function QuestPage() {
     setIsReplaying(false);
   };
 
-  // Handle Withdrawal to Real Money
   const handleWithdraw = async () => {
     if (withdrawAmount < 10) {
       setErrorModal({ title: 'Validation Error', message: 'Minimum withdrawal is 10 Clarity Points.' });
@@ -773,8 +752,7 @@ export default function QuestPage() {
  
       await deductPoints(withdrawAmount);
       setShowRewardsModal(false);
-      
-      // Trigger Confetti!
+
       confetti({
         particleCount: 150,
         spread: 80,
@@ -794,7 +772,6 @@ export default function QuestPage() {
     }
   };
 
-  // Request Premium Hint (0.005 USDm)
   const handleGetHint = async () => {
     if (!activeStage || paidLoading) return;
     if (!isConnected || !address) {
@@ -836,7 +813,6 @@ export default function QuestPage() {
     }
   };
  
-  // Unlock Premium Reframing Card (0.005 USDm)
   const handleUnlockCard = async () => {
     if (!activeStage || !activeLevel || paidLoading) return;
     if (!isConnected || !address) {
@@ -901,7 +877,6 @@ export default function QuestPage() {
     }
   };
 
-  // Filtered dictionary list
   const filteredVocabulary = useMemo(() => {
     return vocabularyEntries.filter((entry) => {
       const matchesSearch = entry.targetWord.toLowerCase().includes(vocabSearch.toLowerCase()) || 
@@ -911,7 +886,6 @@ export default function QuestPage() {
     });
   }, [vocabularyEntries, vocabSearch, vocabFilterCategory]);
 
-  // Extract unique categories in vocabulary for filtering
   const dictionaryCategories = useMemo(() => {
     const categories = new Set<string>();
     vocabularyEntries.forEach(entry => {
@@ -920,7 +894,6 @@ export default function QuestPage() {
     return Array.from(categories);
   }, [vocabularyEntries]);
 
-  // Render Rewards Hub
   const renderRewardsHub = (inModal = false) => {
     return (
       <div className={`bg-surface border border-border rounded-2xl p-5 sm:p-6 text-left ${inModal ? 'space-y-4 shadow-2xl' : 'space-y-5'}`}>
@@ -990,7 +963,6 @@ export default function QuestPage() {
     );
   };
 
-  // Render Category-driven navigation Accordion
   const renderCategoryNav = () => {
     const grouped = QUEST_LEVELS.reduce((map, level) => {
       if (!map[level.category]) map[level.category] = [];
@@ -1144,7 +1116,6 @@ export default function QuestPage() {
     );
   };
 
-  // Render Sidebar Dictionary tab
   const renderSidebarDictionary = () => {
     return (
       <div className="space-y-4 text-left">
@@ -1221,7 +1192,6 @@ export default function QuestPage() {
     );
   };
 
-  // Render Sidebar Cards tab
   const renderSidebarCards = () => {
     return (
       <div className="space-y-4 text-left">
