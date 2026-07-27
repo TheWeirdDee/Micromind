@@ -117,7 +117,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanUsername = username.trim().toLowerCase();
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check username
     const { data: existingUsername } = await supabase
       .from('profiles')
       .select('id')
@@ -125,7 +124,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .maybeSingle();
     if (existingUsername) throw new Error('Username already taken. Please choose another.');
 
-    // Check email
     const { data: existingEmail } = await supabase
       .from('profiles')
       .select('id')
@@ -133,7 +131,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .maybeSingle();
     if (existingEmail) throw new Error('An account with this email already exists. Try logging in.');
 
-    // Create auth user
     const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password });
     if (error) throw new Error(error.message);
     if (!data.user) throw new Error('Signup failed. Please try again.');
