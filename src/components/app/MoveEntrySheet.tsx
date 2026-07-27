@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Folder as FolderIcon, BookOpen } from 'lucide-react';
-import type { Folder } from '@/lib/journal';
+import { X, Check, Folder as FolderIcon, BookOpen, FolderPlus } from 'lucide-react';
+import { createFolder, type Folder } from '@/lib/journal';
 
 interface MoveEntrySheetProps {
   isOpen: boolean;
@@ -12,11 +12,33 @@ interface MoveEntrySheetProps {
   folders: Folder[];
   currentFolderId: string | undefined;
   onSelect: (folderId: string | undefined) => void;
+  /** Called after a new folder is created here, so the parent can refresh its folders list. */
+  onFolderCreated?: () => void;
 }
 
-export function MoveEntrySheet({ isOpen, onClose, folders, currentFolderId, onSelect }: MoveEntrySheetProps) {
+export function MoveEntrySheet({ isOpen, onClose, folders, currentFolderId, onSelect, onFolderCreated }: MoveEntrySheetProps) {
   const [mounted, setMounted] = useState(false);
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!isOpen) { setCreatingFolder(false); setNewFolderName(''); }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (creatingFolder) inputRef.current?.focus();
+  }, [creatingFolder]);
+
+  const handleCreateAndMove = () => {
+    if (!newFolderName.trim()) return;
+    const folder = createFolder(newFolderName.trim());
+    onFolderCreated?.();
+    onSelect(folder.id);
+    onClose();
+  };
 
   const sheet = (
     <AnimatePresence>
@@ -49,6 +71,44 @@ export function MoveEntrySheet({ isOpen, onClose, folders, currentFolderId, onSe
             </div>
 
             <div className="p-2">
+              {creatingFolder ? (
+                <div className="p-2 space-y-2">
+                  <input
+                    ref={inputRef}
+                    value={newFolderName}
+                    onChange={e => setNewFolderName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') handleCreateAndMove();
+                      if (e.key === 'Escape') { setCreatingFolder(false); setNewFolderName(''); }
+                    }}
+                    placeholder="Folder name..."
+                    className="w-full bg-surface-2 border border-accent rounded-xl px-3 py-2 text-sm text-text-primary outline-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCreateAndMove}
+                      className="flex-1 py-2 bg-accent text-bg rounded-lg text-xs font-mono font-bold"
+                    >
+                      Create &amp; Move
+                    </button>
+                    <button
+                      onClick={() => { setCreatingFolder(false); setNewFolderName(''); }}
+                      className="flex-1 py-2 border border-border rounded-lg text-xs font-mono text-text-muted"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setCreatingFolder(true)}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left hover:bg-surface-2 transition-colors text-accent"
+                >
+                  <FolderPlus className="w-4 h-4 shrink-0" />
+                  <span className="flex-1 text-sm">New Folder</span>
+                </button>
+              )}
+
               <button
                 onClick={() => { onSelect(undefined); onClose(); }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left hover:bg-surface-2 transition-colors"
