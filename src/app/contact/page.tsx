@@ -37,7 +37,6 @@ export default function ContactPage() {
         <div className="container mx-auto max-w-5xl relative z-10 text-left">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
             
-            {/* Left Column — Info */}
             <div className="lg:col-span-5 space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent/10 border border-accent/20 rounded-xl text-accent font-mono text-[10px] uppercase tracking-wider">
                 <AlertCircle className="w-3.5 h-3.5" />
@@ -53,7 +52,6 @@ export default function ContactPage() {
               </p>
 
               <div className="space-y-4 pt-4">
-                {/* Email Card */}
                 <div className="bg-surface border border-border p-5 rounded-2xl space-y-2.5 relative group">
                   <div className="flex justify-between items-center">
                     <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted">Direct Email</span>
@@ -74,7 +72,6 @@ export default function ContactPage() {
                   </a>
                 </div>
 
-                {/* X Card */}
                 <div className="bg-surface border border-border p-5 rounded-2xl space-y-2.5 relative group">
                   <span className="font-mono text-[10px] uppercase tracking-wider text-text-muted block">Follow Us / DM</span>
                   <p className="font-serif text-xl text-text-primary">@micromindapp</p>
@@ -91,7 +88,6 @@ export default function ContactPage() {
               </div>
             </div>
 
-            {/* Right Column — Email Template Builder Form */}
             <div className="lg:col-span-7 bg-surface border border-border rounded-[2.5rem] p-6 sm:p-8 space-y-6">
               <div>
                 <h3 className="font-serif text-2xl text-text-primary">Draft a Report</h3>
@@ -101,7 +97,6 @@ export default function ContactPage() {
               </div>
 
               <form onSubmit={handleOpenMail} className="space-y-4 font-mono text-xs">
-                {/* Form Type */}
                 <div className="space-y-1.5">
                   <label className="text-text-muted uppercase text-[9px] tracking-wider font-bold">Issue Type</label>
                   <div className="grid grid-cols-3 gap-2">
@@ -122,7 +117,6 @@ export default function ContactPage() {
                   </div>
                 </div>
 
-                {/* Subject */}
                 <div className="space-y-1.5">
                   <label className="text-text-muted uppercase text-[9px] tracking-wider font-bold block">Subject</label>
                   <input
@@ -135,7 +129,6 @@ export default function ContactPage() {
                   />
                 </div>
 
-                {/* Description */}
                 <div className="space-y-1.5">
                   <label className="text-text-muted uppercase text-[9px] tracking-wider font-bold block">Description Details</label>
                   <textarea
