@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BookOpen, Smile, ChevronRight,
+  BookOpen, Star, Trash2,
   FolderPlus, Folder as FolderIcon, MoreHorizontal, Sparkles,
   Plus, PenTool,
 } from 'lucide-react';
@@ -11,17 +11,18 @@ import {
 import Link from 'next/link';
 import {
   getEntries, getFolders, createFolder, renameFolder, deleteFolder,
-  stripMarkdownForPreview, MOOD_ICONS,
+  moveEntry, moveEntryToTrash, permanentlyDeleteEntry, setEntryStarred,
+  RECENTLY_DELETED_FOLDER_ID,
   type JournalEntry, type Folder,
 } from '@/lib/journal';
+import { deleteJournalImage } from '@/lib/journalMedia';
+import { JournalEntryRow, type RowOpenState } from '@/components/app/JournalEntryRow';
+import { MoveEntrySheet } from '@/components/app/MoveEntrySheet';
 
-const MOOD_TEXT: Record<string, string> = {
-  happy: 'text-accent',
-  excited: 'text-accent-gold',
-  neutral: 'text-text-muted',
-  sad: 'text-blue-400',
-  angry: 'text-red-400',
-};
+type ListView =
+  | { kind: 'folder'; id: string | null }
+  | { kind: 'starred' }
+  | { kind: 'trash' };
 
 export default function JournalPage() {
   // Data
@@ -32,13 +33,17 @@ export default function JournalPage() {
     typeof window !== 'undefined' ? getEntries() : []
   );
 
-  // Folder UI
-  const [activeFolderId, setActiveFolderId]     = useState<string | null>(null);
+  // View / folder UI
+  const [view, setView]                         = useState<ListView>({ kind: 'folder', id: null });
   const [creatingFolder, setCreatingFolder]     = useState(false);
   const [newFolderName, setNewFolderName]       = useState('');
   const [renamingId, setRenamingId]             = useState<string | null>(null);
   const [renameName, setRenameName]             = useState('');
   const [folderMenuId, setFolderMenuId]         = useState<string | null>(null);
+
+  // Swipe / move state
+  const [openRow, setOpenRow]         = useState<{ id: string; side: RowOpenState } | null>(null);
+  const [moveEntryId, setMoveEntryId] = useState<string | null>(null);
 
   const [hasDraft, setHasDraft] = useState<boolean>(() =>
     typeof window !== 'undefined' && !!localStorage.getItem('mm_journal_draft')
@@ -67,9 +72,15 @@ export default function JournalPage() {
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
-  const filteredEntries = activeFolderId === null
-    ? entries
-    : entries.filter(e => e.folderId === activeFolderId);
+  const nonTrashedEntries = entries.filter(e => e.folderId !== RECENTLY_DELETED_FOLDER_ID);
+  const starredCount = nonTrashedEntries.filter(e => e.starred).length;
+  const trashCount = entries.length - nonTrashedEntries.length;
+
+  const filteredEntries =
+    view.kind === 'trash' ? entries.filter(e => e.folderId === RECENTLY_DELETED_FOLDER_ID) :
+    view.kind === 'starred' ? nonTrashedEntries.filter(e => e.starred) :
+    view.id === null ? nonTrashedEntries :
+    nonTrashedEntries.filter(e => e.folderId === view.id);
 
   // -- Folder handlers -------------------------------------------------------
 
@@ -90,7 +101,7 @@ export default function JournalPage() {
   const handleDeleteFolder = (id: string) => {
     if (!window.confirm('Delete this folder? Entries will stay in All Notes.')) return;
     deleteFolder(id);
-    if (activeFolderId === id) setActiveFolderId(null);
+    if (view.kind === 'folder' && view.id === id) setView({ kind: 'folder', id: null });
     refresh();
   };
 
@@ -103,13 +114,35 @@ export default function JournalPage() {
     setHasDraft(false);
   };
 
+  // -- Entry action handlers --------------------------------------------------
+
+  const handleMoveSelect = (folderId: string | undefined) => {
+    if (!moveEntryId) return;
+    moveEntry(moveEntryId, folderId);
+    setMoveEntryId(null);
+  };
+
+  const handleDeleteEntry = (entry: JournalEntry) => {
+    if (view.kind === 'trash') {
+      if (!window.confirm('Permanently delete this entry? This action cannot be undone.')) return;
+      if (entry.image) deleteJournalImage(entry.image).catch(() => {});
+      permanentlyDeleteEntry(entry.id);
+    } else {
+      moveEntryToTrash(entry.id);
+    }
+  };
+
+  const handleToggleStar = (entry: JournalEntry) => {
+    setEntryStarred(entry.id, !entry.starred);
+  };
+
   // -- Sidebar folder item ---------------------------------------------------
 
   const renderSidebarFolder = (folder: Folder) => {
-    const isActive   = activeFolderId === folder.id;
+    const isActive   = view.kind === 'folder' && view.id === folder.id;
     const isRenaming = renamingId === folder.id;
     const showMenu   = folderMenuId === folder.id;
-    const count      = entries.filter(e => e.folderId === folder.id).length;
+    const count      = nonTrashedEntries.filter(e => e.folderId === folder.id).length;
 
     return (
       <div key={folder.id} className="relative">
@@ -119,7 +152,7 @@ export default function JournalPage() {
               ? 'bg-accent/15 text-accent'
               : 'text-text-muted hover:bg-surface-2 hover:text-text-primary'
           }`}
-          onClick={() => { if (!isRenaming) { setActiveFolderId(folder.id); setFolderMenuId(null); } }}
+          onClick={() => { if (!isRenaming) { setView({ kind: 'folder', id: folder.id }); setFolderMenuId(null); } }}
         >
           <FolderIcon className="w-4 h-4 shrink-0" />
           {isRenaming ? (
@@ -168,22 +201,35 @@ export default function JournalPage() {
     );
   };
 
-  // -- Active folder header label ---------------------------------------------
+  // -- Active view header label ---------------------------------------------
 
-  const activeFolderName = activeFolderId
-    ? (folders.find(f => f.id === activeFolderId)?.name ?? 'Folder')
-    : 'All Notes';
+  const activeViewName =
+    view.kind === 'starred' ? 'Starred' :
+    view.kind === 'trash' ? 'Recently Deleted' :
+    view.id ? (folders.find(f => f.id === view.id)?.name ?? 'Folder') : 'All Notes';
 
-  const newEntryHref = activeFolderId
-    ? `/app/journal/new?folder=${activeFolderId}`
+  const newEntryHref = view.kind === 'folder' && view.id
+    ? `/app/journal/new?folder=${view.id}`
     : '/app/journal/new';
+
+  const emptyTitle =
+    view.kind === 'trash' ? 'Recently Deleted is empty' :
+    view.kind === 'starred' ? 'No starred entries yet' :
+    view.kind === 'folder' && view.id ? 'This folder is empty' : 'No entries yet';
+
+  const emptySubtitle =
+    view.kind === 'trash' ? 'Deleted entries appear here before being permanently removed.' :
+    view.kind === 'starred' ? 'Swipe an entry right (or use the star icon on desktop) to pin it here.' :
+    view.kind === 'folder' && view.id ? 'Write a new entry and assign it to this folder.' : 'Tap New Entry to capture your first thought.';
+
+  const showWriteFirstEntry = view.kind === 'folder';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="pb-24"
-      onClick={() => { if (folderMenuId) setFolderMenuId(null); }}
+      onClick={() => { if (folderMenuId) setFolderMenuId(null); if (openRow) setOpenRow(null); }}
     >
       {/* -- Page header --------------------------------------------------- */}
       <div className="flex items-center justify-between mb-6">
@@ -207,20 +253,50 @@ export default function JournalPage() {
         {/* Folder list — full width above entries on mobile, fixed-width sidebar on desktop */}
         <aside className="flex flex-col w-full lg:w-48 shrink-0 mb-6 lg:mb-0">
           <div className="divide-y divide-border/40 rounded-xl overflow-hidden border border-border/40">
+            {starredCount > 0 && (
+              <div
+                className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-all ${
+                  view.kind === 'starred'
+                    ? 'bg-accent/15 text-accent'
+                    : 'text-text-muted hover:bg-surface-2 hover:text-text-primary'
+                }`}
+                onClick={() => setView({ kind: 'starred' })}
+              >
+                <Star className="w-4 h-4 shrink-0" />
+                <span className="flex-1 text-sm">Starred</span>
+                <span className="text-xs font-mono opacity-50">{starredCount}</span>
+              </div>
+            )}
+
             {/* All Notes */}
             <div
               className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-all ${
-                activeFolderId === null
+                view.kind === 'folder' && view.id === null
                   ? 'bg-accent/15 text-accent'
                   : 'text-text-muted hover:bg-surface-2 hover:text-text-primary'
               }`}
-              onClick={() => setActiveFolderId(null)}
+              onClick={() => setView({ kind: 'folder', id: null })}
             >
               <BookOpen className="w-4 h-4 shrink-0" />
               <span className="flex-1 text-sm">All Notes</span>
-              <span className="text-xs font-mono opacity-50">{entries.length}</span>
+              <span className="text-xs font-mono opacity-50">{nonTrashedEntries.length}</span>
             </div>
             {folders.map(f => renderSidebarFolder(f))}
+
+            {trashCount > 0 && (
+              <div
+                className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-all ${
+                  view.kind === 'trash'
+                    ? 'bg-accent/15 text-accent'
+                    : 'text-text-muted hover:bg-surface-2 hover:text-text-primary'
+                }`}
+                onClick={() => setView({ kind: 'trash' })}
+              >
+                <Trash2 className="w-4 h-4 shrink-0" />
+                <span className="flex-1 text-sm">Recently Deleted</span>
+                <span className="text-xs font-mono opacity-50">{trashCount}</span>
+              </div>
+            )}
           </div>
 
           {/* New folder */}
@@ -275,17 +351,17 @@ export default function JournalPage() {
         {/* -- Entries main panel ------------------------------------------- */}
         <div className="flex-1 min-w-0 space-y-3">
 
-          {/* Active folder label + reflect link */}
+          {/* Active view label + reflect link */}
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-lg font-serif text-text-primary">{activeFolderName}</span>
+              <span className="text-lg font-serif text-text-primary">{activeViewName}</span>
               <span className="text-xs text-text-muted/60 font-mono ml-2">
                 {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
               </span>
             </div>
-            {activeFolderId && (
+            {view.kind === 'folder' && view.id && (
               <Link
-                href={`/app/reflect?folder=${activeFolderId}`}
+                href={`/app/reflect?folder=${view.id}`}
                 className="flex items-center gap-1.5 text-xs font-mono text-accent/80 hover:text-accent transition-colors"
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -326,63 +402,47 @@ export default function JournalPage() {
           {/* Entry list — flat, Notes-app style, hairline dividers between rows */}
           {filteredEntries.length > 0 ? (
             <div className="divide-y divide-border/40 rounded-xl border border-border/40 overflow-hidden">
-              {filteredEntries.map(entry => {
-                const MoodIcon = MOOD_ICONS[entry.mood] || Smile;
-                const lines    = entry.content.split('\n');
-                const title    = stripMarkdownForPreview(lines[0]?.trim() || '');
-                const preview  = stripMarkdownForPreview(lines.slice(1).join(' ').trim());
-                const fName    = entry.folderId
-                  ? folders.find(f => f.id === entry.folderId)?.name
-                  : null;
-
-                return (
-                  <Link
-                    key={entry.id}
-                    href={`/app/journal/${entry.id}`}
-                    className="flex items-start gap-3 p-4 hover:bg-surface-2/60 transition-colors"
-                  >
-                    <MoodIcon className={`w-4 h-4 ${MOOD_TEXT[entry.mood] || 'text-text-muted'} mt-0.5 shrink-0`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-text-primary truncate leading-snug">
-                        {title || <span className="text-text-muted/50 italic font-normal text-xs">Untitled</span>}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="text-[11px] text-text-muted/60 font-mono">{entry.date}</span>
-                        {activeFolderId === null && fName && (
-                          <span className="text-[11px] text-accent/60 font-mono">{fName}</span>
-                        )}
-                      </div>
-                      {preview && (
-                        <p className="text-xs text-text-muted/50 mt-1 line-clamp-1 font-mono">{preview}</p>
-                      )}
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-text-muted/30 shrink-0 mt-0.5" />
-                  </Link>
-                );
-              })}
+              {filteredEntries.map(entry => (
+                <JournalEntryRow
+                  key={entry.id}
+                  entry={entry}
+                  folderName={entry.folderId ? folders.find(f => f.id === entry.folderId)?.name : null}
+                  showFolderTag={view.kind === 'folder' && view.id === null}
+                  isTrashView={view.kind === 'trash'}
+                  open={openRow?.id === entry.id ? openRow.side : 'none'}
+                  onOpenChange={side => setOpenRow(side === 'none' ? null : { id: entry.id, side })}
+                  onMove={() => setMoveEntryId(entry.id)}
+                  onDelete={() => handleDeleteEntry(entry)}
+                  onToggleStar={() => handleToggleStar(entry)}
+                />
+              ))}
             </div>
           ) : (
             /* Empty state */
             <div className="flex flex-col items-center justify-center text-center py-16 px-4">
               <BookOpen className="w-12 h-12 text-text-muted/20 mb-4" />
-              <p className="font-serif text-text-primary/60 text-lg mb-1">
-                {activeFolderId ? 'This folder is empty' : 'No entries yet'}
-              </p>
-              <p className="text-xs font-mono text-text-muted/70 max-w-[240px]">
-                {activeFolderId
-                  ? 'Write a new entry and assign it to this folder.'
-                  : 'Tap New Entry to capture your first thought.'}
-              </p>
-              <Link
-                href={newEntryHref}
-                className="mt-6 flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent border border-accent/30 rounded-xl text-xs font-mono hover:bg-accent/15 transition-colors"
-              >
-                <Plus className="w-4 h-4" /> Write first entry
-              </Link>
+              <p className="font-serif text-text-primary/60 text-lg mb-1">{emptyTitle}</p>
+              <p className="text-xs font-mono text-text-muted/70 max-w-[240px]">{emptySubtitle}</p>
+              {showWriteFirstEntry && (
+                <Link
+                  href={newEntryHref}
+                  className="mt-6 flex items-center gap-2 px-4 py-2 bg-accent/10 text-accent border border-accent/30 rounded-xl text-xs font-mono hover:bg-accent/15 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Write first entry
+                </Link>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      <MoveEntrySheet
+        isOpen={moveEntryId !== null}
+        onClose={() => setMoveEntryId(null)}
+        folders={folders}
+        currentFolderId={moveEntryId ? entries.find(e => e.id === moveEntryId)?.folderId : undefined}
+        onSelect={handleMoveSelect}
+      />
     </motion.div>
   );
 }
