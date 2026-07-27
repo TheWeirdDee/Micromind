@@ -82,6 +82,7 @@ async function pushEntryToSupabase(entry: JournalEntry) {
       tags: entry.tags ?? [],
       date: entry.date,
       image: entry.image ?? null,
+      starred: entry.starred ?? false,
     }, { onConflict: 'id' });
     if (error) throw error;
   } catch (err) {
@@ -125,6 +126,7 @@ export async function loadEntriesFromSupabase(): Promise<void> {
     folderId: row.folder_id ?? undefined,
     image: row.image ?? undefined,
     tags: row.tags ?? [],
+    starred: row.starred ?? false,
   })));
 
   // Merge: remote wins on conflict (same id), keep any local-only entries
@@ -156,6 +158,7 @@ export async function migrateLocalEntriesToSupabase(): Promise<void> {
     tags: e.tags ?? [],
     date: e.date,
     image: e.image ?? null,
+    starred: e.starred ?? false,
   })));
   await supabase.from('journal_entries').upsert(rows, { onConflict: 'id', ignoreDuplicates: true });
 }
@@ -169,7 +172,15 @@ export interface JournalEntry {
   folderId?: string;
   image?: string;
   tags?: string[];
+  starred?: boolean;
 }
+
+/**
+ * Reserved folderId used as a soft-trash bin. Not a row in the `folders`
+ * array/table — the sidebar renders a pinned "Recently Deleted" section
+ * whenever any entry has this folderId (see journal/page.tsx).
+ */
+export const RECENTLY_DELETED_FOLDER_ID = '__recently_deleted__';
 
 export interface Folder {
   id: string;
@@ -274,7 +285,7 @@ export function saveEntry(entry: Omit<JournalEntry, 'id' | 'date' | 'timestamp'>
 }
 
 /** Updates fields of an existing journal entry by id. */
-export function editEntry(id: string, updates: Partial<Pick<JournalEntry, 'content' | 'mood' | 'folderId' | 'image' | 'tags'>>): void {
+export function editEntry(id: string, updates: Partial<Pick<JournalEntry, 'content' | 'mood' | 'folderId' | 'image' | 'tags' | 'starred'>>): void {
   const entries = getEntries().map(e => e.id === id ? { ...e, ...updates } : e);
   localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
   const updated = entries.find(e => e.id === id);
@@ -282,12 +293,32 @@ export function editEntry(id: string, updates: Partial<Pick<JournalEntry, 'conte
   dispatch();
 }
 
-/** Deletes a journal entry by id. */
+/** Deletes a journal entry by id. Irreversible — use moveEntryToTrash for a recoverable delete. */
 export function deleteEntry(id: string): void {
   const entries = getEntries().filter(e => e.id !== id);
   localStorage.setItem(JOURNAL_KEY, JSON.stringify(entries));
   deleteEntryFromSupabase(id).catch(() => {});
   dispatch();
+}
+
+/** Soft-deletes an entry by moving it into the reserved "Recently Deleted" section. Recoverable via moveEntry. */
+export function moveEntryToTrash(id: string): void {
+  editEntry(id, { folderId: RECENTLY_DELETED_FOLDER_ID });
+}
+
+/** Permanently and irreversibly deletes an entry. Only call this from within the Recently Deleted view, after a strong confirmation. */
+export function permanentlyDeleteEntry(id: string): void {
+  deleteEntry(id);
+}
+
+/** Reassigns an entry to a different folder (or no folder). Also used to restore an entry out of Recently Deleted. */
+export function moveEntry(id: string, folderId: string | undefined): void {
+  editEntry(id, { folderId });
+}
+
+/** Toggles the non-destructive starred flag — never changes the entry's folderId. */
+export function setEntryStarred(id: string, starred: boolean): void {
+  editEntry(id, { starred });
 }
 
 // -- Folders   
@@ -525,6 +556,7 @@ export async function syncOfflineQueue(): Promise<void> {
           tags: op.entry.tags ?? [],
           date: op.entry.date,
           image: op.entry.image ?? null,
+          starred: op.entry.starred ?? false,
         }, { onConflict: 'id' });
         if (error) throw error;
       } else if (op.type === 'delete') {
