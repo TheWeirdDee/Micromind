@@ -335,7 +335,6 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Email a reflection/pattern result to the user
 app.post('/api/reflection/email', async (req, res) => {
   const { email, name, content, type } = req.body; // type: 'reflection' | 'pattern'
   if (!email || !content) return res.status(400).json({ error: 'Missing email or content' });
@@ -453,7 +452,6 @@ app.post('/api/coach', async (req, res) => {
     return res.status(400).json({ error: 'Missing prompt or txHash' });
   }
 
-  // Set headers for Server-Sent Events (SSE)
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -466,7 +464,6 @@ app.post('/api/coach', async (req, res) => {
       return res.end();
     }
 
-    // Call Groq streaming API
     console.log('[COACH] Streaming AI advice for prompt...');
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
@@ -1186,7 +1183,6 @@ app.post('/api/process-direct', async (req, res) => {
   const { txHash, prompt, toolId } = req.body;
   console.log('[DIRECT] Processing:', { txHash, toolId });
 
-  // Validate toolId — must be an integer between 1 and 5 (inclusive)
   const parsedToolId = parseInt(toolId, 10);
   if (!Number.isInteger(parsedToolId) || parsedToolId < 1 || parsedToolId > 5) {
     return res.status(400).json({ error: 'Invalid toolId: must be an integer between 1 and 5' });
@@ -1249,7 +1245,6 @@ app.post('/api/relay', async (req, res) => {
     return res.status(400).json({ error: 'Invalid toolId' });
   }
 
-  // Validate deadline has not expired
   if (!isDeadlineValid(deadline)) {
     return res.status(400).json({ error: 'Request expired. Please try again.' });
   }
@@ -1259,7 +1254,6 @@ app.post('/api/relay', async (req, res) => {
     return res.status(400).json({ error: 'Nonce already used. This request was already processed.' });
   }
 
-  // Verify EIP-712 signature
   const params = { signature, toolId: parsedToolId, promptHash, userAddress, nonce, deadline };
   const isValid = await verifyRelaySignature(params);
   if (!isValid) {
@@ -1284,7 +1278,6 @@ app.post('/api/relay', async (req, res) => {
     return res.status(500).json({ error: result.error || 'Relay execution failed' });
   }
 
-  // Trigger AI generation and cache under the relay txHash
   try {
     const aiResponse = await callAI(parsedToolId, prompt);
     await storeData(`resp:${result.txHash}`, aiResponse, 86400);
@@ -1313,7 +1306,6 @@ app.post('/api/relay', async (req, res) => {
     await storeData(`prompt:${promptHash}`, JSON.stringify({
       prompt, toolId: parsedToolId, user: userAddress, nonce, userId
     }));
-    // Payment went through — return txHash so frontend can poll later
     res.json({ status: 'processing', txHash: result.txHash });
   }
 });
@@ -1333,12 +1325,10 @@ app.post('/api/challenge/relay', async (req, res) => {
     return res.status(400).json({ error: 'Invalid action' });
   }
 
-  // Validate contract address is set on agent
   if (!STAKING_CONTRACT_ADDRESS) {
     return res.status(500).json({ error: 'Staking contract address not configured on relayer' });
   }
 
-  // Validate deadline
   if (!isDeadlineValid(deadline)) {
     return res.status(400).json({ error: 'Request expired. Please try again.' });
   }
@@ -1348,14 +1338,12 @@ app.post('/api/challenge/relay', async (req, res) => {
     return res.status(400).json({ error: 'Nonce already used.' });
   }
 
-  // Verify EIP-712 signature
   const params = { signature, action: parsedAction, entryHash, userAddress, nonce, deadline };
   const isValid = await verifyChallengeRelaySignature(params, STAKING_CONTRACT_ADDRESS);
   if (!isValid) {
     return res.status(401).json({ error: 'Invalid signature. Could not verify request authenticity.' });
   }
 
-  // Mark nonce as used
   markNonceUsed(userAddress, nonce);
 
   console.log(`[RELAY-CHALLENGE] Valid request from ${userAddress} for action ${parsedAction}`);
