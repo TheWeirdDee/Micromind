@@ -98,7 +98,6 @@ function HistoryPageInner() {
           <h2 className="text-4xl font-serif tracking-tight">Your History</h2>
           <p className="text-text-muted font-mono text-sm mt-2">All your thoughts and AI sessions.</p>
         </div>
-        {/* Stats mini-bar */}
         <div className="flex flex-wrap gap-2">
           <div className="flex items-center gap-1.5 font-mono text-[10px] text-text-muted bg-surface border border-border px-3 py-1.5 rounded-full">
             <Flame className="w-3 h-3 text-accent-gold" />
@@ -115,7 +114,6 @@ function HistoryPageInner() {
         </div>
       </header>
 
-      {/* Tabs */}
       <div className="flex border-b border-border">
         <button
           onClick={() => setActiveTab('journal')}
@@ -141,7 +139,6 @@ function HistoryPageInner() {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="space-y-4">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
