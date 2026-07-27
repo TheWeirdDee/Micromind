@@ -115,7 +115,6 @@ export function ToolsGrid() {
               className="bg-surface border border-border p-6 rounded-2xl flex flex-col justify-between items-start text-left relative overflow-hidden group hover:border-accent/30 transition-colors"
             >
               <div className="w-full">
-                {/* Top header row */}
                 <div className="flex items-center mb-6 w-full">
                   <div className="p-2.5 bg-surface-2 rounded-xl border border-border group-hover:border-accent-gold/40 transition-colors" title={tool.name}>
                     <tool.icon className="w-5 h-5 text-accent" aria-hidden="true" />
@@ -126,8 +125,7 @@ export function ToolsGrid() {
                 <p className="text-text-muted font-mono text-[11px] leading-relaxed mb-8">{tool.desc}</p>
               </div>
 
-              {/* Action Button inside Card */}
-              <Link 
+              <Link
                 href={tool.route}
                 className="w-full pill-button pill-button-outline text-xs py-2.5 group-hover:bg-accent group-hover:text-bg group-hover:border-accent transition-all duration-300"
               >
