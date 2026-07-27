@@ -22,7 +22,6 @@ export function Footer() {
             </p>
           </div>
 
-          {/* About Us */}
           <div className="space-y-4">
             <h4 className="font-mono text-[10px] uppercase tracking-widest text-text-muted font-bold">
               About Us
@@ -56,7 +55,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Legal */}
           <div className="space-y-4">
             <h4 className="font-mono text-[10px] uppercase tracking-widest text-text-muted font-bold">
               Legal
@@ -75,7 +73,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Keep In Touch */}
           <div className="space-y-4">
             <h4 className="font-mono text-[10px] uppercase tracking-widest text-text-muted font-bold">
               Keep In Touch
@@ -112,7 +109,6 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Follow Us */}
           <div className="space-y-4">
             <h4 className="font-mono text-[10px] uppercase tracking-widest text-text-muted font-bold">
               Follow Us
