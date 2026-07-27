@@ -83,7 +83,6 @@ export default function CoachPage() {
 
   return (
     <div className="max-w-6xl mx-auto pb-24 px-4 pt-4 sm:pt-6">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <Link href="/app" className="p-2 border border-border rounded-xl hover:bg-surface-2 transition-colors">
           <ChevronLeft className="w-4 h-4 text-text-muted" />
@@ -95,7 +94,6 @@ export default function CoachPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Input box */}
         <div className="lg:col-span-6 space-y-4">
           <div className="bg-surface border border-border rounded-2xl p-6 space-y-4">
             <label className="text-xs font-mono text-text-muted uppercase tracking-wider block">Draft Your Entry</label>
@@ -131,10 +129,8 @@ export default function CoachPage() {
           </div>
         </div>
 
-        {/* Coach thoughts box */}
         <div className="lg:col-span-6">
           <div className="bg-surface border border-border rounded-2xl p-6 min-h-[380px] flex flex-col justify-between relative overflow-hidden">
-            {/* Background design elements */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-accent/2 rounded-full filter blur-xl pointer-events-none" />
 
             <div className="space-y-4 flex-1">
