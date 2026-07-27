@@ -412,7 +412,6 @@ function getWordVocabulary(word: string, category: string) {
     return details[wordUpper];
   }
 
-  // Fallback dynamic generator if word is not in the map
   const cleanWord = word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
   return {
     definition: `Refers to a state of being ${cleanWord.toLowerCase()} which supports your growth in the context of ${category}.`,
@@ -443,8 +442,7 @@ function generateRemainingLevels(): QuestLevel[] {
     for (let s = 1; s <= stageCount; s++) {
       // Pick word cyclically from the list to avoid overflow
       const targetWord = c.words[(s - 1) % c.words.length];
-      
-      // Build scrambled array (targetWord letters + random fillers)
+
       const lettersSet = new Set(targetWord.split(''));
       const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
       while (lettersSet.size < Math.max(12, targetWord.length + 3)) {
