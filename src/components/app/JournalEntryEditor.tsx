@@ -6,17 +6,18 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import {
-  ChevronLeft, Check, X, Pencil, Trash2, Mail, Copy,
+  ChevronLeft, Check, X, Pencil, Trash2, Mail, Copy, Star,
   Smile, Laugh, Meh, Angry, Frown, Sparkles,
 } from 'lucide-react';
 import { useWallet } from '@/context/WalletContext';
 import {
-  getEntries, saveEntry, editEntry, deleteEntry, getFolders, updateStreak, MOOD_ICONS,
+  getEntries, saveEntry, editEntry, getFolders, updateStreak, MOOD_ICONS,
+  RECENTLY_DELETED_FOLDER_ID, moveEntryToTrash, permanentlyDeleteEntry, setEntryStarred,
   type JournalEntry, type Folder,
 } from '@/lib/journal';
 import { uploadJournalImage, deleteJournalImage, fetchJournalImage } from '@/lib/journalMedia';
 import { PhotoAttachButton, VoiceRecordButton, EntryImage } from './JournalMediaControls';
-import { MarkdownToolbar } from './MarkdownToolbar';
+import { MarkdownToolbar, type TextSelection } from './MarkdownToolbar';
 import { THERAPEUTIC_PROMPTS, DEFAULT_PROMPTS } from '@/constants/prompts';
 
 const MOODS = [
@@ -116,6 +117,10 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
   const [showPrompts, setShowPrompts] = useState(false);
   const [promptIndex, setPromptIndex] = useState(0);
   const [textareaFocused, setTextareaFocused] = useState(false);
+  // Tracked in state (not read live off the DOM at click time) because on touch
+  // devices tapping a toolbar button can blur the textarea before the click
+  // handler runs, which would otherwise reset selectionStart/End to 0.
+  const [selection, setSelection] = useState<TextSelection>({ start: 0, end: 0 });
 
   const [toast, setToast] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -252,12 +257,29 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
     setIsEditing(false);
   };
 
+  const isInTrash = entry?.folderId === RECENTLY_DELETED_FOLDER_ID;
+
   const handleDelete = () => {
     if (!entryId) return;
-    if (!window.confirm('Delete this entry?')) return;
+
+    if (!isInTrash) {
+      // Soft delete — recoverable via Move, so no confirmation needed.
+      moveEntryToTrash(entryId);
+      router.back();
+      return;
+    }
+
+    if (!window.confirm('Permanently delete this entry? This action cannot be undone.')) return;
     if (entry?.image) deleteJournalImage(entry.image).catch(() => {});
-    deleteEntry(entryId);
+    permanentlyDeleteEntry(entryId);
     router.back();
+  };
+
+  const handleToggleStar = () => {
+    if (!entryId || !entry) return;
+    const next = !entry.starred;
+    setEntryStarred(entryId, next);
+    setEntry(prev => (prev ? { ...prev, starred: next } : prev));
   };
 
   if (notFound) {
@@ -319,6 +341,15 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
           </div>
         ) : (
           <div className="flex items-center gap-1">
+            {!isInTrash && (
+              <button
+                onClick={handleToggleStar}
+                className="p-2 rounded-full text-text-muted hover:text-accent-gold hover:bg-surface-2 transition-colors"
+                aria-label={entry?.starred ? 'Unstar' : 'Star'}
+              >
+                <Star className={`w-4 h-4 ${entry?.starred ? 'fill-accent-gold text-accent-gold' : ''}`} />
+              </button>
+            )}
             <button
               onClick={() => setIsEditing(true)}
               className="p-2 rounded-full text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
@@ -329,7 +360,7 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
             <button
               onClick={handleDelete}
               className="p-2 rounded-full text-text-muted hover:text-red-400 hover:bg-red-900/20 transition-colors"
-              aria-label="Delete"
+              aria-label={isInTrash ? 'Delete forever' : 'Delete'}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -387,7 +418,14 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
             <textarea
               ref={textareaRef}
               value={content}
-              onChange={e => setContent(e.target.value)}
+              onChange={e => {
+                setContent(e.target.value);
+                setSelection({ start: e.target.selectionStart, end: e.target.selectionEnd });
+              }}
+              onSelect={e => {
+                const t = e.currentTarget;
+                setSelection({ start: t.selectionStart, end: t.selectionEnd });
+              }}
               onFocus={() => setTextareaFocused(true)}
               onBlur={() => setTextareaFocused(false)}
               autoFocus={mode === 'new'}
@@ -403,7 +441,10 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
               </span>
             </div>
 
-            <FolderPills folders={folders} value={folderId} onChange={setFolderId} />
+            {/* Mobile organizes via swipe-to-move on the list instead; desktop keeps the inline picker */}
+            <div className="hidden lg:block">
+              <FolderPills folders={folders} value={folderId} onChange={setFolderId} />
+            </div>
 
             <div className="flex items-center gap-2 flex-wrap">
               <PhotoAttachButton
@@ -473,7 +514,12 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
       {/* Markdown toolbar — appears above the keyboard while the textarea is focused */}
       {isEditing && textareaFocused && (
         <div className="shrink-0">
-          <MarkdownToolbar textareaRef={textareaRef} value={content} onChange={setContent} />
+          <MarkdownToolbar
+            textareaRef={textareaRef}
+            value={content}
+            selection={selection}
+            onApply={(newValue, newSelection) => { setContent(newValue); setSelection(newSelection); }}
+          />
         </div>
       )}
 
