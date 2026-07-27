@@ -21,7 +21,6 @@ export const RELAY_DOMAIN = {
   verifyingContract: CONTRACT_ADDRESS,
 } as const;
 
-/** EIP-712 type definitions for a relay request */
 export const RELAY_TYPES = {
   RelayRequest: [
     { name: 'toolId',      type: 'uint8'   },
@@ -54,10 +53,6 @@ export function buildRelayRequest(
   return { toolId, promptHash, userAddress, nonce, deadline };
 }
 
-/**
- * Sign a RelayRequest using the connected walletClient.
- * Returns the hex signature string.
- */
 export async function signRelayRequest(
   walletClient: { signTypedData: (args: unknown) => Promise<`0x${string}`> },
   userAddress: `0x${string}`,
@@ -78,7 +73,6 @@ export async function signRelayRequest(
   });
 }
 
-/** EIP-712 type definitions for a challenge staking relay request */
 export const CHALLENGE_RELAY_TYPES = {
   ChallengeRelayRequest: [
     { name: 'action',      type: 'uint8'   },
@@ -97,7 +91,6 @@ export interface ChallengeRelayRequest {
   deadline:    bigint;
 }
 
-/** Build a ChallengeRelayRequest ready to be signed */
 export function buildChallengeRelayRequest(
   action: number,
   entryHash: `0x${string}`,
@@ -108,7 +101,6 @@ export function buildChallengeRelayRequest(
   return { action, entryHash, userAddress, nonce, deadline };
 }
 
-/** Sign a ChallengeRelayRequest using the connected walletClient */
 export async function signChallengeRelayRequest(
   walletClient: { signTypedData: (args: unknown) => Promise<`0x${string}`> },
   userAddress: `0x${string}`,
