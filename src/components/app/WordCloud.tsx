@@ -73,7 +73,6 @@ export function WordCloud() {
       ) : (
         <div className="flex flex-wrap gap-x-3 gap-y-2 items-center justify-center p-2 rounded-2xl bg-bg/40 border border-border/40 min-h-[100px]">
           {words.map((w, i) => {
-            // Font sizes from text-xs to text-xl based on rank/count
             const sizes = ['text-xl font-bold', 'text-lg font-bold', 'text-base font-semibold', 'text-sm font-medium', 'text-xs'];
             const sizeClass = sizes[Math.min(i, sizes.length - 1)];
 
