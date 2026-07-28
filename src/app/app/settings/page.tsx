@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, User, Mail, Check, Trash2, RotateCcw, Info, Shield, Download, Upload, Bell, Lock, AlertTriangle, X, LogOut, KeyRound, UserX, Copy } from 'lucide-react';
+import { ChevronLeft, User, Mail, Check, Trash2, RotateCcw, Info, Shield, Download, Upload, Bell, Lock, AlertTriangle, X, LogOut, KeyRound, UserX, Copy, FileText, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useWallet } from '@/context/WalletContext';
@@ -442,6 +442,70 @@ export default function SettingsPage() {
     }
   };
 
+  const escapeHtml = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const getReadableEntries = () => {
+    const entries = JSON.parse(localStorage.getItem('mm_journal') || '[]') as Array<{
+      content: string; mood: string; date: string; timestamp: number; folderId?: string;
+    }>;
+    const folders = JSON.parse(localStorage.getItem('mm_journal_folders') || '[]') as Array<{ id: string; name: string }>;
+    const folderName = (id?: string) => folders.find(f => f.id === id)?.name;
+    return [...entries].sort((a, b) => a.timestamp - b.timestamp).map(e => ({ ...e, folder: folderName(e.folderId) }));
+  };
+
+  const exportJournalMarkdown = () => {
+    try {
+      const entries = getReadableEntries();
+      const md = entries.map(e => {
+        const heading = `## ${e.date}${e.folder ? ` — ${e.folder}` : ''}`;
+        return `${heading}\n\n${e.content}\n`;
+      }).join('\n---\n\n');
+
+      const blob = new Blob([`# My Journal\n\n${md}`], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `micromind_journal_${new Date().toISOString().slice(0, 10)}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Failed to export journal as Markdown.');
+    }
+  };
+
+  const exportJournalPDF = () => {
+    try {
+      const entries = getReadableEntries();
+      const bodyHtml = entries.map(e => `
+        <div style="page-break-inside: avoid; margin-bottom: 28px;">
+          <div style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;">
+            ${escapeHtml(e.date)}${e.folder ? ' &middot; ' + escapeHtml(e.folder) : ''}
+          </div>
+          <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.7;">${escapeHtml(e.content)}</div>
+        </div>
+      `).join('<hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">');
+
+      const html = `<!DOCTYPE html><html><head><title>MicroMind Journal Export</title>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Georgia, 'Times New Roman', serif; max-width: 700px; margin: 40px auto; padding: 0 20px; color: #111; }
+          h1 { font-size: 22px; margin-bottom: 24px; }
+        </style>
+        </head><body><h1>My Journal</h1>${bodyHtml}</body></html>`;
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) { alert('Please allow pop-ups to export as PDF.'); return; }
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.onload = () => printWindow.print();
+    } catch {
+      alert('Failed to prepare PDF export.');
+    }
+  };
+
   const importJournal = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -814,6 +878,22 @@ export default function SettingsPage() {
                     <p className="font-mono text-[10px] text-text-muted mt-0.5">Download your entries and folders as JSON</p>
                   </div>
                   <Download className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors shrink-0 ml-4" />
+                </button>
+
+                <button onClick={exportJournalMarkdown} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">
+                  <div>
+                    <p className="font-mono text-xs text-text-primary">Export as Markdown</p>
+                    <p className="font-mono text-[10px] text-text-muted mt-0.5">A readable .md file of every entry, for reading or archiving elsewhere</p>
+                  </div>
+                  <FileText className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors shrink-0 ml-4" />
+                </button>
+
+                <button onClick={exportJournalPDF} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">
+                  <div>
+                    <p className="font-mono text-xs text-text-primary">Export as PDF</p>
+                    <p className="font-mono text-[10px] text-text-muted mt-0.5">Opens a print-ready view — choose &quot;Save as PDF&quot; in the print dialog</p>
+                  </div>
+                  <Printer className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors shrink-0 ml-4" />
                 </button>
 
                 <label className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group cursor-pointer">
