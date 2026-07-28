@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BookOpen, Star, Trash2, ChevronLeft,
+  BookOpen, Star, Trash2, ChevronLeft, Search, X,
   FolderPlus, Folder as FolderIcon, MoreHorizontal, Sparkles,
   Plus, PenTool,
 } from 'lucide-react';
@@ -44,10 +44,14 @@ export default function JournalPage() {
   const [renameName, setRenameName]             = useState('');
   const [folderMenuId, setFolderMenuId]         = useState<string | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const isSearching = searchQuery.trim().length > 0;
+
   const selectView = (v: ListView) => {
     setView(v);
     setMobileDrilledIn(true);
     setFolderMenuId(null);
+    setSearchQuery('');
   };
 
   const [openRow, setOpenRow]         = useState<{ id: string; side: RowOpenState } | null>(null);
@@ -90,11 +94,12 @@ export default function JournalPage() {
   const starredCount = nonTrashedEntries.filter(e => e.starred).length;
   const trashCount = entries.length - nonTrashedEntries.length;
 
-  const filteredEntries =
-    view.kind === 'trash' ? entries.filter(e => e.folderId === RECENTLY_DELETED_FOLDER_ID) :
-    view.kind === 'starred' ? nonTrashedEntries.filter(e => e.starred) :
-    view.id === null ? nonTrashedEntries :
-    nonTrashedEntries.filter(e => e.folderId === view.id);
+  const filteredEntries = isSearching
+    ? nonTrashedEntries.filter(e => e.content.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : view.kind === 'trash' ? entries.filter(e => e.folderId === RECENTLY_DELETED_FOLDER_ID) :
+      view.kind === 'starred' ? nonTrashedEntries.filter(e => e.starred) :
+      view.id === null ? nonTrashedEntries :
+      nonTrashedEntries.filter(e => e.folderId === view.id);
 
   // -- Folder handlers -------------------------------------------------------
 
@@ -227,7 +232,7 @@ export default function JournalPage() {
 
   // -- Active view header label ---------------------------------------------
 
-  const activeViewName =
+  const activeViewName = isSearching ? 'Search Results' :
     view.kind === 'starred' ? 'Starred' :
     view.kind === 'trash' ? 'Recently Deleted' :
     view.id ? (folders.find(f => f.id === view.id)?.name ?? 'Folder') : 'All Notes';
@@ -236,17 +241,17 @@ export default function JournalPage() {
     ? `/app/journal/new?folder=${view.id}`
     : '/app/journal/new';
 
-  const emptyTitle =
+  const emptyTitle = isSearching ? 'No matches found' :
     view.kind === 'trash' ? 'Recently Deleted is empty' :
     view.kind === 'starred' ? 'No starred entries yet' :
     view.kind === 'folder' && view.id ? 'This folder is empty' : 'No entries yet';
 
-  const emptySubtitle =
+  const emptySubtitle = isSearching ? `Nothing matches "${searchQuery.trim()}".` :
     view.kind === 'trash' ? 'Deleted entries appear here before being permanently removed.' :
     view.kind === 'starred' ? 'Swipe an entry right (or use the star icon on desktop) to pin it here.' :
     view.kind === 'folder' && view.id ? 'Write a new entry and assign it to this folder.' : 'Tap New Entry to capture your first thought.';
 
-  const showWriteFirstEntry = view.kind === 'folder';
+  const showWriteFirstEntry = !isSearching && view.kind === 'folder';
 
   return (
     <motion.div
@@ -270,13 +275,33 @@ export default function JournalPage() {
         </Link>
       </div>
 
+      {/* -- Search — finds an entry by keyword instead of navigating folders -- */}
+      <div className="relative mb-6">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted/60 pointer-events-none" />
+        <input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search your journal..."
+          className="w-full bg-surface border border-border rounded-2xl pl-10 pr-10 py-2.5 text-sm text-text-primary placeholder:text-text-muted/50 outline-none focus:border-accent transition-colors"
+        />
+        {isSearching && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors"
+            aria-label="Clear search"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
       {/* -- Two-panel layout: on mobile these are separate screens (folder ----- */}
       {/* -- picker vs. that section's entries, like Notes app); desktop shows -- */}
       {/* -- both side by side always. ------------------------------------------ */}
       <div className="lg:flex lg:gap-7">
 
         {/* Folder list — its own screen on mobile until a section is picked, fixed-width sidebar on desktop */}
-        <aside className={`flex-col w-full lg:w-48 shrink-0 mb-6 lg:mb-0 ${mobileDrilledIn ? 'hidden lg:flex' : 'flex'}`}>
+        <aside className={`flex-col w-full lg:w-48 shrink-0 mb-6 lg:mb-0 ${(mobileDrilledIn || isSearching) ? 'hidden lg:flex' : 'flex'}`}>
           <div className="divide-y divide-border/40 rounded-xl overflow-hidden border border-border/40">
             {starredCount > 0 && (
               <div
@@ -372,13 +397,13 @@ export default function JournalPage() {
         </aside>
 
         {/* -- Entries main panel — its own screen on mobile once drilled in -- */}
-        <div className={`flex-1 min-w-0 space-y-3 ${mobileDrilledIn ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'}`}>
+        <div className={`flex-1 min-w-0 space-y-3 ${(mobileDrilledIn || isSearching) ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'}`}>
 
           {/* Active view label + reflect link */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
               <button
-                onClick={() => setMobileDrilledIn(false)}
+                onClick={() => { if (isSearching) setSearchQuery(''); else setMobileDrilledIn(false); }}
                 className="lg:hidden p-1 -ml-1 rounded-full text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors shrink-0"
                 aria-label="Back to folders"
               >
@@ -391,7 +416,7 @@ export default function JournalPage() {
                 </span>
               </div>
             </div>
-            {view.kind === 'folder' && view.id && (
+            {!isSearching && view.kind === 'folder' && view.id && (
               <Link
                 href={`/app/reflect?folder=${view.id}`}
                 className="flex items-center gap-1.5 text-xs font-mono text-accent/80 hover:text-accent transition-colors"
@@ -438,7 +463,7 @@ export default function JournalPage() {
                   key={entry.id}
                   entry={entry}
                   folderName={entry.folderId ? folders.find(f => f.id === entry.folderId)?.name : null}
-                  showFolderTag={view.kind === 'folder' && view.id === null}
+                  showFolderTag={isSearching || (view.kind === 'folder' && view.id === null)}
                   isTrashView={view.kind === 'trash'}
                   open={openRow?.id === entry.id ? openRow.side : 'none'}
                   onOpenChange={side => setOpenRow(side === 'none' ? null : { id: entry.id, side })}
