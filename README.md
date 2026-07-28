@@ -28,6 +28,7 @@ Built for MiniPay users across Africa and beyond.
 | **Mind Chat** | 0.005 USDm | A secure, general-purpose AI chat companion for guidance. |
 | **30-Day Staking Challenge** | 5.00 USDm Stake | Stake USDm, journal daily for 30 days, and withdraw your stake plus a reward if you complete it — principal is always returned even if you don't. |
 | **Short Story Challenge** | Free | Write a short story on the monthly community prompt, then vote for your favorite among everyone's submissions. The most-voted story wins. |
+| **Therapeutic Writing** | Free | Tell us what you want to explore and get 3 tailored journaling prompts — meant to help you find your own words, not replace them. |
 
 ---
 
@@ -47,9 +48,16 @@ The flagship mini-game in MicroMind is **Clarity Quest**. Instead of a mindless 
 ## Client-Side Escrow Letters (AES-GCM-256)
 
 Write messages to your future self or loved ones and lock them in digital escrow:
-1. **Zero-Knowledge Encryption:** Letters are encrypted directly on your device using the **Web Crypto API (AES-GCM-256)**. The plaintext content never touches our servers.
-2. **Escrow Storage:** The encrypted payload is uploaded to Supabase. You can cancel or delete a pending letter at any time prior to release.
-3. **Autorelease Delivery Cron:** A backend server cron sweeps the database daily, identifies letters whose delivery time has passed, decrypts them securely using escrowed credentials, and dispatches them to recipients via **Resend custom domain mailers**.
+1. **Client-Side Encryption, Server-Side Escrow:** Letters are encrypted directly on your device using the **Web Crypto API (AES-GCM-256)** before anything is uploaded — your plaintext never touches our servers. The decryption key is escrowed alongside the ciphertext (not zero-knowledge in the strict sense) so the release cron can decrypt and email it once the release date arrives; this is the same tradeoff journal entries use (see `docs/journal_encryption.sql`).
+2. **Escrow Storage:** The encrypted payload is uploaded to Supabase. You can edit, cancel, or retry (if a send ever fails) a pending letter at any time prior to release.
+3. **Autorelease Delivery Cron:** A backend server cron runs every 15 minutes (`.github/workflows/release-letters-cron.yml`), claims due letters one at a time (so overlapping runs can't double-send), decrypts them, and dispatches them via **Resend custom domain mailers** — retrying automatically up to 3 times before giving up.
+4. **Auth-Gated:** Both the instant-send and scheduled-escrow paths require a signed-in MicroMind account — see `docs/letters_hardening.sql` and `src/app/api/letter/send/route.ts`.
+
+---
+
+## Therapeutic Writing
+
+A free AI tool built around a simple idea: in a world where people write less and lean on AI to write *for* them, MicroMind wants AI to help people write *more*, in their own voice. Tell it what you want to explore — a feeling, an event, a relationship, a transition — and it generates 3 short, tailored journaling prompts (not a written entry) to help you find your own words. Requires a signed-in session (so it can't be used as an anonymous AI-quota drain) but is otherwise completely free.
 
 ---
 

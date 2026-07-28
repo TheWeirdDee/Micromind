@@ -107,5 +107,15 @@ export const TOOLS: Tool[] = [
     route: '/app/stories',
     hasFreeMode: true,
   },
+  {
+    id: 0,
+    slug: 'therapeutic',
+    name: 'Therapeutic Writing',
+    description: 'Tell us what you want to explore and get tailored prompts to help you find your own words.',
+    price: 'Free',
+    priceWei: '0',
+    route: '/app/therapeutic',
+    hasFreeMode: true,
+  },
 ];
 

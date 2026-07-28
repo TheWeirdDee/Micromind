@@ -8,7 +8,7 @@ const benefits = [
   {
     icon: HardDrive,
     title: 'Your Data, Your Device',
-    desc: 'Every journal entry lives only on your phone. We run zero cloud databases that store your raw thoughts — not now, not ever.',
+    desc: 'Journal locally with no account and nothing ever leaves your phone. Choose to log in for cross-device sync, and every entry is encrypted on your device before it\'s sent anywhere.',
   },
   {
     icon: Coins,
@@ -28,7 +28,7 @@ const benefits = [
 ];
 
 const stats = [
-  { value: '0', label: 'Cloud databases' },
+  { value: 'Optional', label: 'Cloud sync' },
   { value: '~0.01', label: 'USDm per AI insight' },
   { value: '100%', label: 'Local-first storage' },
 ];
@@ -53,7 +53,7 @@ export function WhySection() {
                 Privacy and AI together —<br className="hidden md:block" /> without compromise.
               </h2>
               <p className="font-mono text-xs text-text-muted leading-relaxed max-w-xl">
-                Most AI journaling tools store your thoughts on their servers. MicroMind keeps everything on your device, only reaching the internet when you choose to pay for an AI insight.
+                Most AI journaling tools store your thoughts on their servers by default. MicroMind stores nothing unless you choose to — journal fully offline with no account, or log in for encrypted cross-device sync. Either way, AI only ever sees your writing when you explicitly ask for an insight.
               </p>
               <p className="font-mono text-[10px] text-text-muted/70 leading-relaxed">
                 Built in the open on Celo

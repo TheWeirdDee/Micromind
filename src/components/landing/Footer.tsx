@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
+import { Logo } from '@/components/brand/Logo';
 
 export function Footer() {
   return (
@@ -13,10 +13,7 @@ export function Footer() {
 
           {/* Brand — full width on mobile, 2 cols on desktop */}
           <div className="col-span-2 lg:col-span-2 space-y-4">
-            <div className="flex items-center gap-2">
-              <Image src="/logo.svg" alt="MicroMind" width={20} height={20} />
-              <span className="font-serif text-xl text-text-primary tracking-tight">MicroMind</span>
-            </div>
+            <Logo className="h-[22px] w-auto" />
             <p className="font-mono text-[11px] text-text-muted leading-relaxed max-w-xs">
               Your thoughts deserve a safe home. Journal freely, reflect deeply, and grow with AI-powered insights — built on Celo for everyone.
             </p>

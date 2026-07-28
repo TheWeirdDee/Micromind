@@ -65,7 +65,7 @@ export function BottomNav() {
       <div className="bg-surface/80 backdrop-blur-xl border border-border rounded-full px-2.5 py-2.5 sm:px-4 sm:py-3 flex gap-1 sm:gap-2 pointer-events-auto shadow-2xl max-w-full overflow-x-auto">
         {navItems.map((item) => {
           const isActive = item.href === '/app/tools'
-            ? pathname === '/app/tools' || ['/app/chat', '/app/tweet', '/app/reflect', '/app/pattern', '/app/coach', '/app/challenge', '/app/stories'].includes(pathname) || pathname.startsWith('/app/stories/')
+            ? pathname === '/app/tools' || ['/app/chat', '/app/tweet', '/app/reflect', '/app/pattern', '/app/coach', '/app/challenge', '/app/stories', '/app/therapeutic'].includes(pathname) || pathname.startsWith('/app/stories/')
             : pathname === item.href;
           return (
             <Link

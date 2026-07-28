@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { MessageSquare, Bird, Sparkles, Search, Brain, Flame, Feather, Lock, HelpCircle } from 'lucide-react';
+import { MessageSquare, Bird, Sparkles, Search, Brain, Flame, Feather, PenLine, Lock, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { TOOLS } from '@/constants/tools';
 import { getEntries } from '@/lib/journal';
@@ -25,9 +25,10 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   coach: Brain,
   challenge: Flame,
   stories: Feather,
+  therapeutic: PenLine,
 };
 
-const TOOL_SLUGS = ['chat', 'tweet', 'reflect', 'pattern', 'coach', 'challenge', 'stories'];
+const TOOL_SLUGS = ['chat', 'tweet', 'reflect', 'pattern', 'coach', 'challenge', 'stories', 'therapeutic'];
 
 export default function ToolsPage() {
   const [entriesCount, setEntriesCount] = useState<number>(() =>
