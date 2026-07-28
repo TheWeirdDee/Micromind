@@ -172,13 +172,34 @@ ALTER TABLE public.journal_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quest_progress ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
-CREATE POLICY "Anyone can read profiles" ON public.profiles FOR SELECT USING (true);
+-- NOTE: profiles' SELECT and quest_progress's write policy below are the
+-- HARDENED versions. The originally-shipped versions ("Anyone can read
+-- profiles" USING (true), and a FOR ALL policy on quest_progress) were both
+-- critical bugs — the former let any unauthenticated client read every
+-- user's email and journal encryption key; the latter let a client write
+-- arbitrary clarity_points redeemable for real USDm. See
+-- docs/profiles_security_hardening.sql and docs/quest_security_hardening.sql.
+CREATE POLICY "Users can read own profile" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() = id);
 CREATE POLICY "Users insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Users manage own folders" ON public.journal_folders FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users manage own entries" ON public.journal_entries FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users manage own quest progress" ON public.quest_progress FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can read own quest progress" ON public.quest_progress FOR SELECT TO authenticated USING (auth.uid() = user_id);
+-- quest_progress has no client INSERT/UPDATE policy — only the agent
+-- backend (service role, bypasses RLS) writes it, via /api/quest/solve,
+-- /api/quest/withdraw, /api/quest/reset, after independently verifying
+-- every state change server-side.
+
+-- Narrow view for cross-user username lookups (signup availability check,
+-- story author attribution) — only id/username, never email or the journal
+-- encryption key, regardless of what RLS allows on the base table.
+CREATE OR REPLACE VIEW public.public_profiles WITH (security_invoker = false) AS
+  SELECT id, username FROM public.profiles;
+GRANT SELECT ON public.public_profiles TO anon, authenticated;
 ```
+
+For the short story challenge and staking-relayer nonce tables, run
+`docs/story_challenges.sql` and `docs/relay_nonces.sql` as well.
 
 ---
 

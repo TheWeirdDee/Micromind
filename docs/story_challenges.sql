@@ -196,15 +196,7 @@ AFTER INSERT OR DELETE ON public.story_votes
 FOR EACH ROW EXECUTE FUNCTION public.apply_story_vote_change();
 
 -- 4. Author display name ----------------------------------------------------
--- Stories need to show the author's username publicly. `profiles` also holds
--- `email` and `journal_key_hex` (the per-account journal encryption key) —
--- those must NEVER become broadly readable, so this deliberately does NOT
--- touch `profiles`' own RLS policy (whatever it already is). Instead, a
--- narrow view exposes only `id`/`username`; the view's projection makes the
--- sensitive columns structurally unreachable through it regardless of RLS,
--- and it's the only thing granted to `authenticated`.
-CREATE OR REPLACE VIEW public.public_profiles
-WITH (security_invoker = false) AS
-SELECT id, username FROM public.profiles;
-
-GRANT SELECT ON public.public_profiles TO authenticated;
+-- Stories join to `public.public_profiles` (id, username only) for the
+-- author's display name. That view is defined in
+-- docs/profiles_security_hardening.sql — run that script first (it also
+-- fixes a critical pre-existing leak on the base `profiles` table).
