@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import {
-  Map, Anchor, LogIn, Mail, Trophy, Award,
+  Map, Anchor, LogIn, Mail, Trophy, Award, Feather,
 } from "lucide-react";
 
 interface RoadmapItem {
@@ -46,6 +46,13 @@ const ITEMS: RoadmapItem[] = [
     status: "Exploring",
     description:
       "Verifiable, collectible badges for Clarity Quest milestones — streaks and level completions you actually own, not just a number in a database.",
+  },
+  {
+    icon: Feather,
+    title: "Community-picked challenge themes",
+    status: "Planned",
+    description:
+      "Right now an admin sets each month's Short Story Challenge prompt. Next: submit and vote on the theme you want to see, so the community picks what it writes about.",
   },
 ];
 
