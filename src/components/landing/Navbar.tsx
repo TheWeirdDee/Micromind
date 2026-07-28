@@ -14,6 +14,8 @@ const MOBILE_LINKS = [
   { href: '#companions', label: 'Companions' },
 ];
 
+const ROADMAP_LINK = { href: '/roadmap', label: 'Roadmap' };
+
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -53,6 +55,9 @@ export function Navbar() {
           <a href="#companions" className="font-mono text-[10px] tracking-widest uppercase text-text-primary/70 hover:text-accent transition-colors">
             Companions
           </a>
+          <Link href={ROADMAP_LINK.href} className="font-mono text-[10px] tracking-widest uppercase text-text-primary/70 hover:text-accent transition-colors">
+            {ROADMAP_LINK.label}
+          </Link>
         </div>
         
         <Link
@@ -84,6 +89,13 @@ export function Navbar() {
               {link.label}
             </a>
           ))}
+          <Link
+            href={ROADMAP_LINK.href}
+            onClick={() => setMenuOpen(false)}
+            className="font-mono text-xs tracking-widest uppercase text-text-primary/70 hover:text-accent transition-colors"
+          >
+            {ROADMAP_LINK.label}
+          </Link>
           <Link
             href="/app"
             onClick={() => setMenuOpen(false)}
