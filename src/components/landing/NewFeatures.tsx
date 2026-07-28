@@ -43,10 +43,10 @@ export function NewFeatures() {
           {/* Feature details */}
           <div className="space-y-6">
             {[
-              { icon: <Cloud className="w-6 h-6" />, color: 'text-accent', title: 'Local Word Cloud', desc: 'A private text processor that filters common stop words from your entries and builds a beautiful, weighted cloud of your most frequent thoughts right on your dashboard.', dashed: false },
-              { icon: <TrendingUp className="w-6 h-6" />, color: 'text-accent-gold', title: 'Emotional Dynamics', desc: 'New analytics tracking your weekly Positivity Ratio and Mood Stability. Watch your emotional consistency rise as you build your reflection habit.', dashed: false },
-              { icon: <Cpu className="w-6 h-6" />, color: 'text-accent', title: 'Writing Velocity & Counters', desc: 'Subtle characters, words, and estimated reading time indicators embedded directly inside your editor to support your writing flow.', dashed: false },
-              { icon: <Mic className="w-6 h-6" />, color: 'text-accent', title: 'Voice Journaling', desc: 'Speak your thoughts and have them transcribed straight into a journal entry, fully on-device.', dashed: true, badge: 'Coming Soon' },
+              { icon: <Cloud className="w-6 h-6" />, color: 'text-accent', title: 'Local Word Cloud', desc: 'A private text processor that filters common stop words from your entries and builds a beautiful, weighted cloud of your most frequent thoughts right on your dashboard.' },
+              { icon: <TrendingUp className="w-6 h-6" />, color: 'text-accent-gold', title: 'Emotional Dynamics', desc: 'New analytics tracking your weekly Positivity Ratio and Mood Stability. Watch your emotional consistency rise as you build your reflection habit.' },
+              { icon: <Cpu className="w-6 h-6" />, color: 'text-accent', title: 'Writing Velocity & Counters', desc: 'Subtle characters, words, and estimated reading time indicators embedded directly inside your editor to support your writing flow.' },
+              { icon: <Mic className="w-6 h-6" />, color: 'text-accent', title: 'Voice Journaling', desc: 'Speak your thoughts and have them transcribed straight into a journal entry.' },
             ].map((f, i) => (
               <motion.div
                 key={f.title}
@@ -54,20 +54,13 @@ export function NewFeatures() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, amount: 0.2 }}
                 transition={{ duration: 0.5, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
-                className={`rounded-2xl border ${f.dashed ? 'border-dashed opacity-80' : ''} border-border bg-bg/50 p-6 flex gap-4 hover:border-accent/30 transition-all`}
+                className="rounded-2xl border border-border bg-bg/50 p-6 flex gap-4 hover:border-accent/30 transition-all"
               >
                 <div className={`rounded-xl bg-accent/10 p-3 h-fit ${f.color}`}>
                   {f.icon}
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xl font-serif">{f.title}</h3>
-                    {f.badge && (
-                      <span className="text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded-full bg-accent-gold/10 border border-accent-gold/30 text-accent-gold">
-                        {f.badge}
-                      </span>
-                    )}
-                  </div>
+                  <h3 className="text-xl font-serif">{f.title}</h3>
                   <p className="text-sm text-text-muted leading-relaxed">{f.desc}</p>
                 </div>
               </motion.div>

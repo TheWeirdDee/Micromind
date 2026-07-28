@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import {
-  Map, Anchor, LogIn, Mail, Trophy, Search, FileDown, Award,
+  Map, Anchor, LogIn, Mail, Trophy, Award,
 } from "lucide-react";
 
 interface RoadmapItem {
@@ -39,20 +39,6 @@ const ITEMS: RoadmapItem[] = [
     status: "Planned",
     description:
       "More word categories and stages for the Clarity Quest vocabulary game.",
-  },
-  {
-    icon: Search,
-    title: "Search your journal",
-    status: "Planned",
-    description:
-      "Find an entry by keyword instead of scrolling through folders.",
-  },
-  {
-    icon: FileDown,
-    title: "Readable export (Markdown / PDF)",
-    status: "Planned",
-    description:
-      "Settings already lets you export a raw JSON backup — a readable Markdown or PDF export is next, for actually reading or printing your entries elsewhere.",
   },
   {
     icon: Award,
