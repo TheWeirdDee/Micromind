@@ -201,6 +201,14 @@ function ConfirmDialog({ action, userEmail, onConfirm, onCancel }: ConfirmDialog
 export default function SettingsPage() {
   const { user, session, logout, logoutEverywhere, updatePassword, resetPassword } = useAuth();
   const { isMiniPay } = useWallet();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!session?.access_token) return;
+    import('@/lib/admin').then(({ checkIsAdmin }) =>
+      checkIsAdmin(session.access_token).then(setIsAdmin).catch(() => setIsAdmin(false))
+    );
+  }, [session?.access_token]);
   const [isStandaloneApp, setIsStandaloneApp] = useState(false);
   const [isIOSDevice, setIsIOSDevice] = useState(false);
   const [appLinkCopied, setAppLinkCopied] = useState(false);
@@ -652,6 +660,15 @@ export default function SettingsPage() {
             </div>
           </div>
         </header>
+
+        {isAdmin && (
+          <Link
+            href="/app/admin"
+            className="flex items-center gap-2 bg-accent/10 border border-accent/25 rounded-2xl px-4 py-3 text-sm font-mono text-accent hover:bg-accent/15 transition w-fit"
+          >
+            <Shield className="w-4 h-4" /> Admin Dashboard
+          </Link>
+        )}
 
         <div className="grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-8">
