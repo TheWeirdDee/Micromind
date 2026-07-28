@@ -150,7 +150,6 @@ export function useStakingChallenge() {
     return checkedInDays[dayIndex] || false;
   }, [challenge, checkedInDays]);
 
-  /** Gets days remaining in the challenge */
   const getDaysRemaining = useCallback(() => {
     if (!challenge || challenge.startTime === 0 || !challenge.active || !params) return 0;
     const elapsed = Math.floor(Date.now() / 1000) - challenge.startTime;
@@ -250,7 +249,6 @@ export function useStakingChallenge() {
     setStep('signing');
 
     try {
-      // Calculate SHA-256 hash of the entry content client-side
       const encoder = new TextEncoder();
       const data = encoder.encode(entryText);
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);

@@ -177,7 +177,6 @@ export function AuthModal() {
               onSubmit={handleLogin}
               className="space-y-4"
             >
-              {/* Email */}
               <div className="space-y-1.5">
                 <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted px-1">Email</label>
                 <div className="relative">
@@ -194,7 +193,6 @@ export function AuthModal() {
                 </div>
               </div>
 
-              {/* Password */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between px-1">
                   <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted">Password</label>
@@ -226,7 +224,6 @@ export function AuthModal() {
                 </div>
               </div>
 
-              {/* Remember me */}
               <label className="flex items-center gap-2.5 px-1 cursor-pointer select-none">
                 <div
                   onClick={() => setRememberMe(p => !p)}
@@ -263,7 +260,6 @@ export function AuthModal() {
               onSubmit={handleSignup}
               className="space-y-4"
             >
-              {/* Username */}
               <div className="space-y-1.5">
                 <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted px-1">Username</label>
                 <div className="relative">
@@ -289,7 +285,6 @@ export function AuthModal() {
                 )}
               </div>
 
-              {/* Email */}
               <div className="space-y-1.5">
                 <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted px-1">Email</label>
                 <div className="relative">
@@ -305,7 +300,6 @@ export function AuthModal() {
                 </div>
               </div>
 
-              {/* Password */}
               <div className="space-y-1.5">
                 <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted px-1">Password</label>
                 <div className="relative">
@@ -328,7 +322,6 @@ export function AuthModal() {
                 </div>
               </div>
 
-              {/* Remember me */}
               <label className="flex items-center gap-2.5 px-1 cursor-pointer select-none">
                 <div
                   onClick={() => setRememberMe(p => !p)}

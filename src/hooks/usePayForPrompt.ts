@@ -203,7 +203,6 @@ export function usePayForPrompt() {
       }
 
       // STEP 2 — Submit payment to contract
-      // Calls payForPrompt(toolId, promptHash) on the smart contract.
       // The contract emits a PromptPaid event that the agent listens for.
       setStep('paying');
       const payNonce = isMiniPay
@@ -252,7 +251,6 @@ export function usePayForPrompt() {
       setStep('generating');
 
       if (agentUrl) {
-        // Try direct processing first (faster)
         try {
           const directRes = await fetch(`${agentUrl}/api/process-direct`, {
             method: 'POST',
@@ -283,7 +281,6 @@ export function usePayForPrompt() {
           }
         } catch { /* fallback to polling */ }
 
-        // Poll for response
         for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
           await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
           try {
@@ -407,7 +404,6 @@ export function usePayForPrompt() {
       const nonce      = Date.now().toString();
       const promptHash = keccak256(toBytes(`${finalPrompt}:${address}:${nonce}`)) as `0x${string}`;
 
-      // Build EIP-712 relay request
       const relayRequest = buildRelayRequest(
         toolId,
         promptHash,

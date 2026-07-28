@@ -168,7 +168,6 @@ export async function executeRelay(
   });
 
   try {
-    // Read exact price from contract
     const price = await publicClient.readContract({
       address:      contractAddress,
       abi:          [{ name: 'getPrice', type: 'function', stateMutability: 'view', inputs: [{ name: 'toolId', type: 'uint8' }], outputs: [{ name: '', type: 'uint256' }] }],
@@ -178,7 +177,6 @@ export async function executeRelay(
 
     console.log(`[RELAY] Price for tool ${params.toolId}: ${price}`);
 
-    // Step 1: Approve MicroMind contract to spend developer's USDm
     console.log('[RELAY] Step 1: Approving USDm spend...');
     const approveTx = await walletClient.writeContract({
       address:      usdmAddress,
@@ -192,7 +190,6 @@ export async function executeRelay(
     await publicClient.waitForTransactionReceipt({ hash: approveTx, confirmations: 1, timeout: 60_000 });
     console.log('[RELAY] Approval confirmed:', approveTx);
 
-    // Step 2: Call payForPrompt from developer wallet
     console.log('[RELAY] Step 2: Calling payForPrompt...');
     const payTx = await walletClient.writeContract({
       address:      contractAddress,

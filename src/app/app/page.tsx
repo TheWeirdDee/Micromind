@@ -73,7 +73,6 @@ export default function AppHome() {
       <div className="grid gap-6 lg:grid-cols-[2.2fr_1fr] items-start">
         <div className="space-y-6">
 
-          {/* Journal card */}
           <motion.div variants={itemVariants}>
             <Link href="/app/journal">
               <motion.div
@@ -101,12 +100,10 @@ export default function AppHome() {
             </Link>
           </motion.div>
 
-          {/* Word Cloud on desktop only */}
           <motion.div variants={itemVariants} className="hidden lg:block">
             <WordCloud />
           </motion.div>
 
-          {/* Recent activity */}
           {recentPrompt && (
             <motion.section variants={itemVariants} className="rounded-[2rem] border border-border bg-surface-2 p-5">
               <div className="flex items-center justify-between mb-4">
@@ -128,7 +125,6 @@ export default function AppHome() {
           )}
         </div>
 
-        {/* Sidebar */}
         <motion.aside variants={itemVariants} className="space-y-5 lg:max-w-[340px] xl:max-w-[360px]">
           <div className="rounded-[2rem] border border-border bg-surface-2 p-5">
             <p className="text-[10px] uppercase tracking-[0.35em] text-text-muted">Today</p>

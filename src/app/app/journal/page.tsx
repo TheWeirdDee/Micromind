@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  BookOpen, Star, Trash2,
+  BookOpen, Star, Trash2, ChevronLeft,
   FolderPlus, Folder as FolderIcon, MoreHorizontal, Sparkles,
   Plus, PenTool,
 } from 'lucide-react';
@@ -18,6 +18,7 @@ import {
 import { deleteJournalImage } from '@/lib/journalMedia';
 import { JournalEntryRow, type RowOpenState } from '@/components/app/JournalEntryRow';
 import { MoveEntrySheet } from '@/components/app/MoveEntrySheet';
+import { ConfirmDialog } from '@/components/app/ConfirmDialog';
 
 type ListView =
   | { kind: 'folder'; id: string | null }
@@ -25,7 +26,6 @@ type ListView =
   | { kind: 'trash' };
 
 export default function JournalPage() {
-  // Data
   const [folders, setFolders] = useState<Folder[]>(() =>
     typeof window !== 'undefined' ? getFolders() : []
   );
@@ -33,17 +33,31 @@ export default function JournalPage() {
     typeof window !== 'undefined' ? getEntries() : []
   );
 
-  // View / folder UI
   const [view, setView]                         = useState<ListView>({ kind: 'folder', id: null });
+  // Mobile only: false = showing the folder/section picker, true = drilled into
+  // that section's entries (mirrors Notes app's separate folder-list vs.
+  // notes-list screens). Desktop always shows both side by side, ignoring this.
+  const [mobileDrilledIn, setMobileDrilledIn]   = useState(false);
   const [creatingFolder, setCreatingFolder]     = useState(false);
   const [newFolderName, setNewFolderName]       = useState('');
   const [renamingId, setRenamingId]             = useState<string | null>(null);
   const [renameName, setRenameName]             = useState('');
   const [folderMenuId, setFolderMenuId]         = useState<string | null>(null);
 
-  // Swipe / move state
+  const selectView = (v: ListView) => {
+    setView(v);
+    setMobileDrilledIn(true);
+    setFolderMenuId(null);
+  };
+
   const [openRow, setOpenRow]         = useState<{ id: string; side: RowOpenState } | null>(null);
   const [moveEntryId, setMoveEntryId] = useState<string | null>(null);
+
+  // Confirmation dialogs — window.confirm() is unreliable inside embedded
+  // webviews like MiniPay's in-app browser, so destructive actions use a
+  // real modal instead.
+  const [deleteFolderConfirmId, setDeleteFolderConfirmId]           = useState<string | null>(null);
+  const [permanentDeleteConfirmEntry, setPermanentDeleteConfirmEntry] = useState<JournalEntry | null>(null);
 
   const [hasDraft, setHasDraft] = useState<boolean>(() =>
     typeof window !== 'undefined' && !!localStorage.getItem('mm_journal_draft')
@@ -99,9 +113,14 @@ export default function JournalPage() {
   };
 
   const handleDeleteFolder = (id: string) => {
-    if (!window.confirm('Delete this folder? Entries will stay in All Notes.')) return;
-    deleteFolder(id);
-    if (view.kind === 'folder' && view.id === id) setView({ kind: 'folder', id: null });
+    setDeleteFolderConfirmId(id);
+  };
+
+  const confirmDeleteFolder = () => {
+    if (!deleteFolderConfirmId) return;
+    deleteFolder(deleteFolderConfirmId);
+    if (view.kind === 'folder' && view.id === deleteFolderConfirmId) setView({ kind: 'folder', id: null });
+    setDeleteFolderConfirmId(null);
     refresh();
   };
 
@@ -124,12 +143,17 @@ export default function JournalPage() {
 
   const handleDeleteEntry = (entry: JournalEntry) => {
     if (view.kind === 'trash') {
-      if (!window.confirm('Permanently delete this entry? This action cannot be undone.')) return;
-      if (entry.image) deleteJournalImage(entry.image).catch(() => {});
-      permanentlyDeleteEntry(entry.id);
+      setPermanentDeleteConfirmEntry(entry);
     } else {
       moveEntryToTrash(entry.id);
     }
+  };
+
+  const confirmPermanentDeleteEntry = () => {
+    if (!permanentDeleteConfirmEntry) return;
+    if (permanentDeleteConfirmEntry.image) deleteJournalImage(permanentDeleteConfirmEntry.image).catch(() => {});
+    permanentlyDeleteEntry(permanentDeleteConfirmEntry.id);
+    setPermanentDeleteConfirmEntry(null);
   };
 
   const handleToggleStar = (entry: JournalEntry) => {
@@ -152,7 +176,7 @@ export default function JournalPage() {
               ? 'bg-accent/15 text-accent'
               : 'text-text-muted hover:bg-surface-2 hover:text-text-primary'
           }`}
-          onClick={() => { if (!isRenaming) { setView({ kind: 'folder', id: folder.id }); setFolderMenuId(null); } }}
+          onClick={() => { if (!isRenaming) selectView({ kind: 'folder', id: folder.id }); }}
         >
           <FolderIcon className="w-4 h-4 shrink-0" />
           {isRenaming ? (
@@ -246,12 +270,13 @@ export default function JournalPage() {
         </Link>
       </div>
 
-      {/* -- Two-panel layout: folder list stacks above entries on mobile, ------ */}
-      {/* -- sits beside them on desktop — same vertical list either way ------- */}
+      {/* -- Two-panel layout: on mobile these are separate screens (folder ----- */}
+      {/* -- picker vs. that section's entries, like Notes app); desktop shows -- */}
+      {/* -- both side by side always. ------------------------------------------ */}
       <div className="lg:flex lg:gap-7">
 
-        {/* Folder list — full width above entries on mobile, fixed-width sidebar on desktop */}
-        <aside className="flex flex-col w-full lg:w-48 shrink-0 mb-6 lg:mb-0">
+        {/* Folder list — its own screen on mobile until a section is picked, fixed-width sidebar on desktop */}
+        <aside className={`flex-col w-full lg:w-48 shrink-0 mb-6 lg:mb-0 ${mobileDrilledIn ? 'hidden lg:flex' : 'flex'}`}>
           <div className="divide-y divide-border/40 rounded-xl overflow-hidden border border-border/40">
             {starredCount > 0 && (
               <div
@@ -260,7 +285,7 @@ export default function JournalPage() {
                     ? 'bg-accent/15 text-accent'
                     : 'text-text-muted hover:bg-surface-2 hover:text-text-primary'
                 }`}
-                onClick={() => setView({ kind: 'starred' })}
+                onClick={() => selectView({ kind: 'starred' })}
               >
                 <Star className="w-4 h-4 shrink-0" />
                 <span className="flex-1 text-sm">Starred</span>
@@ -268,14 +293,13 @@ export default function JournalPage() {
               </div>
             )}
 
-            {/* All Notes */}
             <div
               className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-all ${
                 view.kind === 'folder' && view.id === null
                   ? 'bg-accent/15 text-accent'
                   : 'text-text-muted hover:bg-surface-2 hover:text-text-primary'
               }`}
-              onClick={() => setView({ kind: 'folder', id: null })}
+              onClick={() => selectView({ kind: 'folder', id: null })}
             >
               <BookOpen className="w-4 h-4 shrink-0" />
               <span className="flex-1 text-sm">All Notes</span>
@@ -290,7 +314,7 @@ export default function JournalPage() {
                     ? 'bg-accent/15 text-accent'
                     : 'text-text-muted hover:bg-surface-2 hover:text-text-primary'
                 }`}
-                onClick={() => setView({ kind: 'trash' })}
+                onClick={() => selectView({ kind: 'trash' })}
               >
                 <Trash2 className="w-4 h-4 shrink-0" />
                 <span className="flex-1 text-sm">Recently Deleted</span>
@@ -299,7 +323,6 @@ export default function JournalPage() {
             )}
           </div>
 
-          {/* New folder */}
           <div className="mt-4 pt-4 border-t border-border">
             <AnimatePresence mode="wait">
               {creatingFolder ? (
@@ -348,16 +371,25 @@ export default function JournalPage() {
           </div>
         </aside>
 
-        {/* -- Entries main panel ------------------------------------------- */}
-        <div className="flex-1 min-w-0 space-y-3">
+        {/* -- Entries main panel — its own screen on mobile once drilled in -- */}
+        <div className={`flex-1 min-w-0 space-y-3 ${mobileDrilledIn ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'}`}>
 
           {/* Active view label + reflect link */}
           <div className="flex items-center justify-between">
-            <div>
-              <span className="text-lg font-serif text-text-primary">{activeViewName}</span>
-              <span className="text-xs text-text-muted/60 font-mono ml-2">
-                {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
-              </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setMobileDrilledIn(false)}
+                className="lg:hidden p-1 -ml-1 rounded-full text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors shrink-0"
+                aria-label="Back to folders"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <span className="text-lg font-serif text-text-primary">{activeViewName}</span>
+                <span className="text-xs text-text-muted/60 font-mono ml-2">
+                  {filteredEntries.length} {filteredEntries.length === 1 ? 'entry' : 'entries'}
+                </span>
+              </div>
             </div>
             {view.kind === 'folder' && view.id && (
               <Link
@@ -370,7 +402,6 @@ export default function JournalPage() {
             )}
           </div>
 
-          {/* Draft banner */}
           {hasDraft && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -418,7 +449,6 @@ export default function JournalPage() {
               ))}
             </div>
           ) : (
-            /* Empty state */
             <div className="flex flex-col items-center justify-center text-center py-16 px-4">
               <BookOpen className="w-12 h-12 text-text-muted/20 mb-4" />
               <p className="font-serif text-text-primary/60 text-lg mb-1">{emptyTitle}</p>
@@ -442,6 +472,27 @@ export default function JournalPage() {
         folders={folders}
         currentFolderId={moveEntryId ? entries.find(e => e.id === moveEntryId)?.folderId : undefined}
         onSelect={handleMoveSelect}
+        onFolderCreated={refresh}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteFolderConfirmId !== null}
+        title="Delete this folder?"
+        message="Entries will stay in All Notes."
+        confirmLabel="Delete Folder"
+        danger
+        onConfirm={confirmDeleteFolder}
+        onCancel={() => setDeleteFolderConfirmId(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={permanentDeleteConfirmEntry !== null}
+        title="Permanently delete this entry?"
+        message="This action cannot be undone."
+        confirmLabel="Delete Forever"
+        danger
+        onConfirm={confirmPermanentDeleteEntry}
+        onCancel={() => setPermanentDeleteConfirmEntry(null)}
       />
     </motion.div>
   );

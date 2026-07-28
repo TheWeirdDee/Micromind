@@ -7,14 +7,12 @@
  * allowing the release cron to decrypt and email it only when the release date passes.
  */
 
-/** Helper: Convert a buffer to a hex string */
 function bufferToHex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }
 
-/** Helper: Convert a hex string to a Uint8Array */
 function hexToBuffer(hex: string): Uint8Array {
   const len = hex.length / 2;
   const view = new Uint8Array(len);

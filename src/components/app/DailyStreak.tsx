@@ -62,7 +62,6 @@ export function DailyStreak() {
         setStreak(data);
         setIsClaimedToday(claimed);
         
-        // If checked in today, retrieve today's quote from storage or pre-fill
         if (claimed) {
           const storedSpark = localStorage.getItem(sparkKey);
           if (storedSpark) {
@@ -110,7 +109,6 @@ export function DailyStreak() {
   }, [address, refreshStreak]);
 
 
-  // Generate last 7 days of activity dots
   const renderCalendarDots = () => {
     const dots = [];
     const todayStr = getLocalDateString();

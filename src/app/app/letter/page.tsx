@@ -9,6 +9,7 @@ import { useWallet } from '@/context/WalletContext';
 import { usePayForPrompt } from '@/hooks/usePayForPrompt';
 import { ResponseCard } from '@/components/app/ResponseCard';
 import { AgentWarning } from '@/components/app/AgentWarning';
+import { ConfirmDialog } from '@/components/app/ConfirmDialog';
 import { getHistory, saveToHistory } from '@/lib/storage';
 import { updateStreak } from '@/lib/journal';
 import { generateEncryptionKey, encryptText } from '@/lib/crypto';
@@ -53,13 +54,10 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     typeof window !== 'undefined' ? loadContacts() : []
   );
 
-  // Tabs: 'instant' or 'schedule'
   const [activeTab, setActiveTab] = useState<'instant' | 'schedule'>('instant');
 
-  // Database session
   const [dbUser, setDbUser] = useState<User | null>(null);
 
-  // Scheduled escrow list
   const [scheduledLetters, setScheduledLetters] = useState<ScheduledLetter[]>([]);
   const [loadingLetters, setLoadingLetters] = useState(false);
 
@@ -81,7 +79,6 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
   const [senderName, setSenderName] = useState(initialData?.senderName ?? '');
   const [content, setContent] = useState(initialData?.content ?? contentParam ?? '');
   
-  // Date-picker for scheduling (default to tomorrow)
   const [releaseDate, setReleaseDate] = useState(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -98,7 +95,6 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
   const isFormValid = recipientEmail.includes('@') && senderName.trim().length > 0 && content.trim().length >= 5;
 
-  // Starred contacts
   const isCurrentStarred = starredContacts.some(
     c => c.email === recipientEmail.trim() && c.name === recipientName.trim()
   );
@@ -132,7 +128,6 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     }
   };
 
-  // Fetch scheduled letters when database session changes
   useEffect(() => {
     if (dbUser) {
       const timer = setTimeout(() => {
@@ -171,7 +166,6 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     setRecipientName(contact.name);
   };
 
-  // Instant Letter Send (Free)
   const handleFreeSend = async () => {
     if (!isFormValid || sending || paidLoading) return;
     setSending(true);
@@ -242,7 +236,6 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     }
   };
 
-  // Schedule Escrow Letter (Free / Encrypted)
   const handleScheduleSend = async (polishedText?: string) => {
     if (!dbUser) {
       alert('Please log in with Supabase to escrow scheduled letters.');
@@ -255,14 +248,11 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
 
     try {
       const textToEncrypt = polishedText || content.trim();
-      
-      // 1. Generate client-side AES key
+
       const key = await generateEncryptionKey();
 
-      // 2. Encrypt text content
       const payload = await encryptText(textToEncrypt, key);
 
-      // 3. Save to Supabase escrow table
       const { error } = await supabase.from('scheduled_letters').insert({
         user_id: dbUser.id,
         recipient_email: recipientEmail.trim(),
@@ -320,19 +310,26 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     }
   };
 
-  // Cancel/Delete Escrow
-  const handleCancelEscrow = async (id: string) => {
-    if (!window.confirm('Cancel this scheduled delivery? The letter will be permanently deleted.')) return;
+  const [cancelEscrowId, setCancelEscrowId] = useState<string | null>(null);
+
+  const handleCancelEscrow = (id: string) => {
+    setCancelEscrowId(id);
+  };
+
+  const confirmCancelEscrow = async () => {
+    if (!cancelEscrowId) return;
     try {
       const { error } = await supabase
         .from('scheduled_letters')
         .delete()
-        .eq('id', id);
+        .eq('id', cancelEscrowId);
 
       if (error) throw error;
       fetchScheduledLetters();
     } catch (e) {
       alert(`Failed to cancel: ${(e as Error).message}`);
+    } finally {
+      setCancelEscrowId(null);
     }
   };
 
@@ -686,6 +683,16 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
       )}
 
       <ConnectWalletModal isOpen={showWalletModal} onClose={() => setShowWalletModal(false)} />
+
+      <ConfirmDialog
+        isOpen={cancelEscrowId !== null}
+        title="Cancel this scheduled delivery?"
+        message="The letter will be permanently deleted."
+        confirmLabel="Cancel Delivery"
+        danger
+        onConfirm={confirmCancelEscrow}
+        onCancel={() => setCancelEscrowId(null)}
+      />
     </motion.div>
   );
 }

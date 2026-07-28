@@ -48,7 +48,6 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
     };
 
     window.addEventListener('eip6963:announceProvider', handleAnnounce);
-    // Ask all installed wallets to announce themselves
     window.dispatchEvent(new Event('eip6963:requestProvider'));
 
     // Fallback for wallets that don't support EIP-6963 (older MetaMask, Trust, etc.)
@@ -67,7 +66,6 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
             else if (p.isMetaMask) name = 'MetaMask';
             return { name, provider: p, icon: null };
           });
-          // dedupe by name
           const seen = new Set<string>();
           const deduped = options.filter(o => {
             if (seen.has(o.name)) return false;
@@ -89,7 +87,6 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -98,7 +95,6 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
             className="absolute inset-0 bg-black/60 backdrop-blur-md"
           />
 
-          {/* Card */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -109,7 +105,6 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
             <div className="absolute inset-0 halftone-bg opacity-5 pointer-events-none rounded-[2.5rem]" />
 
             <div className="relative p-7">
-              {/* Close */}
               <button
                 onClick={onClose}
                 className="absolute top-5 right-5 p-2 text-white/40 hover:text-white rounded-full hover:bg-white/5 transition-colors"
@@ -117,12 +112,10 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
                 <X className="w-4 h-4" />
               </button>
 
-              {/* Icon */}
               <div className="mx-auto w-12 h-12 bg-accent/10 border border-accent/20 rounded-2xl flex items-center justify-center mb-5">
                 <Wallet className="w-6 h-6 text-accent" />
               </div>
 
-              {/* Heading */}
               <div className="text-center space-y-3 mb-6">
                 <h3 className="text-2xl font-serif text-white leading-tight">Connect Wallet</h3>
                 <p className="font-mono text-xs text-white/50 leading-relaxed">
@@ -134,7 +127,6 @@ export function ConnectWalletModal({ isOpen, onClose }: ConnectWalletModalProps)
                 </div>
               </div>
 
-              {/* Wallet list */}
               {walletOptions.length > 0 ? (
                 <div className="space-y-2">
                   <p className="text-[10px] uppercase tracking-[0.35em] text-white/30 font-mono mb-3">Choose your wallet</p>

@@ -41,7 +41,6 @@ export default function ChallengePage() {
 
   const latestEntry = typeof window !== 'undefined' ? getLastEntry() : null;
 
-  // Helper to check if latest journal entry was written today
   const hasJournaledToday = () => {
     if (!latestEntry) return false;
     const entryDate = new Date(latestEntry.timestamp).toDateString();
@@ -54,7 +53,6 @@ export default function ChallengePage() {
     checkIn(latestEntry.content);
   };
 
-  // Status mapping
   const renderStepHint = () => {
     switch (step) {
       case 'approving':
@@ -72,7 +70,6 @@ export default function ChallengePage() {
     }
   };
 
-  // Render registration view
   const renderRegister = () => {
     const stakeFormatted = params ? (Number(params.stakeAmount) / 1e18).toFixed(2) : '5.00';
     const rewardFormatted = params ? (Number(params.rewardAmount) / 1e18).toFixed(2) : '0.50';
@@ -81,7 +78,6 @@ export default function ChallengePage() {
 
     return (
       <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6">
-        {/* Hero Card */}
         <motion.div variants={itemVariants} className="relative overflow-hidden rounded-[2.5rem] border border-border bg-gradient-to-br from-accent/10 to-surface p-8 shadow-2xl text-center">
           <div className="absolute inset-0 halftone-bg opacity-5 pointer-events-none" />
           <div className="relative z-10 space-y-4 max-w-xl mx-auto">
@@ -96,7 +92,6 @@ export default function ChallengePage() {
           </div>
         </motion.div>
 
-        {/* Feature Grid */}
         <motion.div variants={itemVariants} className="grid md:grid-cols-3 gap-4">
           <div className="bg-surface border border-border rounded-2xl p-5 space-y-2">
             <div className="flex items-center gap-2 text-accent">
@@ -129,7 +124,6 @@ export default function ChallengePage() {
           </div>
         </motion.div>
 
-        {/* Action Panel */}
         <motion.div variants={itemVariants} className="bg-surface-2 border border-border rounded-3xl p-6 sm:p-8 space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/50 pb-5">
             <div>
@@ -177,7 +171,6 @@ export default function ChallengePage() {
     );
   };
 
-  // Render active challenge view
   const renderActive = () => {
     if (!challenge || !params) return null;
 
@@ -186,7 +179,6 @@ export default function ChallengePage() {
     const durationDays = params.challengeDuration;
     const requiredDays = params.requiredCheckins;
 
-    // Calculate dates
     const startDateLabel = new Date(challenge.startTime * 1000).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -197,13 +189,11 @@ export default function ChallengePage() {
       year: 'numeric',
     });
 
-    // Generate grid items
     const elapsed = currentTime ? currentTime - challenge.startTime : 0;
     const currentDayIndex = Math.floor(elapsed / 86400);
 
     return (
       <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6">
-        {/* Header Summary */}
         <motion.div variants={itemVariants} className="bg-surface border border-border p-6 rounded-3xl relative overflow-hidden">
           <div className="absolute inset-0 halftone-bg opacity-5 pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -228,7 +218,6 @@ export default function ChallengePage() {
           </div>
         </motion.div>
 
-        {/* Action Panel */}
         <motion.div variants={itemVariants} className="bg-surface-2 border border-border rounded-3xl p-6 space-y-5">
           <h3 className="text-base font-serif font-semibold border-b border-border/40 pb-3">Daily Habit Check-In</h3>
           
@@ -285,7 +274,6 @@ export default function ChallengePage() {
           </div>
         </motion.div>
 
-        {/* Commitment Habit Grid */}
         <motion.div variants={itemVariants} className="bg-surface border border-border p-6 rounded-3xl space-y-4">
           <div className="flex justify-between items-center pb-2 border-b border-border/40">
             <h3 className="text-sm font-mono uppercase tracking-widest text-text-muted">30-Day Progress Grid</h3>
@@ -346,7 +334,6 @@ export default function ChallengePage() {
     );
   };
 
-  // Render completed view (claims)
   const renderClaim = () => {
     if (!challenge || !params) return null;
 
@@ -383,7 +370,6 @@ export default function ChallengePage() {
           </div>
         </motion.div>
 
-        {/* Claim Info */}
         <motion.div variants={itemVariants} className="bg-surface-2 border border-border rounded-3xl p-6 sm:p-8 space-y-6">
           <div className="grid grid-cols-2 gap-4 pb-5 border-b border-border/50">
             <div>
@@ -430,7 +416,6 @@ export default function ChallengePage() {
     );
   };
 
-  // Render loading fallback
   const renderLoading = () => (
     <div className="flex flex-col items-center justify-center py-20 space-y-3">
       <div className="h-8 w-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -438,7 +423,6 @@ export default function ChallengePage() {
     </div>
   );
 
-  // Render view router
   const renderContent = () => {
     if (!address) {
       return (
@@ -487,7 +471,6 @@ export default function ChallengePage() {
       return renderLoading();
     }
 
-    // Router
     if (challenge.startTime === 0) {
       return renderRegister();
     }
@@ -501,7 +484,6 @@ export default function ChallengePage() {
 
   return (
     <div className="space-y-6">
-      {/* Back button */}
       <div className="flex items-center gap-4">
         <Link href="/app" className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-border hover:bg-surface transition">
           <ArrowLeft className="w-4 h-4 text-text-primary" />

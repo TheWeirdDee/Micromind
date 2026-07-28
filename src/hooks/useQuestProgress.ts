@@ -30,7 +30,6 @@ export function useQuestProgress(address: string | null) {
   const [dbUser, setDbUser] = useState<User | null>(null);
   const [dbWarning, setDbWarning] = useState<boolean>(false);
 
-  // Sync address changes
   const storageKey = address ? `${PROGRESS_KEY}_${address}` : PROGRESS_KEY;
 
   // Listen to Auth State

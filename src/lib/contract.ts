@@ -83,7 +83,6 @@ export const MICROMIND_ABI = [
   }
 ] as const;
 
-// Prevent accidental runtime mutation of the ABI
 Object.freeze(MICROMIND_ABI);
 
 /** MicroMindStaking contract address on Celo Mainnet. */

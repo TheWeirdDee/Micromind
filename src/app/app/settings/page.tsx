@@ -2,10 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, User, Mail, Check, Trash2, RotateCcw, Info, Shield, Download, Upload, Bell, Lock, AlertTriangle, X, LogOut, KeyRound, UserX } from 'lucide-react';
+import { ChevronLeft, User, Mail, Check, Trash2, RotateCcw, Info, Shield, Download, Upload, Bell, Lock, AlertTriangle, X, LogOut, KeyRound, UserX, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { useWallet } from '@/context/WalletContext';
 import { supabase } from '@/lib/supabase';
+
+/** The URL to hand users who need to leave an embedded webview (MiniPay) for a real browser to enable push. */
+const APP_SETTINGS_URL = 'https://micromindapp.xyz/app/settings';
 
 const GOALS = [
   'Clear Mental Clutter',
@@ -196,6 +200,26 @@ function ConfirmDialog({ action, userEmail, onConfirm, onCancel }: ConfirmDialog
 
 export default function SettingsPage() {
   const { user, session, logout, logoutEverywhere, updatePassword, resetPassword } = useAuth();
+  const { isMiniPay } = useWallet();
+  const [isStandaloneApp, setIsStandaloneApp] = useState(false);
+  const [isIOSDevice, setIsIOSDevice] = useState(false);
+  const [appLinkCopied, setAppLinkCopied] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setIsStandaloneApp(
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as { standalone?: boolean }).standalone === true
+    );
+    setIsIOSDevice(/iPad|iPhone|iPod/.test(window.navigator.userAgent));
+  }, []);
+
+  const handleCopyAppLink = () => {
+    navigator.clipboard.writeText(APP_SETTINGS_URL);
+    setAppLinkCopied(true);
+    setTimeout(() => setAppLinkCopied(false), 2000);
+  };
+
   const [username, setUsername] = useState<string>('');
   const [profile, setProfile] = useState<UserProfile | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -746,7 +770,7 @@ export default function SettingsPage() {
                     </div>
                     <button
                       onClick={toggleReminders}
-                      disabled={reminderBusy}
+                      disabled={reminderBusy || isMiniPay}
                       className={`w-12 h-6 rounded-full p-1 transition-colors relative duration-200 focus:outline-none disabled:opacity-50 ${
                         remindersEnabled ? 'bg-accent' : 'bg-surface-2 border border-border'
                       }`}
@@ -757,9 +781,31 @@ export default function SettingsPage() {
                   {reminderError && (
                     <p className="font-mono text-[10px] text-accent-red">{reminderError}</p>
                   )}
-                  <p className="font-mono text-[10px] text-text-muted">
-                    On iPhone, add MicroMind to your Home Screen first (Share → Add to Home Screen) — reminders only work from the installed app, not a regular Safari tab.
-                  </p>
+                  {isMiniPay ? (
+                    <div className="space-y-2">
+                      <p className="font-mono text-[10px] text-text-muted">
+                        Push notifications aren&apos;t available inside MiniPay&apos;s built-in browser. Open the link below in your phone&apos;s regular browser (Safari or Chrome) and add it to your Home Screen from there to enable reminders.
+                      </p>
+                      <div className="flex items-center gap-2 bg-surface-2 border border-border rounded-lg px-3 py-2">
+                        <span className="flex-1 font-mono text-[10px] text-text-primary truncate">{APP_SETTINGS_URL}</span>
+                        <button
+                          onClick={handleCopyAppLink}
+                          className="shrink-0 flex items-center gap-1 text-[10px] font-mono text-accent hover:opacity-80 transition-opacity"
+                        >
+                          {appLinkCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                          {appLinkCopied ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : !isStandaloneApp && isIOSDevice ? (
+                    <p className="font-mono text-[10px] text-text-muted">
+                      Add MicroMind to your Home Screen first: tap the Share icon in Safari&apos;s toolbar, then &quot;Add to Home Screen&quot; — reminders only work from the installed app, not a regular Safari tab.
+                    </p>
+                  ) : !isStandaloneApp ? (
+                    <p className="font-mono text-[10px] text-text-muted">
+                      For reminders to keep working reliably, tap your browser&apos;s menu (⋮) and choose &quot;Add to Home Screen&quot; or &quot;Install app&quot;.
+                    </p>
+                  ) : null}
                 </div>
 
                 <button onClick={exportJournal} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">

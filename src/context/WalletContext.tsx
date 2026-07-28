@@ -22,7 +22,6 @@ import {
 } from '@/constants/chains';
 import type { EthereumProvider } from '@/lib/viem';
 
-/** Shape of the global wallet context shared across the app. */
 interface WalletContextType {
   /** Checksummed EIP-55 address of the connected wallet, or null if not connected. */
   address: string | null;
@@ -83,7 +82,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // EIP-6963 announced providers dictionary
   const [announcedProviders, setAnnouncedProviders] = useState<Record<string, EthereumProvider>>({});
 
-  // Listen for EIP-6963 provider announcements on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleAnnounce = (event: Event) => {
@@ -97,7 +95,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('eip6963:announceProvider', handleAnnounce);
   }, []);
 
-  // Resolve the active provider by checking EIP-6963 announced list or falling back
   const getActiveProvider = useCallback((storedRdns: string | null): EthereumProvider | null => {
     if (storedRdns && announcedProviders[storedRdns]) {
       return announcedProviders[storedRdns];
@@ -218,7 +215,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             try { localStorage.setItem('micromind_connected', 'true'); } catch {}
             
             clearInterval(checkInterval);
-            return; // Success
+            return;
           }
         } catch (e) {
           console.log('Auto-connect failed:', e);

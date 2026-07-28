@@ -26,7 +26,6 @@ export function HowItWorks() {
                 fill
                 className="object-cover transition-transform duration-700 group-hover:scale-105"
               />
-              {/* Overlay with HOW IT WORKS text */}
               <div className="absolute inset-0 bg-bg/25 flex flex-col justify-end p-8">
                 <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-accent font-bold mb-1">Interactive System</span>
                 <h3 className="font-serif text-3xl text-text-primary tracking-tight">HOW IT WORKS</h3>

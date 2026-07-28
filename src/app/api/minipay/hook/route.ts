@@ -36,7 +36,6 @@ export async function GET() {
     icon: 'https://micromindapp.xyz/logo.svg',
     network: 'celo',
     chainId: 42220,
-    // USDm (Celo Dollar) is the payment token for all AI tool prompts
     paymentToken: {
       symbol: 'USDm',
       name: 'Celo Dollar',

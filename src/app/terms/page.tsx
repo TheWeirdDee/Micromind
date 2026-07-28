@@ -13,7 +13,6 @@ export default function TermsPage() {
         
         <div className="container mx-auto max-w-3xl relative z-10 text-left space-y-10">
           
-          {/* Header */}
           <div className="space-y-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent-gold/10 border border-accent-gold/20 rounded-xl text-accent-gold font-mono text-[10px] uppercase tracking-wider">
               <Scale className="w-3.5 h-3.5" />
@@ -27,7 +26,6 @@ export default function TermsPage() {
             </p>
           </div>
 
-          {/* Intro Card */}
           <div className="p-6 bg-surface border border-border rounded-3xl space-y-3">
             <h3 className="font-serif text-lg text-text-primary flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-accent" /> Acceptable Use & Autonomy
@@ -37,7 +35,6 @@ export default function TermsPage() {
             </p>
           </div>
 
-          {/* Terms Content */}
           <div className="space-y-8 font-mono text-xs text-text-muted leading-relaxed">
             
             <section className="space-y-3">

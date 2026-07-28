@@ -85,7 +85,6 @@ export function HeartfeltLetters() {
         document.body.style.paddingRight = `${scrollbarWidth}px`;
       }, 600);
     } else {
-      // Clean up locks
       window.removeEventListener('wheel', preventDefault);
       window.removeEventListener('touchmove', preventDefault);
       window.removeEventListener('keydown', preventKeyScroll);
@@ -146,7 +145,6 @@ export function HeartfeltLetters() {
     const runAutoplay = async () => {
       const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-      // Reset initially
       if (!active) return;
       handleReset();
 
@@ -198,7 +196,6 @@ export function HeartfeltLetters() {
   return (
     <div ref={sectionRef}>
       <section id="letters" className="py-24 md:py-32 px-6 bg-bg relative border-t border-border overflow-hidden">
-        {/* Background Glows */}
         <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-accent/2 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-accent-gold/2 rounded-full blur-[120px] pointer-events-none" />
 
@@ -231,8 +228,7 @@ export function HeartfeltLetters() {
               {/* Step Indicators */}
               <div className="space-y-4">
                 
-                {/* Step 1 */}
-                <button 
+                <button
                   onClick={() => { handleManualAction(); setStep(1); handleReset(); }}
                   className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 ${
                     step === 1 
@@ -254,8 +250,7 @@ export function HeartfeltLetters() {
                   </div>
                 </button>
 
-                {/* Step 2 */}
-                <button 
+                <button
                   onClick={() => { handleManualAction(); setStep(2); setIsSent(false); setOpenedEmail(false); }}
                   disabled={!isPolished}
                   className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 ${
@@ -280,8 +275,7 @@ export function HeartfeltLetters() {
                 </div>
               </button>
 
-              {/* Step 3 */}
-              <button 
+              <button
                 onClick={() => { handleManualAction(); setStep(3); }}
                 disabled={!isSent}
                 className={`w-full text-left p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 ${
