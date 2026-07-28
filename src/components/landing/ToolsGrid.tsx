@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BookOpen, MessageSquare, Bird, Sparkles, Search, Mail, Brain, Trophy, Calendar } from 'lucide-react';
+import { BookOpen, MessageSquare, Bird, Sparkles, Search, Mail, Brain, Trophy, Calendar, Feather } from 'lucide-react';
 import Link from 'next/link';
 
 const tools = [
@@ -85,6 +85,15 @@ const tools = [
     price: '0.05 USDm Stake',
     btnText: 'Join Challenge',
     route: '/app/challenge',
+  },
+  {
+    icon: Feather,
+    slug: 'stories',
+    name: 'Short Story Challenge',
+    desc: 'Write a short story on the monthly community prompt, then vote for your favorite among everyone\'s submissions.',
+    price: 'Free',
+    btnText: 'Read & Vote',
+    route: '/app/stories',
   },
 ];
 

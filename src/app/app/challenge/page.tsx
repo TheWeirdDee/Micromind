@@ -41,15 +41,20 @@ export default function ChallengePage() {
 
   const latestEntry = typeof window !== 'undefined' ? getLastEntry() : null;
 
+  // The contract can't verify entry content (it only sees a hash), so the app
+  // is the only place that can enforce "actually write something" — a bare
+  // date match would let a single keystroke count as a completed morning page.
+  const MIN_ENTRY_LENGTH = 50;
+
   const hasJournaledToday = () => {
     if (!latestEntry) return false;
     const entryDate = new Date(latestEntry.timestamp).toDateString();
     const todayDate = new Date().toDateString();
-    return entryDate === todayDate;
+    return entryDate === todayDate && latestEntry.content.trim().length >= MIN_ENTRY_LENGTH;
   };
 
   const handleCheckIn = () => {
-    if (!latestEntry) return;
+    if (!latestEntry || latestEntry.content.trim().length < MIN_ENTRY_LENGTH) return;
     checkIn(latestEntry.content);
   };
 
@@ -258,7 +263,9 @@ export default function ChallengePage() {
                   <div className="space-y-4">
                     <div className="bg-bg/40 border border-border rounded-2xl p-4 text-center">
                       <p className="text-xs font-mono text-text-muted leading-relaxed">
-                        You haven&apos;t written any entries in your journal today. Write your daily morning page first, then return here to submit.
+                        {latestEntry && new Date(latestEntry.timestamp).toDateString() === new Date().toDateString()
+                          ? `Your entry today is a bit short — write at least ${MIN_ENTRY_LENGTH} characters to count as a morning page.`
+                          : "You haven't written any entries in your journal today. Write your daily morning page first, then return here to submit."}
                       </p>
                     </div>
                     <Link

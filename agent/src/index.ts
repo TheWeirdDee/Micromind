@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import Groq from 'groq-sdk';
@@ -9,8 +10,7 @@ import { MICROMIND_ABI, MICROMIND_STAKING_ABI } from './lib/contract';
 import { Resend } from 'resend';
 import {
   verifyRelaySignature,
-  isNonceUsed,
-  markNonceUsed,
+  claimNonce,
   isDeadlineValid,
   executeRelay,
   verifyChallengeRelaySignature,
@@ -302,7 +302,33 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
 
 // Limit request body to 50 KB to prevent payload-based DoS attacks
 app.use(express.json({ limit: '50kb' }));
-app.use(cors());
+
+// Restrict cross-origin requests to known frontends. Defaults cover local dev
+// and the production Vercel deployment; override/extend via ALLOWED_ORIGINS
+// (comma-separated) for preview deployments or a custom domain.
+const defaultOrigins = ['http://localhost:3000', 'https://micromind-three.vercel.app'];
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
+  : defaultOrigins;
+app.use(cors({
+  origin: (origin, callback) => {
+    // No Origin header (server-to-server, curl, mobile webview) — allow.
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
+}));
+
+// Every relay/withdraw route moves real funds or spends the developer
+// wallet's own CELO gas — cap how often a single client IP can hit them so a
+// script can't cheaply force-drain the gas wallet by spamming valid, freshly-
+// signed (but off-chain-free-to-produce) requests.
+const relayRateLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down and try again shortly.' },
+});
 
 // Stamp every response with a unique request ID for log correlation
 app.use((_req, res, next) => {
@@ -668,6 +694,124 @@ app.post('/api/cron/send-reminder-pushes', async (req, res) => {
   }
 });
 
+// ─── Story Challenge Admin Routes ──────────────────────────────────────────
+// Opening/finalizing a challenge period are operator actions, not something
+// any signed-in user should be able to trigger — gated the same way as the
+// other cron endpoints (CRON_SECRET bearer token, fail closed if unset).
+// Submitting a story and voting are ordinary authenticated writes handled
+// directly by the frontend against Supabase (see docs/story_challenges.sql
+// for the RLS policies that enforce ownership, timing windows, and the
+// no-self-voting rule for those).
+function requireCronSecret(req: express.Request, res: express.Response): boolean {
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    console.error('[STORIES] FATAL: CRON_SECRET is not configured — refusing all requests.');
+    res.status(503).json({ error: 'Endpoint not configured' });
+    return false;
+  }
+  if (req.headers.authorization !== `Bearer ${cronSecret}`) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return false;
+  }
+  return true;
+}
+
+app.post('/api/stories/challenges/open', async (req, res) => {
+  if (!requireCronSecret(req, res)) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
+  const { title, prompt, submissionsOpenAt, submissionsCloseAt, votingCloseAt } = req.body;
+  if (!title || !prompt || !submissionsOpenAt || !submissionsCloseAt || !votingCloseAt) {
+    return res.status(400).json({ error: 'Missing required challenge fields' });
+  }
+
+  const openAt = new Date(submissionsOpenAt);
+  const closeAt = new Date(submissionsCloseAt);
+  const voteCloseAt = new Date(votingCloseAt);
+  if (isNaN(openAt.getTime()) || isNaN(closeAt.getTime()) || isNaN(voteCloseAt.getTime())) {
+    return res.status(400).json({ error: 'Invalid date value' });
+  }
+  if (!(closeAt > openAt) || !(voteCloseAt > closeAt)) {
+    return res.status(400).json({ error: 'Dates must satisfy: open < submissions close < voting close' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('story_challenges')
+      .insert({
+        title,
+        prompt,
+        submissions_open_at: openAt.toISOString(),
+        submissions_close_at: closeAt.toISOString(),
+        voting_close_at: voteCloseAt.toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json({ success: true, challenge: data });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[STORIES] Failed to open challenge:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to open challenge' });
+  }
+});
+
+app.post('/api/stories/challenges/finalize', async (req, res) => {
+  if (!requireCronSecret(req, res)) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
+  try {
+    const { data: pending, error: fetchError } = await supabase
+      .from('story_challenges')
+      .select('id')
+      .is('winner_story_id', null)
+      .lte('voting_close_at', new Date().toISOString());
+
+    if (fetchError) throw fetchError;
+    if (!pending || pending.length === 0) {
+      return res.json({ success: true, finalized: 0 });
+    }
+
+    let finalized = 0;
+    for (const challenge of pending) {
+      const { data: topStory, error: topError } = await supabase
+        .from('stories')
+        .select('id')
+        .eq('challenge_id', challenge.id)
+        .eq('status', 'published')
+        .order('vote_count', { ascending: false })
+        .order('created_at', { ascending: true }) // tie-break: earliest submission
+        .limit(1)
+        .maybeSingle();
+
+      if (topError) {
+        console.error(`[STORIES] Failed to pick winner for challenge ${challenge.id}:`, topError.message);
+        continue;
+      }
+      if (!topStory) continue; // no eligible submissions — leave unfinalized
+
+      const { error: updateError } = await supabase
+        .from('story_challenges')
+        .update({ winner_story_id: topStory.id })
+        .eq('id', challenge.id)
+        .is('winner_story_id', null); // compare-and-swap: don't clobber a concurrent finalize
+
+      if (updateError) {
+        console.error(`[STORIES] Failed to set winner for challenge ${challenge.id}:`, updateError.message);
+        continue;
+      }
+      finalized++;
+    }
+
+    res.json({ success: true, finalized });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[STORIES] Failed to finalize challenges:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to finalize challenges' });
+  }
+});
+
 app.post('/api/game/reframe', async (req, res) => {
   const { sentence, targetWord, txHash } = req.body;
   if (!sentence || !targetWord || !txHash) {
@@ -760,7 +904,7 @@ Generate a short, warm hint (under 30 words) that describes the meaning of the t
   }
 });
 
-app.post('/api/quest/withdraw', async (req, res) => {
+app.post('/api/quest/withdraw', relayRateLimiter, async (req, res) => {
   const authHeader = req.headers.authorization;
   const { userAddress, points } = req.body;
 
@@ -1231,7 +1375,7 @@ app.post('/api/process-direct', async (req, res) => {
 // Accepts an EIP-712 signed relay request from the frontend.
 // Verifies the signature, executes approve + payForPrompt from the developer
 // wallet (paying native CELO gas), then triggers AI generation.
-app.post('/api/relay', async (req, res) => {
+app.post('/api/relay', relayRateLimiter, async (req, res) => {
   const { signature, toolId, promptHash, userAddress, nonce, deadline, prompt } = req.body;
 
   if (!signature || !toolId || !promptHash || !userAddress || !nonce || !deadline || !prompt) {
@@ -1249,19 +1393,19 @@ app.post('/api/relay', async (req, res) => {
     return res.status(400).json({ error: 'Request expired. Please try again.' });
   }
 
-  // Replay attack protection
-  if (isNonceUsed(userAddress, nonce)) {
-    return res.status(400).json({ error: 'Nonce already used. This request was already processed.' });
-  }
-
   const params = { signature, toolId: parsedToolId, promptHash, userAddress, nonce, deadline };
   const isValid = await verifyRelaySignature(params);
   if (!isValid) {
     return res.status(401).json({ error: 'Invalid signature. Could not verify request authenticity.' });
   }
 
-  // Mark nonce as used immediately to prevent double-spend during async execution
-  markNonceUsed(userAddress, nonce);
+  // Atomically claim the nonce (persisted — survives restarts) to prevent
+  // replay/double-spend, including two concurrent requests for the same
+  // signed payload racing each other.
+  const claimed = await claimNonce(userAddress, nonce);
+  if (!claimed) {
+    return res.status(400).json({ error: 'Nonce already used. This request was already processed.' });
+  }
 
   console.log(`[RELAY] Valid request from ${userAddress} for tool ${parsedToolId}`);
 
@@ -1313,7 +1457,7 @@ app.post('/api/relay', async (req, res) => {
 // ─── Challenge Relay Route ───────────────────────────────────────────────────
 // Accepts an EIP-712 signed relay request for staking challenge operations.
 // Verifies the signature, executes startChallengeFor, checkInFor, or withdrawFor.
-app.post('/api/challenge/relay', async (req, res) => {
+app.post('/api/challenge/relay', relayRateLimiter, async (req, res) => {
   const { signature, action, entryHash, userAddress, nonce, deadline } = req.body;
 
   if (!signature || action === undefined || !entryHash || !userAddress || !nonce || !deadline) {
@@ -1333,18 +1477,17 @@ app.post('/api/challenge/relay', async (req, res) => {
     return res.status(400).json({ error: 'Request expired. Please try again.' });
   }
 
-  // Replay protection
-  if (isNonceUsed(userAddress, nonce)) {
-    return res.status(400).json({ error: 'Nonce already used.' });
-  }
-
   const params = { signature, action: parsedAction, entryHash, userAddress, nonce, deadline };
   const isValid = await verifyChallengeRelaySignature(params, STAKING_CONTRACT_ADDRESS);
   if (!isValid) {
     return res.status(401).json({ error: 'Invalid signature. Could not verify request authenticity.' });
   }
 
-  markNonceUsed(userAddress, nonce);
+  // Atomically claim the nonce (persisted — survives restarts) to prevent replay.
+  const claimed = await claimNonce(userAddress, nonce);
+  if (!claimed) {
+    return res.status(400).json({ error: 'Nonce already used.' });
+  }
 
   console.log(`[RELAY-CHALLENGE] Valid request from ${userAddress} for action ${parsedAction}`);
 

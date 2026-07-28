@@ -97,5 +97,15 @@ export const TOOLS: Tool[] = [
     priceWei: '5000000000000000000',
     route: '/app/challenge',
   },
+  {
+    id: 0,
+    slug: 'stories',
+    name: 'Short Story Challenge',
+    description: 'Write a short story on the monthly prompt and vote for the community\'s best.',
+    price: 'Free',
+    priceWei: '0',
+    route: '/app/stories',
+    hasFreeMode: true,
+  },
 ];
 

@@ -26,6 +26,8 @@ Built for MiniPay users across Africa and beyond.
 | **Pattern Analyst** | 0.005 USDm | Identifies 3 recurring emotional themes and thinking traps in your writing. |
 | **Tweet Generator** | 0.005 USDm | Turn any personal thought or entry into an engaging, voice-authentic draft tweet. |
 | **Mind Chat** | 0.005 USDm | A secure, general-purpose AI chat companion for guidance. |
+| **30-Day Staking Challenge** | 5.00 USDm Stake | Stake USDm, journal daily for 30 days, and withdraw your stake plus a reward if you complete it — principal is always returned even if you don't. |
+| **Short Story Challenge** | Free | Write a short story on the monthly community prompt, then vote for your favorite among everyone's submissions. The most-voted story wins. |
 
 ---
 
@@ -51,6 +53,15 @@ Write messages to your future self or loved ones and lock them in digital escrow
 
 ---
 
+## 30-Day Staking Challenge & Short Story Challenge
+
+Two community-driven, Web3-native incentive loops layered on top of journaling:
+
+* **30-Day Staking Challenge:** Stake USDm on-chain (`MicroMindStaking.sol`) and commit to a daily "morning pages" habit. Miss too many days and you still get your full stake back — the challenge is lossless. Hit the required check-in count and you also collect a USDm reward, guaranteed and reserved for you the moment you start, unaffected by how many other people finish before you. Fully gasless via an EIP-712-signed relayer flow.
+* **Short Story Challenge:** Each month opens a themed writing prompt. Submit one short story while the window is open, then the community votes for its favorite during the voting window — one vote per person, no self-votes, no revote spam. The most-voted story wins the challenge. Pure reputation/leaderboard feature, no token stake required.
+
+---
+
 ## Gasless Web3 Architecture
 
 MicroMind is optimized to run smoothly on low-end smartphones in emerging markets:
@@ -68,6 +79,13 @@ MicroMind is optimized to run smoothly on low-end smartphones in emerging market
 * **Agent Engine:** Express.js, Groq SDK (Llama-3.3-70b-versatile).
 * **Mailing Service:** Resend API.
 
+### Deployed Contracts (Celo Mainnet)
+
+| Contract | Address | Explorer |
+| :--- | :--- | :--- |
+| `MicroMindPayment` (AI tool payments) | `0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c` | [Celoscan](https://celoscan.io/address/0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c) |
+| `MicroMindStaking` (30-Day Challenge) | `0x04Eb288d2e2c6f506769a76532564818E22D18Ff` | [Celoscan](https://celoscan.io/address/0x04Eb288d2e2c6f506769a76532564818E22D18Ff#code) |
+
 ### Environment Setup
 
 Create a `/.env.local` file in the root directory:
@@ -75,7 +93,7 @@ Create a `/.env.local` file in the root directory:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 NEXT_PUBLIC_CONTRACT_ADDRESS=0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c
-NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS=0xe57C982D669869673750d46a935A97eC756A2281
+NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS=0x04Eb288d2e2c6f506769a76532564818E22D18Ff
 NEXT_PUBLIC_AGENT_API_URL=https://your-hosted-agent.up.railway.app
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
 RESEND_API_KEY=re_your_resend_api_key
@@ -154,13 +172,34 @@ ALTER TABLE public.journal_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quest_progress ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
-CREATE POLICY "Anyone can read profiles" ON public.profiles FOR SELECT USING (true);
+-- NOTE: profiles' SELECT and quest_progress's write policy below are the
+-- HARDENED versions. The originally-shipped versions ("Anyone can read
+-- profiles" USING (true), and a FOR ALL policy on quest_progress) were both
+-- critical bugs — the former let any unauthenticated client read every
+-- user's email and journal encryption key; the latter let a client write
+-- arbitrary clarity_points redeemable for real USDm. See
+-- docs/profiles_security_hardening.sql and docs/quest_security_hardening.sql.
+CREATE POLICY "Users can read own profile" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() = id);
 CREATE POLICY "Users insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Users manage own folders" ON public.journal_folders FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users manage own entries" ON public.journal_entries FOR ALL USING (auth.uid() = user_id);
-CREATE POLICY "Users manage own quest progress" ON public.quest_progress FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can read own quest progress" ON public.quest_progress FOR SELECT TO authenticated USING (auth.uid() = user_id);
+-- quest_progress has no client INSERT/UPDATE policy — only the agent
+-- backend (service role, bypasses RLS) writes it, via /api/quest/solve,
+-- /api/quest/withdraw, /api/quest/reset, after independently verifying
+-- every state change server-side.
+
+-- Narrow view for cross-user username lookups (signup availability check,
+-- story author attribution) — only id/username, never email or the journal
+-- encryption key, regardless of what RLS allows on the base table.
+CREATE OR REPLACE VIEW public.public_profiles WITH (security_invoker = false) AS
+  SELECT id, username FROM public.profiles;
+GRANT SELECT ON public.public_profiles TO anon, authenticated;
 ```
+
+For the short story challenge and staking-relayer nonce tables, run
+`docs/story_challenges.sql` and `docs/relay_nonces.sql` as well.
 
 ---
 

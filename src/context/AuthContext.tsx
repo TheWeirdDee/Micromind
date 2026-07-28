@@ -102,8 +102,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkUsername = useCallback(async (username: string): Promise<'available' | 'taken' | 'error'> => {
     try {
+      // Uses the public_profiles view (id, username only) rather than the
+      // base `profiles` table — this runs pre-signup as an anon client, and
+      // `profiles` no longer grants anon/cross-user SELECT (see
+      // docs/profiles_security_hardening.sql; it held email + the journal
+      // encryption key readable by anyone until this was fixed).
       const { data } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id')
         .eq('username', username.trim().toLowerCase())
         .maybeSingle();
@@ -117,23 +122,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanUsername = username.trim().toLowerCase();
     const cleanEmail = email.trim().toLowerCase();
 
+    // See checkUsername above — cross-user lookup goes through the narrow
+    // public_profiles view now, not the base (email/key-bearing) table.
     const { data: existingUsername } = await supabase
-      .from('profiles')
+      .from('public_profiles')
       .select('id')
       .eq('username', cleanUsername)
       .maybeSingle();
     if (existingUsername) throw new Error('Username already taken. Please choose another.');
 
-    const { data: existingEmail } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', cleanEmail)
-      .maybeSingle();
-    if (existingEmail) throw new Error('An account with this email already exists. Try logging in.');
-
+    // Email-existence can no longer be pre-checked client-side (that query
+    // required anon SELECT on `profiles.email`, which was the leak). Rely on
+    // auth.signUp's own duplicate-email handling below instead.
     const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password });
     if (error) throw new Error(error.message);
     if (!data.user) throw new Error('Signup failed. Please try again.');
+    // Supabase's documented signal for "this email is already registered":
+    // an existing account gets a user object back with an empty identities
+    // array instead of an error (to avoid a lower-level email-enumeration leak).
+    if (data.user.identities && data.user.identities.length === 0) {
+      throw new Error('An account with this email already exists. Try logging in.');
+    }
 
     // Sign in immediately to get an authenticated session before inserting the profile.
     // This is required because signUp() alone does not establish a session when email
