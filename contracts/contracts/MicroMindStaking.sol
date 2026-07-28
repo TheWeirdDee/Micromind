@@ -31,6 +31,21 @@ contract MicroMindStaking is Ownable {
     /// @notice Total USDm currently locked as stakes
     uint256 public totalStaked;
 
+    /// @notice Total USDm currently earmarked as guaranteed rewards for active
+    ///         challenges (see `rewardReserved` below) — excluded from what
+    ///         `withdrawExcess` can sweep and from what a later challenge can reserve.
+    uint256 public reservedRewards;
+
+    /// @notice Emergency circuit breaker scoped to the two relayer entrypoints
+    ///         that create new obligations on a user's behalf without their
+    ///         own signed transaction (startChallengeFor, checkInFor). If the
+    ///         relayer's private key is ever suspected compromised, the owner
+    ///         can flip this to stop new relayed stakes/check-ins while still
+    ///         letting every user withdraw (directly or via withdrawFor) —
+    ///         withdrawals only ever pay the challenge's own owner, so they
+    ///         can't be abused even by a compromised relayer key.
+    bool public relayerPaused;
+
     struct Challenge {
         uint256 startTime;
         uint16 checkInCount;
@@ -44,6 +59,11 @@ contract MicroMindStaking is Ownable {
         uint256 duration;
         uint256 requiredCheckinsSnapshot;
         uint256 rewardAmountSnapshot;
+        // The reward actually carved out of the free pool at start time — this,
+        // not rewardAmountSnapshot, is what gets paid on a completed withdrawal.
+        // Reserving it up front means a finisher's payout can never be reduced
+        // by other users finishing first and draining a shared pool later on.
+        uint256 rewardReserved;
     }
 
     mapping(address => Challenge) public challenges;
@@ -58,6 +78,7 @@ contract MicroMindStaking is Ownable {
     event RewardPoolFunded(address indexed owner, uint256 amount);
     event ParamsUpdated(uint256 stakeAmount, uint256 challengeDuration, uint256 requiredCheckins, uint256 rewardAmount);
     event Withdrawn(address indexed to, uint256 amount);
+    event RelayerPausedSet(bool paused);
 
     // ─── Errors ───────────────────────────────────────────────────────────────
 
@@ -67,6 +88,9 @@ contract MicroMindStaking is Ownable {
     error AlreadyCheckedInToday();
     error DayIndexOutOfBounds();
     error TransferFailed();
+    error EmptyEntryHash();
+    error InvalidParams();
+    error RelayerPaused();
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
@@ -95,6 +119,10 @@ contract MicroMindStaking is Ownable {
 
     /**
      * @notice Daily check-in by submitting entry hash.
+     * @dev The hash is never compared against real content — it is a client-side
+     *      commitment only (currently Keccak256 of the entry text, see the frontend
+     *      hashing code), not an on-chain proof that any journaling occurred. It must
+     *      be non-zero so a bare/placeholder value can't be used as a no-op check-in.
      * @param entryHash Keccak256 hash of the journal entry (calculated client-side)
      */
     function checkIn(bytes32 entryHash) external {
@@ -115,6 +143,7 @@ contract MicroMindStaking is Ownable {
      *         Requires user to have approved this contract to spend their USDm first.
      */
     function startChallengeFor(address user) external onlyOwner {
+        if (relayerPaused) revert RelayerPaused();
         _startChallenge(user);
     }
 
@@ -122,6 +151,7 @@ contract MicroMindStaking is Ownable {
      * @notice Check in on behalf of a user. Called by the relayer after verifying signature.
      */
     function checkInFor(address user, bytes32 entryHash) external onlyOwner {
+        if (relayerPaused) revert RelayerPaused();
         _checkIn(user, entryHash);
     }
 
@@ -150,6 +180,13 @@ contract MicroMindStaking is Ownable {
 
         totalStaked += snapshotStake;
 
+        // Carve the reward out of the free pool NOW, not at withdrawal time.
+        // This guarantees whatever gets reserved here regardless of how many
+        // other users finish (and draw down the pool) before this user withdraws.
+        uint256 free = freeRewardPool();
+        uint256 reserve = snapshotReward <= free ? snapshotReward : free;
+        reservedRewards += reserve;
+
         challenges[user] = Challenge({
             startTime: block.timestamp,
             checkInCount: 0,
@@ -158,7 +195,8 @@ contract MicroMindStaking is Ownable {
             stakedAmount: snapshotStake,
             duration: snapshotDuration,
             requiredCheckinsSnapshot: snapshotRequiredCheckins,
-            rewardAmountSnapshot: snapshotReward
+            rewardAmountSnapshot: snapshotReward,
+            rewardReserved: reserve
         });
 
         // Reset check-in records for this challenge's snapshotted duration in case of re-entry
@@ -170,6 +208,8 @@ contract MicroMindStaking is Ownable {
     }
 
     function _checkIn(address user, bytes32 entryHash) internal {
+        if (entryHash == bytes32(0)) revert EmptyEntryHash();
+
         Challenge storage c = challenges[user];
         if (!c.active) revert NoActiveChallenge();
 
@@ -196,14 +236,13 @@ contract MicroMindStaking is Ownable {
         uint256 payout = c.stakedAmount;
         bool completed = c.checkInCount >= c.requiredCheckinsSnapshot;
 
+        // The reward was already carved out of the pool at start time (see
+        // _startChallenge), so it's guaranteed here regardless of what has
+        // happened to the shared pool since — no re-checking pool balance.
         if (completed) {
-            uint256 pool = rewardPoolBalance();
-            uint256 rewardPayout = c.rewardAmountSnapshot;
-            if (rewardPayout > pool) {
-                rewardPayout = pool; // Cap at available reward pool to prevent revert and protect principal
-            }
-            payout += rewardPayout;
+            payout += c.rewardReserved;
         }
+        reservedRewards -= c.rewardReserved;
 
         totalStaked -= c.stakedAmount;
 
@@ -216,6 +255,15 @@ contract MicroMindStaking is Ownable {
     // ─── Owner functions ──────────────────────────────────────────────────────
 
     /**
+     * @notice Emergency circuit breaker for the relayer entrypoints only — does
+     *         not affect direct user calls or any withdrawal path.
+     */
+    function setRelayerPaused(bool _paused) external onlyOwner {
+        relayerPaused = _paused;
+        emit RelayerPausedSet(_paused);
+    }
+
+    /**
      * @notice Fund the reward pool with USDm.
      */
     function fundRewardPool(uint256 amount) external {
@@ -225,7 +273,8 @@ contract MicroMindStaking is Ownable {
     }
 
     /**
-     * @notice Update challenge parameters.
+     * @notice Update challenge parameters. Only affects challenges started
+     *         AFTER this call (see the snapshotting in _startChallenge).
      */
     function setParams(
         uint256 _stakeAmount,
@@ -233,6 +282,15 @@ contract MicroMindStaking is Ownable {
         uint256 _requiredCheckins,
         uint256 _rewardAmount
     ) external onlyOwner {
+        // Bounds-check so a fat-fingered call can't brick future challenges:
+        // a zero stake/duration or a required-checkins count that exceeds the
+        // duration would make every future startChallenge/checkIn/withdraw
+        // either pointless or permanently unwinnable. Existing in-flight
+        // challenges are unaffected either way (their terms are snapshotted).
+        if (_stakeAmount == 0 || _challengeDuration == 0 || _requiredCheckins > _challengeDuration) {
+            revert InvalidParams();
+        }
+
         stakeAmount = _stakeAmount;
         challengeDuration = _challengeDuration;
         requiredCheckins = _requiredCheckins;
@@ -242,11 +300,13 @@ contract MicroMindStaking is Ownable {
     }
 
     /**
-     * @notice Withdraw excess USDm (reward pool funds) to owner.
+     * @notice Withdraw excess USDm (unreserved reward pool funds) to owner.
+     *         Cannot touch locked stakes or rewards already reserved for an
+     *         active challenge's eventual payout.
      */
     function withdrawExcess(uint256 amount) external onlyOwner {
-        uint256 pool = rewardPoolBalance();
-        require(amount <= pool, "Cannot withdraw active stakes");
+        uint256 free = freeRewardPool();
+        require(amount <= free, "Cannot withdraw active stakes");
         bool ok = USDm.transfer(owner(), amount);
         if (!ok) revert TransferFailed();
         emit Withdrawn(owner(), amount);
@@ -255,12 +315,26 @@ contract MicroMindStaking is Ownable {
     // ─── View Functions ───────────────────────────────────────────────────────
 
     /**
-     * @notice Get available reward pool balance (total contract balance minus locked stakes)
+     * @notice Get total reward pool balance (contract balance minus locked stakes).
+     *         Includes amounts already reserved for active challenges — see
+     *         `freeRewardPool()` for what's actually available to reserve/withdraw.
      */
     function rewardPoolBalance() public view returns (uint256) {
         uint256 balance = USDm.balanceOf(address(this));
         if (balance > totalStaked) {
             return balance - totalStaked;
+        }
+        return 0;
+    }
+
+    /**
+     * @notice Get the unreserved reward pool balance — what a new challenge
+     *         could still reserve, and what withdrawExcess can sweep.
+     */
+    function freeRewardPool() public view returns (uint256) {
+        uint256 pool = rewardPoolBalance();
+        if (pool > reservedRewards) {
+            return pool - reservedRewards;
         }
         return 0;
     }

@@ -46,6 +46,13 @@ export const MICROMIND_STAKING_ABI = [
     stateMutability: 'nonpayable',
     inputs: [{ name: 'user', type: 'address' }],
     outputs: []
+  },
+  {
+    name: 'relayerPaused',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'bool' }]
   }
 ] as const;
 

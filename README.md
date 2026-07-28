@@ -26,6 +26,8 @@ Built for MiniPay users across Africa and beyond.
 | **Pattern Analyst** | 0.005 USDm | Identifies 3 recurring emotional themes and thinking traps in your writing. |
 | **Tweet Generator** | 0.005 USDm | Turn any personal thought or entry into an engaging, voice-authentic draft tweet. |
 | **Mind Chat** | 0.005 USDm | A secure, general-purpose AI chat companion for guidance. |
+| **30-Day Staking Challenge** | 5.00 USDm Stake | Stake USDm, journal daily for 30 days, and withdraw your stake plus a reward if you complete it — principal is always returned even if you don't. |
+| **Short Story Challenge** | Free | Write a short story on the monthly community prompt, then vote for your favorite among everyone's submissions. The most-voted story wins. |
 
 ---
 
@@ -51,6 +53,15 @@ Write messages to your future self or loved ones and lock them in digital escrow
 
 ---
 
+## 30-Day Staking Challenge & Short Story Challenge
+
+Two community-driven, Web3-native incentive loops layered on top of journaling:
+
+* **30-Day Staking Challenge:** Stake USDm on-chain (`MicroMindStaking.sol`) and commit to a daily "morning pages" habit. Miss too many days and you still get your full stake back — the challenge is lossless. Hit the required check-in count and you also collect a USDm reward, guaranteed and reserved for you the moment you start, unaffected by how many other people finish before you. Fully gasless via an EIP-712-signed relayer flow.
+* **Short Story Challenge:** Each month opens a themed writing prompt. Submit one short story while the window is open, then the community votes for its favorite during the voting window — one vote per person, no self-votes, no revote spam. The most-voted story wins the challenge. Pure reputation/leaderboard feature, no token stake required.
+
+---
+
 ## Gasless Web3 Architecture
 
 MicroMind is optimized to run smoothly on low-end smartphones in emerging markets:
@@ -68,6 +79,13 @@ MicroMind is optimized to run smoothly on low-end smartphones in emerging market
 * **Agent Engine:** Express.js, Groq SDK (Llama-3.3-70b-versatile).
 * **Mailing Service:** Resend API.
 
+### Deployed Contracts (Celo Mainnet)
+
+| Contract | Address | Explorer |
+| :--- | :--- | :--- |
+| `MicroMindPayment` (AI tool payments) | `0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c` | [Celoscan](https://celoscan.io/address/0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c) |
+| `MicroMindStaking` (30-Day Challenge) | `0x04Eb288d2e2c6f506769a76532564818E22D18Ff` | [Celoscan](https://celoscan.io/address/0x04Eb288d2e2c6f506769a76532564818E22D18Ff#code) |
+
 ### Environment Setup
 
 Create a `/.env.local` file in the root directory:
@@ -75,7 +93,7 @@ Create a `/.env.local` file in the root directory:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 NEXT_PUBLIC_CONTRACT_ADDRESS=0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c
-NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS=0xe57C982D669869673750d46a935A97eC756A2281
+NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS=0x04Eb288d2e2c6f506769a76532564818E22D18Ff
 NEXT_PUBLIC_AGENT_API_URL=https://your-hosted-agent.up.railway.app
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
 RESEND_API_KEY=re_your_resend_api_key

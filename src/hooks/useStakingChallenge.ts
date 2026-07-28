@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { erc20Abi } from 'viem';
+import { erc20Abi, keccak256, stringToBytes } from 'viem';
 import { celo } from 'viem/chains';
 import { useWallet } from '@/context/WalletContext';
 import { STAKING_CONTRACT_ADDRESS, MICROMIND_STAKING_ABI } from '@/lib/contract';
@@ -249,11 +249,9 @@ export function useStakingChallenge() {
     setStep('signing');
 
     try {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(entryText);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const entryHash = ('0x' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('')) as `0x${string}`;
+      // Keccak256 matches the hash the contract's NatSpec documents as the
+      // check-in commitment (see MicroMindStaking.sol's checkIn/checkInFor).
+      const entryHash = keccak256(stringToBytes(entryText));
 
       // Sign typed check-in message
       const request = buildChallengeRelayRequest(2, entryHash, address as `0x${string}`);

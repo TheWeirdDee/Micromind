@@ -23,6 +23,7 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { celo } from 'viem/chains';
+import { supabase } from './supabase';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -45,8 +46,9 @@ const RELAY_TYPES = {
   ],
 } as const;
 
-// In-memory nonce store — prevents replay attacks within a single server session.
-// On restart nonces reset but deadline check provides additional protection.
+// Fallback in-memory nonce store — only used if Supabase isn't configured
+// (e.g. local dev). In production `claimNonce` persists to the `relay_nonces`
+// table (see docs/relay_nonces.sql) so replay protection survives restarts.
 const usedNonces = new Set<string>();
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -91,14 +93,39 @@ export async function verifyRelaySignature(params: RelayParams): Promise<boolean
   }
 }
 
-/** Check if nonce has been used (replay protection). */
-export function isNonceUsed(userAddress: string, nonce: string): boolean {
-  return usedNonces.has(`${userAddress.toLowerCase()}:${nonce}`);
-}
+/**
+ * Atomically claim a (userAddress, nonce) pair for replay protection.
+ * Returns true if this is the first time the pair has been seen (claim
+ * succeeded — caller may proceed), false if it was already claimed (reject
+ * as a replay). Doing this as a single insert-or-fail operation — instead of
+ * a separate "is it used" check followed by a later "mark it used" write —
+ * closes the race where two concurrent requests for the same signed payload
+ * could both pass the check before either one recorded its claim.
+ */
+export async function claimNonce(userAddress: string, nonce: string): Promise<boolean> {
+  const key = `${userAddress.toLowerCase()}:${nonce}`;
 
-/** Mark nonce as used after successful relay. */
-export function markNonceUsed(userAddress: string, nonce: string): void {
-  usedNonces.add(`${userAddress.toLowerCase()}:${nonce}`);
+  if (!supabase) {
+    // Local-dev fallback only — not durable across restarts.
+    if (usedNonces.has(key)) return false;
+    usedNonces.add(key);
+    return true;
+  }
+
+  const { error } = await supabase
+    .from('relay_nonces')
+    .insert({ user_address: userAddress.toLowerCase(), nonce });
+
+  if (error) {
+    // Unique-violation error code means someone already claimed this nonce.
+    if (error.code === '23505') return false;
+    // Any other DB error: fail closed rather than silently allowing a
+    // potential replay through.
+    console.error('[RELAY] Nonce claim failed:', error.message);
+    return false;
+  }
+
+  return true;
 }
 
 /** Check if request deadline has not yet passed. */
@@ -300,6 +327,20 @@ export async function executeChallengeRelay(
       args = [params.userAddress];
     } else {
       throw new Error(`Invalid challenge action: ${params.action}`);
+    }
+
+    // Actions 1/2 (relayer-only entrypoints) can be flipped off on-chain via
+    // setRelayerPaused during a suspected key-compromise incident. Check first
+    // so we don't burn CELO gas on a transaction guaranteed to revert.
+    if (params.action === 1 || params.action === 2) {
+      const paused = await publicClient.readContract({
+        address: stakingContractAddress,
+        abi: stakingAbi as unknown as Abi,
+        functionName: 'relayerPaused',
+      }) as boolean;
+      if (paused) {
+        return { txHash: '0x', success: false, error: 'Relayer temporarily paused for this action. Please try again later.' };
+      }
     }
 
     console.log(`[RELAY-CHALLENGE] Calling ${functionName} for ${params.userAddress}...`);
