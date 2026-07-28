@@ -19,6 +19,8 @@ import {
 import { decryptAESGCM } from './lib/crypto';
 import { supabase } from './lib/supabase';
 import { getStageCount, getTargetWord, TOTAL_LEVELS } from './lib/quest-levels';
+import { resolveAdminUser, requireAdmin } from './lib/admin';
+import { openStoryChallenge, finalizeStoryChallenges, listStoryChallengesWithStats } from './lib/stories-admin';
 import webpush from 'web-push';
 import type { Redis } from '@upstash/redis';
 
@@ -696,12 +698,14 @@ app.post('/api/cron/send-reminder-pushes', async (req, res) => {
 
 // ─── Story Challenge Admin Routes ──────────────────────────────────────────
 // Opening/finalizing a challenge period are operator actions, not something
-// any signed-in user should be able to trigger — gated the same way as the
-// other cron endpoints (CRON_SECRET bearer token, fail closed if unset).
-// Submitting a story and voting are ordinary authenticated writes handled
-// directly by the frontend against Supabase (see docs/story_challenges.sql
-// for the RLS policies that enforce ownership, timing windows, and the
-// no-self-voting rule for those).
+// any signed-in user should be able to trigger. Two ways in:
+//   1. CRON_SECRET bearer token — for automated/scripted use (unattended cron).
+//   2. /api/admin/* — session-based, for the /app/admin dashboard, gated by
+//      admin_users (see docs/admin_users.sql and lib/admin.ts).
+// Both call the same shared logic in lib/stories-admin.ts. Submitting a
+// story and voting are ordinary authenticated writes handled directly by the
+// frontend against Supabase (see docs/story_challenges.sql for the RLS
+// policies that enforce ownership, timing windows, and no-self-voting).
 function requireCronSecret(req: express.Request, res: express.Response): boolean {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
@@ -718,97 +722,118 @@ function requireCronSecret(req: express.Request, res: express.Response): boolean
 
 app.post('/api/stories/challenges/open', async (req, res) => {
   if (!requireCronSecret(req, res)) return;
-  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
-
-  const { title, prompt, submissionsOpenAt, submissionsCloseAt, votingCloseAt } = req.body;
-  if (!title || !prompt || !submissionsOpenAt || !submissionsCloseAt || !votingCloseAt) {
-    return res.status(400).json({ error: 'Missing required challenge fields' });
-  }
-
-  const openAt = new Date(submissionsOpenAt);
-  const closeAt = new Date(submissionsCloseAt);
-  const voteCloseAt = new Date(votingCloseAt);
-  if (isNaN(openAt.getTime()) || isNaN(closeAt.getTime()) || isNaN(voteCloseAt.getTime())) {
-    return res.status(400).json({ error: 'Invalid date value' });
-  }
-  if (!(closeAt > openAt) || !(voteCloseAt > closeAt)) {
-    return res.status(400).json({ error: 'Dates must satisfy: open < submissions close < voting close' });
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('story_challenges')
-      .insert({
-        title,
-        prompt,
-        submissions_open_at: openAt.toISOString(),
-        submissions_close_at: closeAt.toISOString(),
-        voting_close_at: voteCloseAt.toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    res.json({ success: true, challenge: data });
-  } catch (err) {
-    const errorVal = err as Error;
-    console.error('[STORIES] Failed to open challenge:', errorVal.message);
-    res.status(500).json({ error: errorVal.message || 'Failed to open challenge' });
-  }
+  const result = await openStoryChallenge(req.body);
+  res.status(result.status).json(result.body);
 });
 
 app.post('/api/stories/challenges/finalize', async (req, res) => {
   if (!requireCronSecret(req, res)) return;
+  const result = await finalizeStoryChallenges(req.body?.challengeId);
+  res.status(result.status).json(result.body);
+});
+
+// ─── Admin Dashboard Routes ─────────────────────────────────────────────────
+
+app.get('/api/admin/check', async (req, res) => {
+  const admin = await resolveAdminUser(req.headers.authorization);
+  res.json({ isAdmin: !!admin });
+});
+
+app.get('/api/admin/stories/challenges', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const challenges = await listStoryChallengesWithStats();
+  res.json({ challenges });
+});
+
+app.post('/api/admin/stories/challenges/open', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const result = await openStoryChallenge(req.body);
+  res.status(result.status).json(result.body);
+});
+
+app.post('/api/admin/stories/challenges/finalize', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const result = await finalizeStoryChallenges(req.body?.challengeId);
+  res.status(result.status).json(result.body);
+});
+
+app.get('/api/admin/admins', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
+  const { data, error } = await supabase
+    .from('admin_users')
+    .select('user_id, email, created_at')
+    .order('created_at', { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ admins: data ?? [] });
+});
+
+app.post('/api/admin/admins', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
+  const { email } = req.body;
+  if (!email || typeof email !== 'string') {
+    return res.status(400).json({ error: 'Missing email' });
+  }
+  const cleanEmail = email.trim().toLowerCase();
+
+  try {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    if (profileError) throw profileError;
+    if (!profile) {
+      return res.status(404).json({ error: 'No account found with that email. They must sign up first.' });
+    }
+
+    const { error: insertError } = await supabase
+      .from('admin_users')
+      .insert({ user_id: profile.id, email: profile.email, added_by: admin.id });
+
+    if (insertError) {
+      if (insertError.code === '23505') return res.status(409).json({ error: 'Already an admin.' });
+      throw insertError;
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[ADMIN] Failed to add admin:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to add admin' });
+  }
+});
+
+app.delete('/api/admin/admins/:userId', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
   if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
 
   try {
-    const { data: pending, error: fetchError } = await supabase
-      .from('story_challenges')
-      .select('id')
-      .is('winner_story_id', null)
-      .lte('voting_close_at', new Date().toISOString());
+    const { count } = await supabase
+      .from('admin_users')
+      .select('user_id', { count: 'exact', head: true });
 
-    if (fetchError) throw fetchError;
-    if (!pending || pending.length === 0) {
-      return res.json({ success: true, finalized: 0 });
+    if ((count ?? 0) <= 1) {
+      return res.status(400).json({ error: 'Cannot remove the last remaining admin.' });
     }
 
-    let finalized = 0;
-    for (const challenge of pending) {
-      const { data: topStory, error: topError } = await supabase
-        .from('stories')
-        .select('id')
-        .eq('challenge_id', challenge.id)
-        .eq('status', 'published')
-        .order('vote_count', { ascending: false })
-        .order('created_at', { ascending: true }) // tie-break: earliest submission
-        .limit(1)
-        .maybeSingle();
+    const { error } = await supabase
+      .from('admin_users')
+      .delete()
+      .eq('user_id', req.params.userId);
 
-      if (topError) {
-        console.error(`[STORIES] Failed to pick winner for challenge ${challenge.id}:`, topError.message);
-        continue;
-      }
-      if (!topStory) continue; // no eligible submissions — leave unfinalized
-
-      const { error: updateError } = await supabase
-        .from('story_challenges')
-        .update({ winner_story_id: topStory.id })
-        .eq('id', challenge.id)
-        .is('winner_story_id', null); // compare-and-swap: don't clobber a concurrent finalize
-
-      if (updateError) {
-        console.error(`[STORIES] Failed to set winner for challenge ${challenge.id}:`, updateError.message);
-        continue;
-      }
-      finalized++;
-    }
-
-    res.json({ success: true, finalized });
+    if (error) throw error;
+    res.json({ success: true });
   } catch (err) {
     const errorVal = err as Error;
-    console.error('[STORIES] Failed to finalize challenges:', errorVal.message);
-    res.status(500).json({ error: errorVal.message || 'Failed to finalize challenges' });
+    console.error('[ADMIN] Failed to remove admin:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to remove admin' });
   }
 });
 
