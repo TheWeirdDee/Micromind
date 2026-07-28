@@ -12,9 +12,9 @@ import { AgentWarning } from '@/components/app/AgentWarning';
 import { ConfirmDialog } from '@/components/app/ConfirmDialog';
 import { getHistory, saveToHistory } from '@/lib/storage';
 import { updateStreak } from '@/lib/journal';
-import { generateEncryptionKey, encryptText } from '@/lib/crypto';
+import { generateEncryptionKey, encryptText, decryptText } from '@/lib/crypto';
 import { supabase } from '@/lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import type { User, Session } from '@supabase/supabase-js';
 import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
 
@@ -43,8 +43,17 @@ interface ScheduledLetter {
   recipient_email: string;
   sender_name: string;
   release_date: string;
-  status: 'pending' | 'sent' | 'failed';
+  status: 'pending' | 'processing' | 'sent' | 'failed';
   created_at: string;
+}
+
+const agentUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
+
+/** Local datetime-local string for "now", used as the min attribute so past dates can't be picked. */
+function nowForInput(): string {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
 }
 
 function LetterPageInner({ historyId, contentParam }: { historyId: string | null; contentParam: string | null }) {
@@ -57,9 +66,12 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
   const [activeTab, setActiveTab] = useState<'instant' | 'schedule'>('instant');
 
   const [dbUser, setDbUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
 
   const [scheduledLetters, setScheduledLetters] = useState<ScheduledLetter[]>([]);
   const [loadingLetters, setLoadingLetters] = useState(false);
+  const [editingLetterId, setEditingLetterId] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const [initialData] = useState(() => {
     if (!historyId || typeof window === 'undefined') return null;
@@ -94,6 +106,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
 
   const hasNoCelo = isConnected && !isMiniPay && Number(celoBalance) < 0.0005;
   const isFormValid = recipientEmail.includes('@') && senderName.trim().length > 0 && content.trim().length >= 5;
+  const isReleaseDateValid = new Date(releaseDate).getTime() > Date.now();
 
   const isCurrentStarred = starredContacts.some(
     c => c.email === recipientEmail.trim() && c.name === recipientName.trim()
@@ -102,10 +115,12 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setDbUser(session?.user ?? null);
+      setSession(session);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setDbUser(session?.user ?? null);
+      setSession(session);
     });
 
     return () => subscription.unsubscribe();
@@ -168,13 +183,17 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
 
   const handleFreeSend = async () => {
     if (!isFormValid || sending || paidLoading) return;
+    if (!session?.access_token) {
+      alert('Please log in to send a letter.');
+      return;
+    }
     setSending(true);
     setSuccessMsg(null);
 
     try {
       const res = await fetch('/api/letter/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
           content: content.trim(),
           recipientEmail: recipientEmail.trim(),
@@ -242,6 +261,10 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
       return;
     }
     if (!isFormValid || sending || paidLoading) return;
+    if (!isReleaseDateValid) {
+      alert('Please pick a release date in the future.');
+      return;
+    }
 
     setSending(true);
     setSuccessMsg(null);
@@ -249,30 +272,105 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
     try {
       const textToEncrypt = polishedText || content.trim();
 
+      // A fresh key is generated on every schedule AND every edit — an edit
+      // never reuses the previous ciphertext's key.
       const key = await generateEncryptionKey();
-
       const payload = await encryptText(textToEncrypt, key);
 
-      const { error } = await supabase.from('scheduled_letters').insert({
-        user_id: dbUser.id,
-        recipient_email: recipientEmail.trim(),
-        sender_name: senderName.trim(),
-        ciphertext: payload.ciphertext,
-        iv: payload.iv,
-        key_hex: key,
-        release_date: new Date(releaseDate).toISOString(),
-        status: 'pending',
-      });
+      if (editingLetterId) {
+        const { error } = await supabase
+          .from('scheduled_letters')
+          .update({
+            recipient_email: recipientEmail.trim(),
+            sender_name: senderName.trim(),
+            ciphertext: payload.ciphertext,
+            iv: payload.iv,
+            key_hex: key,
+            release_date: new Date(releaseDate).toISOString(),
+          })
+          .eq('id', editingLetterId);
 
-      if (error) throw error;
+        if (error) throw error;
+        setSuccessMsg(`Letter updated — now releasing on ${new Date(releaseDate).toLocaleDateString()}!`);
+        setEditingLetterId(null);
+      } else {
+        const { error } = await supabase.from('scheduled_letters').insert({
+          user_id: dbUser.id,
+          recipient_email: recipientEmail.trim(),
+          sender_name: senderName.trim(),
+          ciphertext: payload.ciphertext,
+          iv: payload.iv,
+          key_hex: key,
+          release_date: new Date(releaseDate).toISOString(),
+          status: 'pending',
+        });
 
-      setSuccessMsg(`Letter scheduled successfully for delivery on ${new Date(releaseDate).toLocaleDateString()}!`);
+        if (error) throw error;
+        setSuccessMsg(`Letter scheduled successfully for delivery on ${new Date(releaseDate).toLocaleDateString()}!`);
+      }
+
       setContent('');
       fetchScheduledLetters();
     } catch (e) {
       alert(`Scheduling failed: ${(e as Error).message}`);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleEditLetter = async (id: string) => {
+    if (!dbUser) return;
+    try {
+      const { data, error } = await supabase
+        .from('scheduled_letters')
+        .select('id, recipient_email, sender_name, ciphertext, iv, key_hex, release_date, status')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      if (data.status !== 'pending') {
+        alert('Only pending letters can be edited.');
+        return;
+      }
+
+      const plaintext = await decryptText(data.ciphertext, data.iv, data.key_hex);
+      setRecipientEmail(data.recipient_email);
+      setSenderName(data.sender_name);
+      setContent(plaintext);
+      const d = new Date(data.release_date);
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      setReleaseDate(d.toISOString().slice(0, 16));
+      setEditingLetterId(id);
+      setActiveTab('schedule');
+      setSuccessMsg(null);
+    } catch (e) {
+      alert(`Failed to load letter for editing: ${(e as Error).message}`);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingLetterId(null);
+    setContent('');
+    setRecipientEmail('');
+    setSenderName('');
+  };
+
+  const handleRetryLetter = async (id: string) => {
+    if (!session?.access_token) return;
+    setRetryingId(id);
+    try {
+      const res = await fetch(`${agentUrl}/api/letter/retry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ letterId: id }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'Retry failed');
+      fetchScheduledLetters();
+    } catch (e) {
+      alert(`Failed to retry: ${(e as Error).message}`);
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -495,12 +593,18 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
                 <input
                   type="datetime-local"
                   value={releaseDate}
+                  min={nowForInput()}
                   onChange={e => setReleaseDate(e.target.value)}
                   disabled={sending || paidLoading}
                   className="w-full bg-surface-2 border border-border rounded-xl px-4 py-3 font-mono text-sm focus:border-accent outline-none transition-colors"
                 />
+                {!isReleaseDateValid && (
+                  <p className="font-mono text-[9px] text-red-400 px-2">Pick a date and time in the future.</p>
+                )}
                 <p className="font-mono text-[9px] text-text-muted/70 px-2 leading-relaxed">
-                  Defaults to tomorrow at the current time — pick any future date. This only sets the release time for the letter you're writing now; it never changes a letter you've already scheduled below.
+                  {editingLetterId
+                    ? "You're editing an existing scheduled letter — saving will re-encrypt it with a fresh key."
+                    : "Defaults to tomorrow at the current time — pick any future date. This only sets the release time for the letter you're writing now; it never changes a letter you've already scheduled below."}
                 </p>
               </div>
               <div className="flex items-center p-4 rounded-xl bg-surface-2/40 border border-border/60 text-[10px] font-mono text-text-muted leading-relaxed">
@@ -530,7 +634,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
               <>
                 <button
                   onClick={handleFreeSend}
-                  disabled={!isFormValid || sending || paidLoading}
+                  disabled={!isFormValid || !dbUser || sending || paidLoading}
                   className="pill-button border border-border bg-transparent hover:bg-surface-2 text-text-primary w-full py-4 disabled:opacity-40 flex items-center justify-center gap-2"
                 >
                   {sending ? (
@@ -541,7 +645,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
                   ) : (
                     <>
                       <Mail className="w-4 h-4" />
-                      <span>Send Letter (Free)</span>
+                      <span>{dbUser ? 'Send Letter (Free)' : 'Log in to Send'}</span>
                     </>
                   )}
                 </button>
@@ -567,38 +671,53 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
               <>
                 <button
                   onClick={() => handleScheduleSend()}
-                  disabled={!isFormValid || !dbUser || sending || paidLoading}
+                  disabled={!isFormValid || !dbUser || !isReleaseDateValid || sending || paidLoading}
                   className="pill-button border border-border bg-transparent hover:bg-surface-2 text-text-primary w-full py-4 disabled:opacity-40 flex items-center justify-center gap-2"
                 >
                   {sending ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="font-mono text-xs uppercase tracking-wider">Encrypting & Scheduling...</span>
+                      <span className="font-mono text-xs uppercase tracking-wider">
+                        {editingLetterId ? 'Updating...' : 'Encrypting & Scheduling...'}
+                      </span>
                     </>
                   ) : (
                     <>
                       <Mail className="w-4 h-4" />
-                      <span>{dbUser ? 'Schedule Letter (Free & Encrypted)' : 'Log in to Schedule'}</span>
+                      <span>
+                        {!dbUser ? 'Log in to Schedule' : editingLetterId ? 'Update Letter' : 'Schedule Letter (Free & Encrypted)'}
+                      </span>
                     </>
                   )}
                 </button>
-                <button
-                  onClick={handleSchedulePolish}
-                  disabled={!isFormValid || !dbUser || sending || paidLoading || hasNoCelo}
-                  className="pill-button pill-button-primary w-full py-4 disabled:opacity-40 flex items-center justify-center gap-2"
-                >
-                  {paidLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="font-mono text-xs uppercase tracking-wider">{getStepMessage()}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>AI Polish (0.01 USDm)</span>
-                    </>
-                  )}
-                </button>
+                {editingLetterId ? (
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={sending || paidLoading}
+                    className="pill-button border border-border bg-transparent hover:bg-surface-2 text-text-muted w-full py-4 disabled:opacity-40 flex items-center justify-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    <span>Cancel Edit</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSchedulePolish}
+                    disabled={!isFormValid || !dbUser || sending || paidLoading || hasNoCelo}
+                    className="pill-button pill-button-primary w-full py-4 disabled:opacity-40 flex items-center justify-center gap-2"
+                  >
+                    {paidLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="font-mono text-xs uppercase tracking-wider">{getStepMessage()}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>AI Polish (0.01 USDm)</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -662,12 +781,29 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
                   </div>
                   
                   {letter.status === 'pending' && (
+                    <div className="flex gap-2 self-start sm:self-center">
+                      <button
+                        onClick={() => handleEditLetter(letter.id)}
+                        className="px-3.5 py-2 hover:bg-surface-2 border border-border/80 hover:border-accent/30 text-xs font-mono text-text-muted hover:text-accent rounded-xl transition-all flex items-center gap-1.5"
+                      >
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleCancelEscrow(letter.id)}
+                        className="px-3.5 py-2 hover:bg-red-950/20 border border-border/80 hover:border-red-500/30 text-xs font-mono text-text-muted hover:text-red-400 rounded-xl transition-all flex items-center gap-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Cancel Escrow</span>
+                      </button>
+                    </div>
+                  )}
+                  {letter.status === 'failed' && (
                     <button
-                      onClick={() => handleCancelEscrow(letter.id)}
-                      className="px-3.5 py-2 hover:bg-red-950/20 border border-border/80 hover:border-red-500/30 text-xs font-mono text-text-muted hover:text-red-400 rounded-xl transition-all flex items-center gap-1.5 self-start sm:self-center"
+                      onClick={() => handleRetryLetter(letter.id)}
+                      disabled={retryingId === letter.id}
+                      className="px-3.5 py-2 hover:bg-accent/10 border border-border/80 hover:border-accent/30 text-xs font-mono text-text-muted hover:text-accent rounded-xl transition-all flex items-center gap-1.5 self-start sm:self-center disabled:opacity-40"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Cancel Escrow</span>
+                      <span>{retryingId === letter.id ? 'Retrying...' : 'Retry'}</span>
                     </button>
                   )}
                 </div>

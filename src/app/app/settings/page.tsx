@@ -884,7 +884,7 @@ export default function SettingsPage() {
                     </p>
                   ) : !isStandaloneApp ? (
                     <p className="font-mono text-[10px] text-text-muted">
-                      For reminders to keep working reliably, tap your browser&apos;s menu (⋮) and choose &quot;Add to Home Screen&quot; or &quot;Install app&quot;.
+                      For reminders to keep working reliably, tap your browser&apos;s menu (⋮) and choose &quot;Add to Home Screen&quot;;.
                     </p>
                   ) : null}
                 </div>

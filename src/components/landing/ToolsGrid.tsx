@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BookOpen, MessageSquare, Bird, Sparkles, Search, Mail, Brain, Trophy, Calendar, Feather } from 'lucide-react';
+import { BookOpen, MessageSquare, Bird, Sparkles, Search, Mail, Brain, Trophy, Calendar, Feather, PenLine } from 'lucide-react';
 import Link from 'next/link';
 
 const tools = [
@@ -94,6 +94,15 @@ const tools = [
     price: 'Free',
     btnText: 'Read & Vote',
     route: '/app/stories',
+  },
+  {
+    icon: PenLine,
+    slug: 'therapeutic',
+    name: 'Therapeutic Writing',
+    desc: 'Tell us what you want to explore, and get tailored prompts that help you find your own words — AI as a writing coach, not a ghostwriter.',
+    price: 'Free',
+    btnText: 'Get Prompts',
+    route: '/app/therapeutic',
   },
 ];
 

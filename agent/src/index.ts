@@ -213,6 +213,16 @@ Write a short, encouraging coaching response (under 150 words) structured exactl
 
 Do not write or rewrite their journal. Act strictly as a supportive guide.`;
 
+// Therapeutic Writing: unlike Coach (which reacts to something already
+// written), this generates NEW prompts tailored to a topic/need the user
+// states up front — the goal is to get them writing in their own words, not
+// to write for them.
+const THERAPEUTIC_WRITING_SYSTEM_PROMPT = `You are a compassionate therapeutic writing guide, in the tradition of expressive writing therapy. The user will tell you what they want to explore, process, or work through right now (a feeling, a life event, a relationship, a transition — whatever they say).
+
+Generate exactly 3 short, open-ended journaling prompts tailored specifically to what they described. Reference the actual situation/feeling they named — do not give generic, one-size-fits-all prompts. Each prompt should be 1-2 sentences, warm, non-clinical, and should invite them to write in their OWN words. The goal is to help someone practice and rediscover their own voice, not to have AI write for them.
+
+Return ONLY the 3 prompts, one per line, in plain text. No numbering, no bullet points, no preamble, no extra commentary — just the 3 lines.`;
+
 // RESEND_FROM_EMAIL must be set to an address on a domain you've verified in the
 // Resend dashboard (e.g. "MicroMind Letters <letters@yourdomain.com>").
 // Using onboarding@resend.dev only works for the Resend account owner's email.
@@ -327,6 +337,17 @@ app.use(cors({
 const relayRateLimiter = rateLimit({
   windowMs: 60_000,
   limit: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down and try again shortly.' },
+});
+
+// Lighter limiter for free-but-authenticated AI routes (no funds/gas at
+// stake, but still a real Groq quota cost per call) — generous enough for
+// normal use, tight enough to blunt a scripted quota-drain loop.
+const freeAiRateLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 15,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please slow down and try again shortly.' },
@@ -526,6 +547,50 @@ app.post('/api/coach', async (req, res) => {
   }
 });
 
+// ─── Therapeutic Writing ────────────────────────────────────────────────────
+// Free utility (encourages MORE writing, not less) but requires a signed-in
+// session so it can't be used as an anonymous Groq quota drain — same
+// reasoning as /api/transcribe. Rate-limited on top of that.
+app.post('/api/therapeutic/prompts', freeAiRateLimiter, async (req, res) => {
+  const userId = await resolveUserId(req.headers.authorization);
+  if (!userId) return res.status(401).json({ error: 'Please log in to get tailored prompts.' });
+
+  const { topic } = req.body;
+  if (!topic || typeof topic !== 'string' || !topic.trim()) {
+    return res.status(400).json({ error: 'Please describe what you want to explore.' });
+  }
+  const cleanTopic = topic.trim().slice(0, 300);
+
+  try {
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 256,
+      temperature: 0.8,
+      messages: [
+        { role: 'system', content: THERAPEUTIC_WRITING_SYSTEM_PROMPT },
+        { role: 'user', content: cleanTopic },
+      ],
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? '';
+    const prompts = raw
+      .split('\n')
+      .map(line => line.replace(/^[-*\d.)\s]+/, '').trim())
+      .filter(Boolean)
+      .slice(0, 3);
+
+    if (prompts.length === 0) {
+      return res.status(500).json({ error: 'Could not generate prompts. Please try rephrasing.' });
+    }
+
+    res.json({ prompts });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[THERAPEUTIC WRITING ERROR]', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to generate prompts' });
+  }
+});
+
 app.post('/api/cron/release-letters', async (req, res) => {
   console.log('[CRON] Starting release letters check...');
 
@@ -546,50 +611,72 @@ app.post('/api/cron/release-letters', async (req, res) => {
     return res.status(500).json({ error: 'Supabase client not initialized (missing service role key)' });
   }
 
+  const LETTER_BATCH_LIMIT = 50;
+  const LETTER_MAX_ATTEMPTS = 3;
+
   try {
     const now = new Date().toISOString();
-    const { data: letters, error: fetchError } = await supabase
+    const { data: candidates, error: fetchError } = await supabase
       .from('scheduled_letters')
-      .select('*')
+      .select('id')
       .eq('status', 'pending')
-      .lte('release_date', now);
+      .lte('release_date', now)
+      .limit(LETTER_BATCH_LIMIT);
 
     if (fetchError) throw fetchError;
 
-    if (!letters || letters.length === 0) {
+    if (!candidates || candidates.length === 0) {
       console.log('[CRON] No pending letters to release.');
       return res.json({ success: true, count: 0 });
     }
 
-    console.log(`[CRON] Found ${letters.length} pending letters to release.`);
+    console.log(`[CRON] Found ${candidates.length} candidate letters to release.`);
     let successCount = 0;
 
-    for (const letter of letters) {
+    for (const candidate of candidates) {
+      // Claim the row (pending -> processing) via compare-and-swap before
+      // touching it — if a concurrent cron run already claimed it, this
+      // update affects zero rows and we skip it, preventing a double-send.
+      const { data: claimed, error: claimError } = await supabase
+        .from('scheduled_letters')
+        .update({ status: 'processing' })
+        .eq('id', candidate.id)
+        .eq('status', 'pending')
+        .select()
+        .maybeSingle();
+
+      if (claimError) {
+        console.error(`[CRON] Failed to claim letter ${candidate.id}:`, claimError.message);
+        continue;
+      }
+      if (!claimed) continue; // already claimed by a concurrent run
+
       try {
-        console.log(`[CRON] Processing letter ${letter.id} for ${letter.recipient_email}...`);
+        console.log(`[CRON] Processing letter ${claimed.id} for ${claimed.recipient_email}...`);
 
-        const decryptedContent = decryptAESGCM(letter.ciphertext, letter.iv, letter.key_hex);
-
-        await sendEmail(letter.recipient_email, letter.sender_name, decryptedContent);
+        const decryptedContent = decryptAESGCM(claimed.ciphertext, claimed.iv, claimed.key_hex);
+        await sendEmail(claimed.recipient_email, claimed.sender_name, decryptedContent);
 
         const { error: updateError } = await supabase
           .from('scheduled_letters')
           .update({ status: 'sent' })
-          .eq('id', letter.id);
+          .eq('id', claimed.id);
 
         if (updateError) throw updateError;
         successCount++;
       } catch (err) {
         const errorVal = err as Error;
-        console.error(`[CRON] Failed to release letter ${letter.id}:`, errorVal.message);
+        console.error(`[CRON] Failed to release letter ${claimed.id}:`, errorVal.message);
+        const attempts = (claimed.attempts ?? 0) + 1;
+        const nextStatus = attempts >= LETTER_MAX_ATTEMPTS ? 'failed' : 'pending';
         try {
           await supabase
             .from('scheduled_letters')
-            .update({ status: 'failed' })
-            .eq('id', letter.id);
+            .update({ status: nextStatus, attempts })
+            .eq('id', claimed.id);
         } catch (updateErr) {
           const updateErrorVal = updateErr as Error;
-          console.error('[CRON] Failed to update status to failed:', updateErrorVal.message);
+          console.error('[CRON] Failed to update status after failure:', updateErrorVal.message);
         }
       }
     }
@@ -599,6 +686,41 @@ app.post('/api/cron/release-letters', async (req, res) => {
     const errorVal = err as Error;
     console.error('[CRON ERROR]', errorVal);
     res.status(500).json({ error: errorVal.message || 'Cron failed' });
+  }
+});
+
+// ─── Letter Retry Route ────────────────────────────────────────────────────
+// Resets a failed letter back to 'pending' so the next cron tick retries it.
+// Uses the service-role key so it can bypass the client UPDATE policy/column
+// grants (docs/letters_hardening.sql), which deliberately never let a client
+// touch `status`/`attempts` directly — this route independently re-verifies
+// ownership and the current status before making that specific transition.
+app.post('/api/letter/retry', async (req, res) => {
+  const userId = await resolveUserId(req.headers.authorization);
+  if (!userId) return res.status(401).json({ error: 'Please log in.' });
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
+  const { letterId } = req.body;
+  if (!letterId) return res.status(400).json({ error: 'Missing letterId' });
+
+  try {
+    const { data, error } = await supabase
+      .from('scheduled_letters')
+      .update({ status: 'pending', attempts: 0 })
+      .eq('id', letterId)
+      .eq('user_id', userId)
+      .eq('status', 'failed')
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Letter not found, not yours, or not currently failed.' });
+
+    res.json({ success: true });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[LETTER RETRY ERROR]', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Retry failed' });
   }
 });
 
