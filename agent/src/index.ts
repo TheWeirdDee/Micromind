@@ -315,10 +315,15 @@ async function callAI(toolId: number, prompt: string): Promise<string> {
 // Limit request body to 50 KB to prevent payload-based DoS attacks
 app.use(express.json({ limit: '50kb' }));
 
-// Restrict cross-origin requests to known frontends. Defaults cover local dev
-// and the production Vercel deployment; override/extend via ALLOWED_ORIGINS
-// (comma-separated) for preview deployments or a custom domain.
-const defaultOrigins = ['http://localhost:3000', 'https://micromind-three.vercel.app'];
+// Restrict cross-origin requests to known frontends. Defaults cover local dev,
+// the production custom domain, and the underlying Vercel deployment URL;
+// override/extend via ALLOWED_ORIGINS (comma-separated) for preview deployments.
+const defaultOrigins = [
+  'http://localhost:3000',
+  'https://micromindapp.xyz',
+  'https://www.micromindapp.xyz',
+  'https://micromind-three.vercel.app',
+];
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
   : defaultOrigins;
