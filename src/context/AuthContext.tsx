@@ -52,7 +52,8 @@ async function resolveJournalKey(userId: string): Promise<string | null> {
 }
 
 async function hydrateJournalForSession(userId: string) {
-  const { setJournalKey } = await import('@/lib/journal');
+  const { setJournalKey, setCurrentUserId } = await import('@/lib/journal');
+  setCurrentUserId(userId);
   const key = await resolveJournalKey(userId);
   setJournalKey(key);
   const { loadEntriesFromSupabase, migrateLocalEntriesToSupabase, syncOfflineQueue } = await import('@/lib/journal');
@@ -85,7 +86,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hydrateJournalForSession(session.user.id);
       }
       if (!session) {
-        import('@/lib/journal').then(({ setJournalKey }) => setJournalKey(null));
+        import('@/lib/journal').then(({ setJournalKey, setCurrentUserId }) => {
+          setJournalKey(null);
+          setCurrentUserId(null);
+        });
       }
       // Keep the profiles row in sync when an email change is confirmed
       if (session?.user?.email && event === 'USER_UPDATED') {

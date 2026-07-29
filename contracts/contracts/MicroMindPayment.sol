@@ -84,16 +84,38 @@ contract MicroMindPayment is Ownable {
      * @param promptHash keccak256 hash of the prompt string (for verification)
      */
     function payForPrompt(uint8 toolId, bytes32 promptHash) external {
+        _payForPrompt(msg.sender, toolId, promptHash);
+    }
+
+    /**
+     * @notice Pay for a prompt on behalf of a user, for the gasless relay flow
+     *         (e.g. MiniPay users, who typically hold no native CELO for gas).
+     *         The relayer wallet (owner) submits this and pays CELO gas, but
+     *         the USDm price is pulled from `user`'s own pre-approved
+     *         allowance — the relayer never spends its own USDm. `user` must
+     *         have approved this contract for at least `toolPrices[toolId]`
+     *         beforehand (paid for in USDm gas via feeCurrency, not CELO, so
+     *         this still requires no native CELO from the user).
+     * @param user       The actual paying user (verified off-chain via their
+     *                    own EIP-712 signature before the relayer calls this).
+     * @param toolId     ID of the tool being used (1–5)
+     * @param promptHash keccak256 hash of the prompt string (for verification)
+     */
+    function payForPromptFor(address user, uint8 toolId, bytes32 promptHash) external onlyOwner {
+        _payForPrompt(user, toolId, promptHash);
+    }
+
+    function _payForPrompt(address payer, uint8 toolId, bytes32 promptHash) internal {
         uint256 price = toolPrices[toolId];
         if (price == 0) revert InvalidTool(toolId);
 
-        bool ok = USDm.transferFrom(msg.sender, address(this), price);
+        bool ok = USDm.transferFrom(payer, address(this), price);
         if (!ok) revert TransferFailed();
 
         totalCollected[toolId] += price;
         grandTotal += price;
 
-        emit PromptPaid(msg.sender, toolId, price, promptHash, block.timestamp);
+        emit PromptPaid(payer, toolId, price, promptHash, block.timestamp);
     }
 
     // ─── Owner ────────────────────────────────────────────────────────────────
@@ -198,26 +220,33 @@ contract MicroMindPayment is Ownable {
  *
  * ─── GAS MODEL — IMPORTANT ───────────────────────────────────────────────────
  *
- * Users pay gas in CELO (native token). This is intentional.
+ * Two paths, chosen per-user based on whether they're on MiniPay:
  *
- * Talent Protocol tracks CELO gas spend as a core onchain activity signal.
- * If users pay gas in USDm via feeCurrency, their CELO activity score stays
- * at zero and they rank lower on the leaderboard.
- *
- * Payment flow per prompt:
+ * Direct path (non-MiniPay wallets, e.g. MetaMask — assumed to hold CELO):
  *   1. User signs approve() — pays CELO gas
- *   2. User signs payForPrompt() — pays CELO gas + spends USDm to contract
- *   3. Agent verifies PromptPaid event, returns AI response
+ *   2. User signs payForPrompt() — pays CELO gas + spends USDm to the contract
+ *   3. Agent verifies the PromptPaid event, returns the AI response
+ *   This keeps CELO gas spend on the user's own address (relevant to the
+ *   Talent Protocol onchain-activity leaderboard).
+ *
+ * Gasless relay path (MiniPay users — typically hold zero CELO):
+ *   1. User signs approve() for this contract, gas paid in USDm via
+ *      feeCurrency (CIP-64) — NOT CELO. This is the only on-chain step the
+ *      user themselves ever submits, and it costs a fraction of a cent in
+ *      USDm, never CELO. A generous one-time allowance means this doesn't
+ *      need to repeat before every single prompt.
+ *   2. User signs an off-chain EIP-712 RelayRequest (zero cost, no tx).
+ *   3. The agent backend verifies that signature, then calls
+ *      payForPromptFor(user, toolId, promptHash) itself, paying CELO gas
+ *      for that call from the relayer wallet. USDm still moves out of the
+ *      USER's wallet (via the allowance from step 1) into this contract —
+ *      the relayer only ever fronts gas, never the tool price itself.
  *
  * Required user wallet balance:
- *   - USDm: enough for the tool price (0.005–0.010 USDm per prompt)
- *   - CELO: small amount for gas (~0.001 CELO per transaction, negligible)
- *
- * Frontend must check CELO balance on wallet connect and warn if zero:
- *   "You need a small amount of CELO for gas. Get CELO via MiniPay or
- *    any Celo exchange."
- *
- * Do NOT add feeCurrency to any writeContract calls in the frontend.
+ *   - USDm: enough for the tool price (0.005–0.010 USDm per prompt), plus a
+ *     negligible amount more for the MiniPay path's approve() gas.
+ *   - CELO: none required on the MiniPay/relay path. Direct-wallet users
+ *     need a small amount (~0.001 CELO per transaction) for gas.
  *
  * ──────────────────────────────────────────────────────────────────────────────
  */

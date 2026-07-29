@@ -201,7 +201,7 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
 
     if (mode === 'new') {
       const newEntry = saveEntry({ content: content.trim(), mood, folderId });
-      updateStreak(address);
+      updateStreak();
 
       if (imageFile) {
         try {

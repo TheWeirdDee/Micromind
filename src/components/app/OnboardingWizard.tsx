@@ -151,16 +151,16 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                   Your space is ready!
                 </h2>
                 <p className="font-mono text-xs text-text-muted">
-                  A private, offline-first journaling container.
+                  A private, local-first journaling space.
                 </p>
               </div>
 
               <div className="bg-surface/60 border border-border p-6 rounded-[2rem] space-y-5 relative overflow-hidden backdrop-blur-md">
                 <div className="absolute inset-0 halftone-bg opacity-[0.03] pointer-events-none" />
                 {[
-                  { n: 1, title: 'Start Journaling', desc: 'Write daily thoughts, track moods. Stored locally — 100% private and free.' },
+                  { n: 1, title: 'Start Journaling', desc: 'Write daily thoughts, track moods. Stays on this device — encrypted before it ever syncs anywhere, and free.' },
                   { n: 2, title: 'Unlock AI Insights', desc: 'Pay tiny amounts in USDm only when requesting patterns or reflections.' },
-                  { n: 3, title: 'Disconnect Anytime', desc: 'Swap wallets freely — your journal stays right here.' },
+                  { n: 3, title: 'Disconnect Anytime', desc: 'Swap wallets freely — your journal isn’t tied to any one wallet.' },
                 ].map(({ n, title, desc }) => (
                   <div key={n} className="flex gap-4 items-start">
                     <div className="mt-0.5 w-5 h-5 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-[10px] text-accent font-bold shrink-0">{n}</div>

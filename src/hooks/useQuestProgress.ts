@@ -154,14 +154,14 @@ export function useQuestProgress(address: string | null) {
         const day = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
       };
-      setDailyHabitState(getLocalDateString(new Date()), { gameplayDone: true }, address);
+      setDailyHabitState(getLocalDateString(new Date()), { gameplayDone: true });
 
       return { success: true, pointsEarned: data.pointsEarned as number };
     } catch (e) {
       console.error('[QUEST SOLVE ERROR]', e);
       return { success: false, error: 'Network error' };
     }
-  }, [storageKey, address, persistLocal]);
+  }, [storageKey, persistLocal]);
 
   /** Reflects a withdrawal locally — the agent's /api/quest/withdraw endpoint
    * is the one that actually deducts clarity_points server-side; this just

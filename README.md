@@ -73,7 +73,7 @@ Two community-driven, Web3-native incentive loops layered on top of journaling:
 ## Gasless Web3 Architecture
 
 MicroMind is optimized to run smoothly on low-end smartphones in emerging markets:
-* **Gasless Relayer (EIP-712):** Users sign their payment approvals off-chain (0 gas, 0 transaction complexity). Our backend Express relayer submits the transaction on-chain, paying gas in native CELO on Celo mainnet.
+* **Gasless Relayer (EIP-712):** Users sign an off-chain typed-data message authorizing a payment — no transaction, no gas. Our backend relayer submits the actual on-chain call and pays the CELO gas for it, but the USDm price itself is still pulled from the user's own wallet (via an allowance they approve once, paid for in USDm gas through CIP-64 `feeCurrency` rather than CELO) — the relayer only ever fronts gas, never the payment.
 * **MiniPay Integration:** Auto-detects Opera's MiniPay wallet for instant sub-cent stablecoin payments. Falls back to MetaMask on desktop.
 * **Offline-First Storage:** All diary entries and settings are cached locally in `localStorage` first, allowing zero-latency loading and offline writing. Background synchronization updates Supabase when internet connectivity is active.
 
@@ -91,7 +91,7 @@ MicroMind is optimized to run smoothly on low-end smartphones in emerging market
 
 | Contract | Address | Explorer |
 | :--- | :--- | :--- |
-| `MicroMindPayment` (AI tool payments) | `0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c` | [Celoscan](https://celoscan.io/address/0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c) |
+| `MicroMindPayment` (AI tool payments) | `0x3e449ebd5ee4278db9258350486137350a6B1556` | [Celoscan](https://celoscan.io/address/0x3e449ebd5ee4278db9258350486137350a6B1556) |
 | `MicroMindStaking` (30-Day Challenge) | `0x04Eb288d2e2c6f506769a76532564818E22D18Ff` | [Celoscan](https://celoscan.io/address/0x04Eb288d2e2c6f506769a76532564818E22D18Ff#code) |
 
 ### Environment Setup
@@ -100,7 +100,7 @@ Create a `/.env.local` file in the root directory:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-NEXT_PUBLIC_CONTRACT_ADDRESS=0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c
+NEXT_PUBLIC_CONTRACT_ADDRESS=0x3e449ebd5ee4278db9258350486137350a6B1556
 NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS=0x04Eb288d2e2c6f506769a76532564818E22D18Ff
 NEXT_PUBLIC_AGENT_API_URL=https://your-hosted-agent.up.railway.app
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
@@ -111,7 +111,7 @@ RESEND_FROM_EMAIL=letters@yourdomain.com
 Create a `/agent/.env` file in the agent directory:
 ```env
 PORT=3001
-CONTRACT_ADDRESS=0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c
+CONTRACT_ADDRESS=0x3e449ebd5ee4278db9258350486137350a6B1556
 STAKING_CONTRACT_ADDRESS=0xe57C982D669869673750d46a935A97eC756A2281
 PRIVATE_KEY=0x_your_developer_relayer_wallet_private_key
 GROQ_API_KEY=gsk_your_groq_api_key

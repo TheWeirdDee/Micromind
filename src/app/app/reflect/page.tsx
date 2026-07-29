@@ -64,7 +64,7 @@ function ReflectPageInner({ folderParam, historyId }: { folderParam: string | nu
       : await payAndGenerate(3, 'Reflect', formattedPrompt);
     if (aiResponse) {
       setResponse(aiResponse);
-      updateStreak(address);
+      updateStreak();
     }
   };
 

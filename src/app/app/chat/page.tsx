@@ -93,7 +93,7 @@ function ChatPageInner({ historyId }: { historyId: string | null }) {
       : await payAndGenerate(1, 'Chat', userPrompt, historyContext);
     if (aiResponse) {
       setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-      updateStreak(address);
+      updateStreak();
     }
   };
 

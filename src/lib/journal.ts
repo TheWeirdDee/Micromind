@@ -30,6 +30,35 @@ export function getJournalKey(): string | null {
   return journalKey;
 }
 
+// -- Current account identity (for streak/habit keys) ------------------------
+//
+// Journaling and quest play don't require a connected wallet (see the
+// onboarding flow), so the daily streak — which is meant to track "did this
+// account journal or play today" — must be keyed by the Supabase account,
+// not by wallet address. Previously it was keyed by wallet address (falling
+// back to a walletless generic key), which meant connecting a wallet for the
+// first time to try a paid tool would appear to reset an existing streak.
+let currentUserId: string | null = null;
+
+/** Sets (or clears, on sign-out) the current account id used for streak/habit storage keys. */
+export function setCurrentUserId(userId: string | null): void {
+  currentUserId = userId;
+}
+
+/** The localStorage key streak data is read/written under for the current account — exported so DailyStreak.tsx reads exactly what updateStreak() writes. */
+export function getStreakStorageKey(): string {
+  return currentUserId ? `micromind_streak_data_${currentUserId}` : 'micromind_streak_data';
+}
+
+/** The localStorage key today's "spark" quote is cached under for the current account. */
+export function getSparkStorageKey(): string {
+  return currentUserId ? `micromind_today_spark_${currentUserId}` : 'micromind_today_spark';
+}
+
+function getHabitKeyPrefix(): string {
+  return currentUserId ? `mm_habit_${currentUserId}_` : 'mm_habit_';
+}
+
 async function encryptContent(content: string): Promise<string> {
   if (!journalKey) return content;
   const { encryptText } = await import('./crypto');
@@ -276,7 +305,7 @@ export function saveEntry(entry: Omit<JournalEntry, 'id' | 'date' | 'timestamp'>
     return `${year}-${month}-${day}`;
   };
   const todayStr = getLocalDateString(new Date());
-  setDailyHabitState(todayStr, { journalDone: true }, null); // will sync automatically
+  setDailyHabitState(todayStr, { journalDone: true }); // will sync automatically
   
   pushEntryToSupabase(newEntry).catch(() => {});
   dispatch();
@@ -370,11 +399,11 @@ export interface DailyHabitState {
   gameplayDone: boolean;
 }
 
-export function getDailyHabitState(dateStr: string, walletAddress: string | null): DailyHabitState {
+export function getDailyHabitState(dateStr: string): DailyHabitState {
   if (typeof window === 'undefined') {
     return { date: dateStr, journalDone: false, gameplayDone: false };
   }
-  const key = walletAddress ? `mm_habit_${walletAddress}_${dateStr}` : `mm_habit_${dateStr}`;
+  const key = `${getHabitKeyPrefix()}${dateStr}`;
   const stored = localStorage.getItem(key);
   if (stored) {
     try {
@@ -399,23 +428,25 @@ export function getDailyHabitState(dateStr: string, walletAddress: string | null
   };
 }
 
-export function setDailyHabitState(dateStr: string, state: Partial<DailyHabitState>, walletAddress: string | null): void {
+export function setDailyHabitState(dateStr: string, state: Partial<DailyHabitState>): void {
   if (typeof window === 'undefined') return;
-  const key = walletAddress ? `mm_habit_${walletAddress}_${dateStr}` : `mm_habit_${dateStr}`;
-  const current = getDailyHabitState(dateStr, walletAddress);
+  const key = `${getHabitKeyPrefix()}${dateStr}`;
+  const current = getDailyHabitState(dateStr);
   const updated = { ...current, ...state };
   localStorage.setItem(key, JSON.stringify(updated));
 
-  updateStreak(walletAddress);
+  updateStreak();
 }
 
 /**
- * Updates the daily activity streak for a wallet.
+ * Updates the daily activity streak for the current account (see
+ * setCurrentUserId — keyed by Supabase account, not wallet address, since
+ * journaling and quest play don't require a connected wallet at all).
  * Merges journal dates, prompt history dates, and manual check-in dates.
  */
-export function updateStreak(walletAddress: string | null): void {
+export function updateStreak(): void {
   if (typeof window === 'undefined') return;
-  const streakKey = walletAddress ? `micromind_streak_data_${walletAddress}` : 'micromind_streak_data';
+  const streakKey = getStreakStorageKey();
   const getLocalDateString = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -453,7 +484,7 @@ export function updateStreak(walletAddress: string | null): void {
   
   // Scan habit states where either journal or gameplay is done
   if (typeof window !== 'undefined') {
-    const prefix = walletAddress ? `mm_habit_${walletAddress}_` : `mm_habit_`;
+    const prefix = getHabitKeyPrefix();
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith(prefix)) {

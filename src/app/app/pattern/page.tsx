@@ -66,7 +66,7 @@ function PatternPageInner({ folderParam, historyId }: { folderParam: string | nu
       : await payAndGenerate(4, 'Pattern', formattedPrompt);
     if (aiResponse) {
       setResponse(aiResponse);
-      updateStreak(address);
+      updateStreak();
     }
   };
 

@@ -1,22 +1,23 @@
 /**
  * MicroMind Gasless Relayer
  *
- * Executes on-chain transactions on behalf of users who don't hold native CELO.
- * The developer wallet (funded with CELO) pays gas. The user's USDm is still
- * spent from their own address via an approval they sign off-chain.
+ * Executes on-chain transactions on behalf of users who don't hold native CELO
+ * (chiefly MiniPay users). The developer/relayer wallet pays CELO gas for the
+ * on-chain call itself, but the USDm price of whatever's being paid for comes
+ * out of the USER's own wallet, via payForPromptFor(user, ...) pulling from
+ * an allowance the user pre-approved (see usePayForPrompt.ts's
+ * ensureRelayAllowance — that approve() is paid for in USDm gas via
+ * feeCurrency, never CELO, so this still requires no native CELO from the
+ * user). The relayer's own USDm balance is never spent.
  *
- * NOTE: Because the developer wallet calls approve() + payForPrompt(), msg.sender
- * on-chain is the developer wallet — not the user's wallet. The user's address is
- * embedded in the EIP-712 signature and logged in the relay for off-chain attribution.
- * The PromptPaid event will show the developer address, which still generates native
- * CELO activity on the Talent Protocol leaderboard.
+ * The user's authorization is verified off-chain via their own EIP-712
+ * signature (verifyRelaySignature below) before any of this runs.
  */
 
 import {
   createWalletClient,
   createPublicClient,
   http,
-  erc20Abi,
   verifyTypedData,
   type Address,
   type Abi,
@@ -137,38 +138,13 @@ export function isDeadlineValid(deadline: string): boolean {
 // ─── Core Relay Execution ──────────────────────────────────────────────────────
 
 /**
- * Execute a relayed transaction. The developer wallet:
- *   1. Approves the MicroMindPayment contract to spend USDm FROM the user's wallet
- *      ← This is possible because the user previously gave infinite allowance,
- *        OR because we approve using the developer wallet's own allowance path.
- *
- * IMPORTANT: Standard ERC-20 approve() only lets you approve from YOUR OWN account.
- * So the relay model here is:
- *   - Developer wallet calls USDm.transferFrom(userAddress, contract, price)
- *     only works if user has pre-approved the developer relayer address.
- *
- * SIMPLER approach implemented here:
- *   - Developer wallet approves the MicroMind contract to spend developer's OWN USDm
- *   - Developer wallet calls payForPrompt() — USDm comes from developer wallet
- *   - Developer is reimbursed in USDm by user's prior approval separately
- *
- * REAL approach (what we implement):
- *   - User still pre-approves the MicroMind contract to move their USDm (one-time tx)
- *   - Developer wallet calls payForPrompt() which pulls USDm from user (msg.sender
- *     on the ERC-20 transferFrom is the contract, which the user approved)
- *   Wait — transferFrom is called by the contract using allowance the USER gave.
- *   So: user approves contract, ANYONE can call payForPrompt and it works,
- *   the USDm always comes from msg.sender (the developer wallet in relay mode).
- *
- * FINAL DESIGN:
- *   1. Developer wallet approves MicroMind contract to spend developer's OWN USDm
- *   2. Developer wallet calls payForPrompt(toolId, promptHash)
- *   3. USDm leaves developer wallet, CELO gas leaves developer wallet
- *   4. Developer is refunded USDm out-of-band from user's USDm
- *      (can implement refund mechanic later — for now developer covers cost)
- *
- * For the MVP relayer, developer fronts both gas (CELO) and the tool cost (USDm).
- * This keeps user UX completely frictionless. Implement refund mechanic in Phase 6.
+ * Execute a relayed AI-tool payment. The relayer (developer) wallet pays the
+ * CELO gas for this call — that's the entire point of "gasless" for MiniPay
+ * users, who typically hold no CELO — but the actual USDm price is pulled
+ * from the USER's own wallet via payForPromptFor(user, ...), using an
+ * allowance the user pre-approved themselves (paid for in USDm gas via
+ * feeCurrency, not CELO — see usePayForPrompt.ts's ensureRelayAllowance).
+ * The relayer's own USDm balance is never spent here.
  */
 export async function executeRelay(
   params: RelayParams,
@@ -182,6 +158,7 @@ export async function executeRelay(
   }
 
   const account = privateKeyToAccount(privateKey);
+  void usdmAddress; // no longer used here — the relayer never spends its own USDm
 
   const walletClient = createWalletClient({
     account,
@@ -195,34 +172,12 @@ export async function executeRelay(
   });
 
   try {
-    const price = await publicClient.readContract({
-      address:      contractAddress,
-      abi:          [{ name: 'getPrice', type: 'function', stateMutability: 'view', inputs: [{ name: 'toolId', type: 'uint8' }], outputs: [{ name: '', type: 'uint256' }] }],
-      functionName: 'getPrice',
-      args:         [params.toolId],
-    }) as bigint;
-
-    console.log(`[RELAY] Price for tool ${params.toolId}: ${price}`);
-
-    console.log('[RELAY] Step 1: Approving USDm spend...');
-    const approveTx = await walletClient.writeContract({
-      address:      usdmAddress,
-      abi:          erc20Abi,
-      functionName: 'approve',
-      args:         [contractAddress, price],
-      chain:        celo,
-      account,
-    });
-
-    await publicClient.waitForTransactionReceipt({ hash: approveTx, confirmations: 1, timeout: 60_000 });
-    console.log('[RELAY] Approval confirmed:', approveTx);
-
-    console.log('[RELAY] Step 2: Calling payForPrompt...');
+    console.log(`[RELAY] Calling payForPromptFor for ${params.userAddress}, tool ${params.toolId}...`);
     const payTx = await walletClient.writeContract({
       address:      contractAddress,
       abi:          micromindAbi as unknown as Abi,
-      functionName: 'payForPrompt',
-      args:         [params.toolId, params.promptHash],
+      functionName: 'payForPromptFor',
+      args:         [params.userAddress, params.toolId, params.promptHash],
       chain:        celo,
       account,
     });

@@ -53,7 +53,7 @@ function TweetPageInner({ historyId }: { historyId: string | null }) {
       : await payAndGenerate(2, 'Tweet', topic);
     if (aiResponse) {
       setResponse(aiResponse);
-      updateStreak(address);
+      updateStreak();
     }
   };
 

@@ -246,7 +246,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
 
       if (aiResponse) {
         setContent(aiResponse);
-        updateStreak(address);
+        updateStreak();
         setSuccessMsg('Polished! Review it below and click Send when ready.');
       }
     } catch (err: unknown) {
@@ -399,7 +399,7 @@ function LetterPageInner({ historyId, contentParam }: { historyId: string | null
 
       if (aiResponse) {
         setContent(aiResponse);
-        updateStreak(address);
+        updateStreak();
         setSuccessMsg('Polished! Review it below and click Schedule when ready.');
       }
     } catch (err: unknown) {

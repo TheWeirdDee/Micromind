@@ -72,7 +72,7 @@ export default function CoachPage() {
       }
 
       setCurrentStep('complete');
-      updateStreak(address);
+      updateStreak();
     } catch (streamErr) {
       const err = streamErr as Error;
       console.error('[STREAM ERROR]', err);

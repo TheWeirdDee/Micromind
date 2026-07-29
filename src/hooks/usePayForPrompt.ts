@@ -30,6 +30,91 @@ async function getAccessToken(): Promise<string | null> {
   return session?.access_token ?? null;
 }
 
+/**
+ * Reads the exact price the contract will pull for a tool. Tries getPrice()
+ * first (current contract), then falls back to reading the toolPrices
+ * mapping directly — never a hardcoded constant, since a mismatch between
+ * the approved amount and the contract's stored price is the sole cause of
+ * "insufficient allowance" reverts.
+ */
+async function readToolPrice(
+  publicClient: ReturnType<typeof useWallet>['publicClient'],
+  toolId: number,
+): Promise<bigint> {
+  try {
+    return await publicClient.readContract({
+      address: CONTRACT_ADDRESS as `0x${string}`,
+      abi: MICROMIND_ABI,
+      functionName: 'getPrice',
+      args: [toolId],
+    }) as bigint;
+  } catch {
+    try {
+      return await publicClient.readContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: [{ name: 'toolPrices', type: 'function', stateMutability: 'view', inputs: [{ name: '', type: 'uint8' }], outputs: [{ name: '', type: 'uint256' }] }] as const,
+        functionName: 'toolPrices',
+        args: [toolId],
+      }) as bigint;
+    } catch {
+      return BigInt(0);
+    }
+  }
+}
+
+/**
+ * Ensures the payment contract can pull at least `price` USDm from the
+ * user's own wallet via payForPromptFor — the relayer wallet only ever pays
+ * CELO gas, never the USDm price itself (see agent/src/lib/relayer.ts). If
+ * the current allowance is already enough, this is a no-op (no signature,
+ * no tx, no cost) — most relayed prompts after the first hit this path.
+ * Otherwise it approves a generous batch (40x the current price) so the user
+ * isn't asked to approve again for many prompts to come, paid for in USDm
+ * gas via feeCurrency (CIP-64) so it never requires native CELO.
+ */
+async function ensureRelayAllowance(
+  publicClient: ReturnType<typeof useWallet>['publicClient'],
+  walletClient: NonNullable<ReturnType<typeof useWallet>['walletClient']>,
+  address: `0x${string}`,
+  price: bigint,
+): Promise<void> {
+  const allowance = await publicClient.readContract({
+    address: USDm_ADDRESS as `0x${string}`,
+    abi: erc20Abi,
+    functionName: 'allowance',
+    args: [address, CONTRACT_ADDRESS as `0x${string}`],
+  }) as bigint;
+
+  if (allowance >= price) return;
+
+  const approveAmount = price * BigInt(40);
+
+  const approveNonce = await publicClient.getTransactionCount({ address, blockTag: 'pending' });
+  const approveGas = await publicClient.estimateContractGas(Object.assign({
+    address: USDm_ADDRESS as `0x${string}`,
+    abi: erc20Abi,
+    functionName: 'approve' as const,
+    args: [CONTRACT_ADDRESS as `0x${string}`, approveAmount] as const,
+    account: address,
+  }, { feeCurrency: USDm_ADDRESS as `0x${string}` })).catch(() => BigInt(100_000));
+
+  const approveTx = await walletClient.writeContract(Object.assign({
+    address: USDm_ADDRESS as `0x${string}`,
+    abi: erc20Abi,
+    functionName: 'approve' as const,
+    args: [CONTRACT_ADDRESS as `0x${string}`, approveAmount] as const,
+    chain: celo,
+    account: address,
+    nonce: approveNonce,
+    gas: approveGas,
+  }, { feeCurrency: USDm_ADDRESS as `0x${string}` }));
+
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: approveTx, confirmations: 1, timeout: 60_000 });
+  if (receipt.status !== 'success') {
+    throw new Error('USDm approval was rejected by the network. Please try again.');
+  }
+}
+
 export type PaymentStep =
   | 'idle'
   | 'checking'
@@ -128,32 +213,7 @@ export function usePayForPrompt() {
       }
 
       // Read the exact price the contract will pull so the approve amount always matches.
-      // Strategy: try getPrice() first (new contract), then fall back to reading the
-      // toolPrices(toolId) mapping directly — that is the EXACT storage slot that
-      // payForPrompt reads at execution time. Never fall back to a hardcoded constant,
-      // because a mismatch between the approved amount and the contract's stored price
-      // is the sole cause of "ERC20: insufficient allowance" on payForPrompt.
-      let price: bigint;
-      try {
-        price = await publicClient.readContract({
-          address: CONTRACT_ADDRESS as `0x${string}`,
-          abi: MICROMIND_ABI,
-          functionName: 'getPrice',
-          args: [toolId],
-        }) as bigint;
-      } catch {
-        // getPrice() not present in this contract version — read the mapping directly.
-        try {
-          price = await publicClient.readContract({
-            address: CONTRACT_ADDRESS as `0x${string}`,
-            abi: [{ name: 'toolPrices', type: 'function', stateMutability: 'view', inputs: [{ name: '', type: 'uint8' }], outputs: [{ name: '', type: 'uint256' }] }] as const,
-            functionName: 'toolPrices',
-            args: [toolId],
-          }) as bigint;
-        } catch {
-          price = BigInt(0);
-        }
-      }
+      const price = await readToolPrice(publicClient, toolId);
 
       if (price <= BigInt(0)) {
         throw new Error(
@@ -367,10 +427,14 @@ export function usePayForPrompt() {
    * payViaRelay — gasless path for MiniPay users.
    *
    * 1. Computes promptHash locally
-   * 2. Builds an EIP-712 RelayRequest
-   * 3. User signs the typed data (no gas cost — just a signature popup)
+   * 2. Ensures the payment contract can pull this tool's price from the
+   *    user's own USDm allowance (ensureRelayAllowance) — a real on-chain
+   *    approve() only when the existing allowance has run low, gas paid in
+   *    USDm via feeCurrency so no native CELO is ever needed
+   * 3. Builds an EIP-712 RelayRequest and the user signs it (free, no tx)
    * 4. Sends signature + prompt to POST /api/relay on the agent
-   * 5. Backend verifies, executes on-chain using developer CELO wallet, returns AI response
+   * 5. Backend verifies the signature, then calls payForPromptFor on-chain —
+   *    relayer wallet pays CELO gas, USDm price comes from the user's wallet
    */
   const payViaRelay = useCallback(async (
     toolId:   number,
@@ -404,6 +468,17 @@ export function usePayForPrompt() {
       const nonce      = Date.now().toString();
       const promptHash = keccak256(toBytes(`${finalPrompt}:${address}:${nonce}`)) as `0x${string}`;
 
+      // Make sure the contract can actually pull this tool's price from the
+      // user's own wallet before relaying — the relayer only fronts CELO gas,
+      // never the USDm price itself. A no-op after the first successful call
+      // for a while, since the approval covers many prompts at once.
+      setStep('approving');
+      const price = await readToolPrice(publicClient, toolId);
+      if (price <= BigInt(0)) {
+        throw new Error(`Could not read the payment amount for this tool from the contract at ${CONTRACT_ADDRESS}.`);
+      }
+      await ensureRelayAllowance(publicClient, walletClient, address as `0x${string}`, price);
+
       const relayRequest = buildRelayRequest(
         toolId,
         promptHash,
@@ -411,7 +486,6 @@ export function usePayForPrompt() {
       );
 
       // Ask user to sign typed data — shows structured popup, no gas required
-      setStep('approving'); // re-use 'approving' step label for the signing popup
       const signature = await signRelayRequest(
         walletClient as any,
         address as `0x${string}`,

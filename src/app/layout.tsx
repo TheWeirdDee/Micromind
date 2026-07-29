@@ -3,6 +3,7 @@ import { Playfair_Display, DM_Mono, Ultra } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { ServiceWorkerRegistration } from "@/components/app/ServiceWorkerRegistration";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -81,8 +82,6 @@ export const viewport = {
   themeColor: "#0A0A0A",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({
@@ -96,6 +95,7 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${playfair.variable} ${dmMono.variable} ${ultra.variable} antialiased selection:bg-accent selection:text-bg`}
       >
+        <ServiceWorkerRegistration />
         <AuthProvider>
           <WalletProvider>
             <div className="grain-overlay" />

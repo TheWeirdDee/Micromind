@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Flame, CheckCircle2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
-import { useWallet } from '@/context/WalletContext';
-import { updateStreak } from '@/lib/journal';
+import { updateStreak, getStreakStorageKey, getSparkStorageKey } from '@/lib/journal';
 
 interface StreakData {
   streakCount: number;
@@ -31,9 +30,8 @@ const SPARKS = [
 ];
 
 export function DailyStreak() {
-  const { address } = useWallet();
-  const streakKey = address ? `micromind_streak_data_${address}` : 'micromind_streak_data';
-  const sparkKey = address ? `micromind_today_spark_${address}` : 'micromind_today_spark';
+  const streakKey = getStreakStorageKey();
+  const sparkKey = getSparkStorageKey();
   const [streak, setStreak] = useState<StreakData>({
     streakCount: 0,
     lastCheckInDate: '',
@@ -95,7 +93,7 @@ export function DailyStreak() {
   useEffect(() => {
     // Recalculate once on load (async to avoid render-phase state update)
     const timer = setTimeout(() => {
-      updateStreak(address);
+      updateStreak();
       refreshStreak();
     }, 0);
 
@@ -106,7 +104,7 @@ export function DailyStreak() {
       window.removeEventListener('streak_updated', refreshStreak);
       window.removeEventListener('journal_updated', refreshStreak);
     };
-  }, [address, refreshStreak]);
+  }, [refreshStreak]);
 
 
   const renderCalendarDots = () => {
@@ -185,7 +183,7 @@ export function DailyStreak() {
         <div>
           <h3 className="font-serif text-lg tracking-tight mb-1">Daily Mind Streak</h3>
           <p className="text-[10px] font-mono text-text-muted uppercase tracking-wider">
-            Write in your journal or reflect daily to build your streak
+            Journal or play Clarity Quest daily to build your streak
           </p>
         </div>
         <Link
@@ -213,7 +211,7 @@ export function DailyStreak() {
         ) : (
           <div className="flex items-center justify-center gap-1.5 py-2.5 text-text-muted font-mono text-[10px] tracking-widest uppercase border border-border rounded-xl">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Write a journal entry to build your streak</span>
+            <span>Journal or play Clarity Quest to build your streak</span>
           </div>
         )}
       </div>
