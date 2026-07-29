@@ -215,7 +215,7 @@ export function HeartfeltLetters() {
               <span className="italic text-accent">Polished by AI, delivered to their inbox.</span>
             </h2>
             <p className="font-mono text-xs md:text-sm text-text-muted leading-relaxed max-w-2xl">
-              Some thoughts are meant to be shared. Write a personal letter to a parent, friend, or loved one. Send it as a raw draft for free, or use our AI Companion to gently polish your words into an eloquent keepsake before delivery.
+              Some thoughts are meant to be shared — right now, or someday. Write a personal letter to a parent, friend, or loved one. Send it instantly as a raw draft for free, use our AI Companion to gently polish your words into an eloquent keepsake, or schedule it in encrypted escrow to arrive on a date you choose — a birthday, an anniversary, or next New Year&apos;s Eve.
             </p>
           </motion.div>
 
@@ -300,6 +300,21 @@ export function HeartfeltLetters() {
                 </div>
               </button>
 
+              {/* Escrow / scheduled delivery — a distinct capability from the
+                  instant-send demo above, called out on its own so it isn't
+                  missed entirely by someone skimming the 3-step flow. */}
+              <div className="w-full text-left p-5 rounded-2xl border border-dashed border-accent-gold/30 bg-accent-gold/[0.03] flex items-start gap-4">
+                <div className="p-2.5 rounded-xl border border-accent-gold/30 bg-accent-gold/10 text-accent-gold shrink-0">
+                  <Send className="w-4 h-4" />
+                </div>
+                <div className="space-y-1">
+                  <span className="font-mono text-[9px] tracking-wider uppercase text-accent-gold">Or, schedule it</span>
+                  <h4 className="font-serif text-base text-text-primary">Letters from the Past</h4>
+                  <p className="font-mono text-[11px] text-text-muted/80 leading-relaxed">
+                    Write it today, lock it in encrypted escrow, and have it delivered on a future date you pick — write to yourself for next New Year&apos;s, or to a friend for a birthday months away.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Restart Controls */}

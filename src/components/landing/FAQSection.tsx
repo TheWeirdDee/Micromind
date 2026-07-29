@@ -20,6 +20,10 @@ const faqs = [
     a: "Each AI tool costs just 0.005 USDm per use, paid directly from your wallet on Celo. No monthly fees, no lock-in. You pay only for what you actually use.",
   },
   {
+    q: "How can I earn with MicroMind?",
+    a: "A few ways, all free to start: solve Clarity Quest puzzles and cash your points out to USDm; write the winning entry in the monthly Short Story Challenge, voted on by the community; or complete the 30-Day Staking Challenge to get your full stake back plus a reward. Writing and playing are always free — you only ever spend USDm if you choose a paid AI tool.",
+  },
+  {
     q: "What is the Clarity Quest?",
     a: "Clarity Quest is a gamified cognitive reframing feature. Solve scrambled cognitive distortion sentences to expand your vocabulary with precise emotional words, unlock custom Clarity Cards, and earn Clarity Points which can be converted directly into USDm stablecoins.",
   },
