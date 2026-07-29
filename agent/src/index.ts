@@ -21,6 +21,7 @@ import { supabase } from './lib/supabase';
 import { getStageCount, getTargetWord, TOTAL_LEVELS } from './lib/quest-levels';
 import { resolveAdminUser, requireAdmin } from './lib/admin';
 import { openStoryChallenge, finalizeStoryChallenges, listStoryChallengesWithStats } from './lib/stories-admin';
+import { getStakingStatus, setRelayerPaused, fundRewardPool, withdrawExcess, setStakingParams } from './lib/staking-admin';
 import webpush from 'web-push';
 import type { Redis } from '@upstash/redis';
 
@@ -961,6 +962,210 @@ app.delete('/api/admin/admins/:userId', async (req, res) => {
     const errorVal = err as Error;
     console.error('[ADMIN] Failed to remove admin:', errorVal.message);
     res.status(500).json({ error: errorVal.message || 'Failed to remove admin' });
+  }
+});
+
+// ─── Admin: Staking Contract Controls ──────────────────────────────────────
+// These call onlyOwner functions on MicroMindStaking, signed by the relayer
+// wallet (which IS the contract owner) — the browser never holds that key.
+// Every route independently re-verifies admin status first.
+app.get('/api/admin/staking/status', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!STAKING_CONTRACT_ADDRESS) return res.status(500).json({ error: 'Staking contract not configured' });
+  try {
+    const status = await getStakingStatus(STAKING_CONTRACT_ADDRESS);
+    res.json(status);
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[ADMIN STAKING] Failed to read status:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to read staking status' });
+  }
+});
+
+app.post('/api/admin/staking/pause', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!STAKING_CONTRACT_ADDRESS) return res.status(500).json({ error: 'Staking contract not configured' });
+  const { paused } = req.body;
+  if (typeof paused !== 'boolean') return res.status(400).json({ error: 'Missing or invalid paused flag' });
+  try {
+    const txHash = await setRelayerPaused(STAKING_CONTRACT_ADDRESS, paused);
+    res.json({ success: true, txHash });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[ADMIN STAKING] Failed to set pause state:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to update pause state' });
+  }
+});
+
+app.post('/api/admin/staking/fund-pool', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!STAKING_CONTRACT_ADDRESS) return res.status(500).json({ error: 'Staking contract not configured' });
+  const { amountWei } = req.body;
+  if (!amountWei) return res.status(400).json({ error: 'Missing amountWei' });
+  try {
+    const txHash = await fundRewardPool(STAKING_CONTRACT_ADDRESS, BigInt(amountWei));
+    res.json({ success: true, txHash });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[ADMIN STAKING] Failed to fund reward pool:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to fund reward pool' });
+  }
+});
+
+app.post('/api/admin/staking/withdraw-excess', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!STAKING_CONTRACT_ADDRESS) return res.status(500).json({ error: 'Staking contract not configured' });
+  const { amountWei } = req.body;
+  if (!amountWei) return res.status(400).json({ error: 'Missing amountWei' });
+  try {
+    const txHash = await withdrawExcess(STAKING_CONTRACT_ADDRESS, BigInt(amountWei));
+    res.json({ success: true, txHash });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[ADMIN STAKING] Failed to withdraw excess:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to withdraw excess' });
+  }
+});
+
+app.post('/api/admin/staking/set-params', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!STAKING_CONTRACT_ADDRESS) return res.status(500).json({ error: 'Staking contract not configured' });
+  const { stakeAmountWei, challengeDuration, requiredCheckins, rewardAmountWei } = req.body;
+  if (!stakeAmountWei || !challengeDuration || requiredCheckins === undefined || !rewardAmountWei) {
+    return res.status(400).json({ error: 'Missing required params' });
+  }
+  try {
+    const txHash = await setStakingParams(STAKING_CONTRACT_ADDRESS, {
+      stakeAmount: BigInt(stakeAmountWei),
+      challengeDuration: BigInt(challengeDuration),
+      requiredCheckins: BigInt(requiredCheckins),
+      rewardAmount: BigInt(rewardAmountWei),
+    });
+    res.json({ success: true, txHash });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[ADMIN STAKING] Failed to set params:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to set params' });
+  }
+});
+
+// ─── Admin: Letters Overview ────────────────────────────────────────────────
+app.get('/api/admin/letters/stats', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
+  try {
+    const { data, error } = await supabase
+      .from('scheduled_letters')
+      .select('id, recipient_email, sender_name, status, attempts, release_date, created_at');
+    if (error) throw error;
+
+    const rows = data ?? [];
+    const counts = { pending: 0, processing: 0, sent: 0, failed: 0 };
+    for (const row of rows) {
+      if (row.status in counts) counts[row.status as keyof typeof counts]++;
+    }
+    const failed = rows
+      .filter(r => r.status === 'failed')
+      .sort((a, b) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime());
+
+    res.json({ counts, failed });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[ADMIN LETTERS] Failed to load stats:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to load letter stats' });
+  }
+});
+
+app.post('/api/admin/letters/retry-all-failed', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
+  try {
+    const { data, error } = await supabase
+      .from('scheduled_letters')
+      .update({ status: 'pending', attempts: 0 })
+      .eq('status', 'failed')
+      .select('id');
+
+    if (error) throw error;
+    res.json({ success: true, retried: data?.length ?? 0 });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[ADMIN LETTERS] Failed to retry all:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to retry letters' });
+  }
+});
+
+// ─── Admin: Story Moderation ────────────────────────────────────────────────
+app.get('/api/admin/stories/challenges/:challengeId/submissions', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
+  try {
+    const { data, error } = await supabase
+      .from('stories')
+      .select('*, public_profiles(username)')
+      .eq('challenge_id', req.params.challengeId)
+      .order('vote_count', { ascending: false });
+
+    if (error) throw error;
+    const stories = (data ?? []).map((row: Record<string, unknown>) => {
+      const profile = row.public_profiles as { username?: string } | null;
+      const { public_profiles, ...rest } = row;
+      void public_profiles;
+      return { ...rest, author_username: profile?.username };
+    });
+    res.json({ stories });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[ADMIN STORIES] Failed to load submissions:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to load submissions' });
+  }
+});
+
+app.post('/api/admin/stories/:storyId/moderate', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
+  const { status } = req.body;
+  if (status !== 'published' && status !== 'hidden') {
+    return res.status(400).json({ error: "status must be 'published' or 'hidden'" });
+  }
+  try {
+    const { error } = await supabase
+      .from('stories')
+      .update({ status })
+      .eq('id', req.params.storyId);
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[ADMIN STORIES] Failed to moderate story:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to moderate story' });
+  }
+});
+
+// ─── Admin: Platform Overview ───────────────────────────────────────────────
+app.get('/api/admin/overview', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+
+  try {
+    const [{ count: profileCount }, { count: entryCount }, { count: storyCount }] = await Promise.all([
+      supabase.from('profiles').select('id', { count: 'exact', head: true }),
+      supabase.from('journal_entries').select('id', { count: 'exact', head: true }),
+      supabase.from('stories').select('id', { count: 'exact', head: true }),
+    ]);
+    res.json({
+      profileCount: profileCount ?? 0,
+      entryCount: entryCount ?? 0,
+      storyCount: storyCount ?? 0,
+    });
+  } catch (err) {
+    const errorVal = err as Error;
+    console.error('[ADMIN OVERVIEW] Failed to load overview:', errorVal.message);
+    res.status(500).json({ error: errorVal.message || 'Failed to load overview' });
   }
 });
 

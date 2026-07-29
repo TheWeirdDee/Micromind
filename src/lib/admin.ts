@@ -90,3 +90,125 @@ export async function removeAdmin(token: string, userId: string): Promise<void> 
   });
   await handle(res);
 }
+
+// ─── Staking ─────────────────────────────────────────────────────────────
+
+export interface StakingStatus {
+  stakeAmount: string;
+  challengeDuration: string;
+  requiredCheckins: string;
+  rewardAmount: string;
+  totalStaked: string;
+  rewardPoolBalance: string;
+  freeRewardPool: string;
+  reservedRewards: string;
+  relayerPaused: boolean;
+  relayerAddress: string;
+  relayerCeloBalance: string;
+  relayerUsdmBalance: string;
+  isOwner: boolean;
+}
+
+export async function fetchStakingStatus(token: string): Promise<StakingStatus> {
+  const res = await fetch(`${agentUrl}/api/admin/staking/status`, { headers: authHeaders(token) });
+  return handle(res);
+}
+
+export async function setStakingPaused(token: string, paused: boolean): Promise<void> {
+  const res = await fetch(`${agentUrl}/api/admin/staking/pause`, {
+    method: 'POST', headers: authHeaders(token), body: JSON.stringify({ paused }),
+  });
+  await handle(res);
+}
+
+export async function fundStakingRewardPool(token: string, amountWei: string): Promise<void> {
+  const res = await fetch(`${agentUrl}/api/admin/staking/fund-pool`, {
+    method: 'POST', headers: authHeaders(token), body: JSON.stringify({ amountWei }),
+  });
+  await handle(res);
+}
+
+export async function withdrawStakingExcess(token: string, amountWei: string): Promise<void> {
+  const res = await fetch(`${agentUrl}/api/admin/staking/withdraw-excess`, {
+    method: 'POST', headers: authHeaders(token), body: JSON.stringify({ amountWei }),
+  });
+  await handle(res);
+}
+
+export async function setStakingParams(token: string, params: {
+  stakeAmountWei: string; challengeDuration: string; requiredCheckins: string; rewardAmountWei: string;
+}): Promise<void> {
+  const res = await fetch(`${agentUrl}/api/admin/staking/set-params`, {
+    method: 'POST', headers: authHeaders(token), body: JSON.stringify(params),
+  });
+  await handle(res);
+}
+
+// ─── Letters ─────────────────────────────────────────────────────────────
+
+export interface FailedLetter {
+  id: string;
+  recipient_email: string;
+  sender_name: string;
+  status: string;
+  attempts: number;
+  release_date: string;
+  created_at: string;
+}
+
+export interface LetterStats {
+  counts: { pending: number; processing: number; sent: number; failed: number };
+  failed: FailedLetter[];
+}
+
+export async function fetchLetterStats(token: string): Promise<LetterStats> {
+  const res = await fetch(`${agentUrl}/api/admin/letters/stats`, { headers: authHeaders(token) });
+  return handle(res);
+}
+
+export async function retryAllFailedLetters(token: string): Promise<{ retried: number }> {
+  const res = await fetch(`${agentUrl}/api/admin/letters/retry-all-failed`, {
+    method: 'POST', headers: authHeaders(token),
+  });
+  return handle(res);
+}
+
+// ─── Story Moderation ────────────────────────────────────────────────────
+
+export interface AdminStory {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  vote_count: number;
+  status: 'published' | 'hidden';
+  created_at: string;
+  author_username?: string;
+}
+
+export async function fetchChallengeSubmissions(token: string, challengeId: string): Promise<AdminStory[]> {
+  const res = await fetch(`${agentUrl}/api/admin/stories/challenges/${challengeId}/submissions`, { headers: authHeaders(token) });
+  const body = await handle<{ stories: AdminStory[] }>(res);
+  return body.stories;
+}
+
+export async function moderateStory(token: string, storyId: string, status: 'published' | 'hidden'): Promise<void> {
+  const res = await fetch(`${agentUrl}/api/admin/stories/${storyId}/moderate`, {
+    method: 'POST', headers: authHeaders(token), body: JSON.stringify({ status }),
+  });
+  await handle(res);
+}
+
+// ─── Platform Overview ───────────────────────────────────────────────────
+
+export interface PlatformOverview {
+  profileCount: number;
+  entryCount: number;
+  storyCount: number;
+}
+
+export async function fetchOverview(token: string): Promise<PlatformOverview> {
+  const res = await fetch(`${agentUrl}/api/admin/overview`, { headers: authHeaders(token) });
+  return handle(res);
+}
