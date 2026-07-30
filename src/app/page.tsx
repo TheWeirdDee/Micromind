@@ -9,6 +9,7 @@ import { WhySection } from "@/components/landing/WhySection";
 import { AICompanions } from "@/components/landing/AICompanions";
 import { FAQSection } from "@/components/landing/FAQSection";
 import { Footer } from "@/components/landing/Footer";
+import { SupportWidget } from "@/components/landing/SupportWidget";
 
 export default function Home() {
   return (
@@ -24,6 +25,7 @@ export default function Home() {
       <AICompanions />
       <FAQSection />
       <Footer />
+      <SupportWidget />
     </div>
   );
 }

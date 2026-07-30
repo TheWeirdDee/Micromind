@@ -212,3 +212,10 @@ export async function fetchOverview(token: string): Promise<PlatformOverview> {
   const res = await fetch(`${agentUrl}/api/admin/overview`, { headers: authHeaders(token) });
   return handle(res);
 }
+// Support monitoring
+export interface SupportConversation { id:string; user_id:string|null; visitor_id:string; name:string|null; email:string; status:'open'|'ticketed'|'closed'; page_url:string|null; created_at:string; updated_at:string }
+export interface SupportMessage { id:number; conversation_id:string; role:'user'|'assistant'|'system'; content:string; created_at:string }
+export interface SupportTicket { id:string; conversation_id:string; user_id:string|null; name:string|null; email:string; subject:string; summary:string; status:'open'|'in_progress'|'resolved'|'closed'; priority:'low'|'normal'|'high'|'urgent'; created_at:string; updated_at:string }
+export async function fetchSupportDashboard(token:string):Promise<{conversations:SupportConversation[];tickets:SupportTicket[]}>{const res=await fetch(`${agentUrl}/api/admin/support`,{headers:authHeaders(token)});return handle(res)}
+export async function fetchSupportMessages(token:string,conversationId:string):Promise<SupportMessage[]>{const res=await fetch(`${agentUrl}/api/admin/support/conversations/${conversationId}/messages`,{headers:authHeaders(token)});const body=await handle<{messages:SupportMessage[]}>(res);return body.messages}
+export async function updateSupportTicket(token:string,ticketId:string,status:SupportTicket['status']):Promise<void>{const res=await fetch(`${agentUrl}/api/admin/support/tickets/${ticketId}`,{method:'PATCH',headers:authHeaders(token),body:JSON.stringify({status})});await handle(res)}

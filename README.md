@@ -105,7 +105,7 @@ NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS=0x04Eb288d2e2c6f506769a76532564818E22D18Ff
 NEXT_PUBLIC_AGENT_API_URL=https://your-hosted-agent.up.railway.app
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key
 RESEND_API_KEY=re_your_resend_api_key
-RESEND_FROM_EMAIL=letters@yourdomain.com
+RESEND_FROM_EMAIL=MicroMind Letters <letters@micromindapp.xyz>
 ```
 
 Create a `/agent/.env` file in the agent directory:
