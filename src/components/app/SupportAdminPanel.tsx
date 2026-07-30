@@ -1,6 +1,7 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { CheckCircle2, Clock3, Inbox, LifeBuoy, Mail, MessageSquare, RefreshCw, Search } from 'lucide-react';
 import {
   fetchSupportDashboard,
@@ -155,7 +156,7 @@ export function SupportAdminPanel({ token }: { token: string }) {
                 <div className="flex flex-col sm:flex-row sm:items-start gap-3"><div className="min-w-0"><h3 className="font-serif text-lg truncate">{selectedTicket?.subject || 'Support conversation'}</h3><p className="text-[10px] font-mono text-text-muted mt-1">{selectedConversation.name || 'Visitor'} · {selectedConversation.email}</p></div><a href={`mailto:${selectedConversation.email}?subject=${encodeURIComponent(selectedTicket ? `Re: ${selectedTicket.subject}` : 'MicroMind support')}`} className="sm:ml-auto flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-accent/40 text-accent text-[10px] font-mono"><Mail className="w-3.5 h-3.5" />Email user</a></div>
                 {selectedTicket && <><p className="text-xs text-text-muted leading-relaxed bg-bg rounded-xl p-3">{selectedTicket.summary}</p><div className="flex flex-wrap gap-1.5">{STATUSES.map((status) => <button key={status} onClick={() => changeStatus(status)} disabled={selectedTicket.status === status} className="text-[9px] font-mono uppercase px-2.5 py-1.5 rounded-lg border border-border disabled:bg-accent/15 disabled:text-accent disabled:border-accent/20">{status.replace('_', ' ')}</button>)}</div></>}
               </header>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-bg/20">{loadingMessages ? <p className="text-xs font-mono text-text-muted">Loading conversation…</p> : messages.map((message) => <div key={message.id} className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${message.role === 'user' ? 'ml-auto bg-accent text-bg' : 'bg-surface border border-border'}`}><p className="text-[8px] font-mono uppercase opacity-60 mb-1">{message.role}</p>{message.content}</div>)}</div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-bg/20">{loadingMessages ? <p className="text-xs font-mono text-text-muted">Loading conversation…</p> : messages.map((message) => <div key={message.id} className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${message.role === 'user' ? 'ml-auto bg-accent text-bg' : 'bg-surface border border-border'}`}><p className="text-[8px] font-mono uppercase opacity-60 mb-1">{message.role}</p>{message.attachment_url && <a href={message.attachment_url} target="_blank" rel="noreferrer" className="block mb-2"><Image src={message.attachment_url} alt={message.attachment_name || 'Support screenshot'} width={900} height={600} unoptimized className="w-full max-h-72 object-contain rounded-xl border border-border/60 bg-bg" /></a>}{message.content}{message.attachment_url && <p className="text-[8px] font-mono mt-2 opacity-60">{message.attachment_ai_consent ? 'AI analysis allowed' : 'Human review only'} · Click image to enlarge</p>}</div>)}</div>
               {selectedTicket?.status === 'resolved' && <div className="p-3 border-t border-border text-[10px] font-mono text-accent-green flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5" />Marked resolved</div>}
             </>}
           </div>
