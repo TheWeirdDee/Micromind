@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldAlert, ShieldCheck, Trophy, Plus, Trash2, ArrowLeft, Pause, Play, Coins, Users, BookOpen, Feather, RotateCcw, Eye, EyeOff, ChevronDown } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Trophy, Plus, Trash2, ArrowLeft, Pause, Play, Coins, Users, BookOpen, Feather, RotateCcw, Eye, EyeOff, ChevronDown, LayoutDashboard, LifeBuoy, Mail, Settings2 } from 'lucide-react';
 import Link from 'next/link';
 import { SupportAdminPanel } from '@/components/app/SupportAdminPanel';
 import { useAuth } from '@/context/AuthContext';
@@ -33,6 +33,16 @@ import {
   type PlatformOverview,
 } from '@/lib/admin';
 
+type AdminSection = 'overview' | 'support' | 'staking' | 'letters' | 'stories' | 'admins';
+
+const ADMIN_SECTIONS = [
+  { id: 'overview' as const, label: 'Overview', description: 'Platform health at a glance', icon: LayoutDashboard },
+  { id: 'support' as const, label: 'Support', description: 'Conversations and tickets', icon: LifeBuoy },
+  { id: 'staking' as const, label: 'Staking', description: 'Contract and reward controls', icon: Coins },
+  { id: 'letters' as const, label: 'Letters', description: 'Delivery status and retries', icon: Mail },
+  { id: 'stories' as const, label: 'Stories', description: 'Challenges and moderation', icon: Feather },
+  { id: 'admins' as const, label: 'Access', description: 'Administrator permissions', icon: Settings2 },
+];
 function toLocalInputValue(date: Date): string {
   const d = new Date(date);
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -78,6 +88,7 @@ function defaultChallengeDates() {
 export default function AdminDashboardPage() {
   const { session, user } = useAuth();
 
+  const [activeSection, setActiveSection] = useState<AdminSection>('overview');
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -130,10 +141,7 @@ export default function AdminDashboardPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!token) {
-      setChecking(false);
-      return;
-    }
+    if (!token) return;
     checkIsAdmin(token)
       .then((ok) => {
         setIsAdmin(ok);
@@ -314,7 +322,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  if (checking) {
+  if (checking && token) {
     return <div className="text-center py-24 text-text-muted font-mono text-sm">Checking access...</div>;
   }
 
@@ -330,27 +338,26 @@ export default function AdminDashboardPage() {
   }
 
   const formValid = form.title.trim() && form.prompt.trim() && form.submissionsOpenAt && form.submissionsCloseAt && form.votingCloseAt;
+  const activeMeta = ADMIN_SECTIONS.find((section) => section.id === activeSection)!;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8 pb-24">
-      <div className="flex items-center gap-3">
-        <Link href="/app" className="text-text-muted hover:text-text-primary transition">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted mb-1 flex items-center gap-1.5">
-            <ShieldCheck className="w-3 h-3 text-accent" /> Admin
-          </p>
-          <h1 className="text-2xl font-serif">Dashboard</h1>
-        </div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pb-24">
+      <div className="mb-6 flex items-center gap-3">
+        <Link href="/app" className="w-10 h-10 rounded-xl border border-border bg-surface flex items-center justify-center text-text-muted hover:text-text-primary hover:border-accent/40 transition"><ArrowLeft className="w-4 h-4" /></Link>
+        <div><p className="text-[10px] font-mono uppercase tracking-[0.35em] text-accent mb-1 flex items-center gap-1.5"><ShieldCheck className="w-3 h-3" /> Administration</p><h1 className="text-2xl md:text-3xl font-serif">Control center</h1></div>
       </div>
-
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/25 rounded-2xl p-4 text-sm text-red-400 font-mono">{error}</div>
-      )}
-
-      {/* Platform Overview */}
-      {overview && (
+      <div className="grid lg:grid-cols-[240px_minmax(0,1fr)] gap-6 items-start">
+        <aside className="lg:sticky lg:top-24 bg-surface border border-border rounded-2xl p-2 overflow-x-auto">
+          <nav className="flex lg:flex-col gap-1 min-w-max lg:min-w-0" aria-label="Admin sections">
+            {ADMIN_SECTIONS.map((section) => { const Icon = section.icon; const selected = section.id === activeSection; return <button key={section.id} onClick={() => setActiveSection(section.id)} className={`group flex items-center gap-3 rounded-xl px-3 py-3 text-left transition min-w-[150px] lg:min-w-0 ${selected ? 'bg-accent text-bg shadow-sm' : 'text-text-muted hover:text-text-primary hover:bg-bg/60'}`}><Icon className="w-4 h-4 shrink-0" /><span className="min-w-0"><span className="block text-xs font-mono font-medium">{section.label}</span><span className={`hidden lg:block text-[9px] mt-0.5 truncate ${selected ? 'text-bg/65' : 'text-text-muted'}`}>{section.description}</span></span>{section.id === 'support' && <span className={`ml-auto text-[9px] font-mono rounded-full px-1.5 py-0.5 ${selected ? 'bg-bg/15' : 'bg-amber-500/10 text-amber-300'}`}>Live</span>}</button>; })}
+          </nav>
+        </aside>
+        <main className="min-w-0 space-y-6">
+          <div className="flex items-end justify-between gap-4 border-b border-border pb-4"><div><p className="text-[9px] font-mono uppercase tracking-[0.28em] text-text-muted">Workspace</p><h2 className="font-serif text-2xl mt-1">{activeMeta.label}</h2><p className="text-xs font-mono text-text-muted mt-1">{activeMeta.description}</p></div></div>
+          {error && <div className="bg-red-500/10 border border-red-500/25 rounded-2xl p-4 text-sm text-red-400 font-mono">{error}</div>}
+          {/* Platform Overview */}
+          {activeSection === 'overview' && <div className="space-y-5">
+          {overview && (
         <section className="grid grid-cols-3 gap-3">
           <div className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-3">
             <Users className="w-4 h-4 text-accent shrink-0" />
@@ -375,9 +382,13 @@ export default function AdminDashboardPage() {
           </div>
         </section>
       )}
+          <section className="grid sm:grid-cols-2 gap-3">
+            {ADMIN_SECTIONS.filter((section) => section.id !== 'overview').map((section) => { const Icon = section.icon; return <button key={section.id} onClick={() => setActiveSection(section.id)} className="bg-surface border border-border rounded-2xl p-4 flex items-center gap-4 text-left hover:border-accent/40 hover:bg-surface-2 transition group"><span className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center"><Icon className="w-4 h-4" /></span><span className="min-w-0"><span className="block font-serif text-sm">{section.label}</span><span className="block text-[10px] font-mono text-text-muted mt-1">{section.description}</span></span><ChevronDown className="w-4 h-4 ml-auto -rotate-90 text-text-muted group-hover:text-accent" /></button>; })}
+          </section>
+          </div>}
 
       {/* Staking Contract */}
-      <section className="space-y-4">
+      {activeSection === 'staking' && <section className="space-y-4">
         <h2 className="text-sm font-mono uppercase tracking-widest text-text-muted">30-Day Staking Challenge</h2>
         {!staking ? (
           <p className="text-xs font-mono text-text-muted">Could not load on-chain staking status.</p>
@@ -460,10 +471,10 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         )}
-      </section>
+      </section>}
 
       {/* Letters */}
-      <section className="space-y-4">
+      {activeSection === 'letters' && <section className="space-y-4">
         <h2 className="text-sm font-mono uppercase tracking-widest text-text-muted">Escrow Letters</h2>
         {!letterStats ? (
           <p className="text-xs font-mono text-text-muted">Loading...</p>
@@ -494,10 +505,10 @@ export default function AdminDashboardPage() {
             )}
           </div>
         )}
-      </section>
+      </section>}
 
       {/* Story Challenges */}
-      <section className="space-y-4">
+      {activeSection === 'stories' && <section className="space-y-4">
         <h2 className="text-sm font-mono uppercase tracking-widest text-text-muted">Story Challenges</h2>
 
         <div className="bg-surface border border-border rounded-2xl p-5 space-y-3">
@@ -624,12 +635,12 @@ export default function AdminDashboardPage() {
             })
           )}
         </div>
-      </section>
+      </section>}
 
-      {token && <SupportAdminPanel token={token} />}
+      {activeSection === 'support' && token && <SupportAdminPanel token={token} />}
 
       {/* Admins */}
-      <section className="space-y-4">
+      {activeSection === 'admins' && <section className="space-y-4">
         <h2 className="text-sm font-mono uppercase tracking-widest text-text-muted">Admins</h2>
         <div className="bg-surface border border-border rounded-2xl p-5 space-y-3">
           <div className="flex gap-2">
@@ -665,7 +676,9 @@ export default function AdminDashboardPage() {
             ))}
           </div>
         </div>
-      </section>
+      </section>}
+        </main>
+      </div>
     </motion.div>
   );
 }
