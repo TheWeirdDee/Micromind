@@ -828,8 +828,13 @@ app.post('/api/cron/send-reminder-pushes', async (req, res) => {
 const supportRateLimiter = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many support messages. Please wait a minute and try again.' } });
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'micromind16@gmail.com';
 const SUPPORT_PROMPT = `You are MicroMind Support, a concise product-support assistant for a privacy-first journaling app on Celo.
-Known facts: normal journaling is free and local-first; signed-in sync is encrypted client-side in Supabase; AI tools are optional and paid per use in USDm; MiniPay is supported; transactions cannot be reversed by the assistant. Never request passwords, recovery phrases, private keys, payment card data, or journal text.
-Answer only when confident. Never invent account state, transaction status, policies, or troubleshooting results. Escalate if the visitor asks for a human, reports a payment/account/data-loss/security problem, needs account-specific investigation, requests a refund, or your known facts cannot answer the issue. For basic how-to questions, answer directly.
+Known facts:
+- Normal journaling is free and local-first. Signed-in sync is encrypted client-side in Supabase.
+- AI tools are optional and paid per use in USDm. MiniPay is supported. Transactions cannot be reversed by the assistant.
+- To redeem Clarity Points, the user needs at least 10 points, enough points for the chosen amount, a valid 42-character Celo address beginning with 0x, and a signed-in MicroMind account so progress can sync. 10 points equals 0.005 USDm.
+Never request passwords, recovery phrases, private keys, payment-card data, or journal text. Never invent account state, transaction status, policies, or results.
+Your default behavior is troubleshoot first, not ticket first. On the first report of an ordinary problem, give the most relevant concrete checks and ask for the exact on-screen error if those checks fail. Set escalate=false. Do not escalate merely because an issue might eventually require account-specific investigation.
+Escalate only when: the visitor explicitly requests a human; the visitor already tried your relevant troubleshooting and remains blocked; they provide an error that requires backend investigation; or they report a refund request, suspected unauthorized transaction, exposed key/recovery phrase, or credible data loss. Even when escalating, provide any safe immediate guidance and tell them they can continue chatting while the ticket is open.
 Return JSON only: {"answer":"short helpful response","escalate":boolean,"subject":"ticket title if escalated","summary":"useful human handoff summary if escalated","priority":"low|normal|high|urgent"}.`;
 const cleanSupportText = (v: unknown, max: number) => typeof v === 'string' ? v.trim().slice(0, max) : '';
 const validSupportEmail = (v: string) => /^\S+@\S+\.\S+$/.test(v) && v.length <= 254;
@@ -851,11 +856,13 @@ app.post('/api/support/chat', supportRateLimiter, async (req, res) => {
       if (!validUuid(conversationId)) return res.status(400).json({ error: 'Invalid conversation.' });
       const { data: existing } = await supabase.from('support_conversations').select('id,user_id,visitor_id,email,status').eq('id', conversationId).maybeSingle();
       if (!existing || existing.visitor_id !== visitorId || existing.email !== email || (existing.user_id && existing.user_id !== userId)) return res.status(403).json({ error: 'Conversation access denied.' });
-      if (existing.status === 'ticketed' || existing.status === 'closed') return res.status(409).json({ error: 'This conversation is no longer accepting AI messages.' });
+      if (existing.status === 'closed') return res.status(409).json({ error: 'This conversation has been closed.' });
     } else {
       const { data: created, error } = await supabase.from('support_conversations').insert({ user_id: userId, visitor_id: visitorId, name: name || null, email, page_url: pageUrl || null }).select('id').single();
       if (error) throw error; conversationId = created.id;
     }
+    const { data: existingTicket } = await supabase.from('support_tickets').select('id').eq('conversation_id', conversationId).maybeSingle();
+    const existingTicketId = existingTicket?.id ?? null;
     const { error: messageError } = await supabase.from('support_messages').insert({ conversation_id: conversationId, role: 'user', content: message });
     if (messageError) throw messageError;
     const { data: history, error: historyError } = await supabase.from('support_messages').select('role,content').eq('conversation_id', conversationId).order('created_at', { ascending: true }).limit(20);
@@ -864,10 +871,10 @@ app.post('/api/support/chat', supportRateLimiter, async (req, res) => {
     let decision: { answer?: string; escalate?: boolean; subject?: string; summary?: string; priority?: string } = {};
     try { decision = JSON.parse(completion.choices[0]?.message?.content || '{}'); } catch { decision = { answer: 'I could not confidently resolve that, so I’m opening a support ticket for you.', escalate: true }; }
     const answer = cleanSupportText(decision.answer, 2000) || 'I could not confidently resolve that, so I’m opening a support ticket for you.';
-    const shouldEscalate = decision.escalate === true;
+    const shouldEscalate = decision.escalate === true && !existingTicketId;
     await supabase.from('support_messages').insert({ conversation_id: conversationId, role: 'assistant', content: answer });
     await supabase.from('support_conversations').update({ updated_at: new Date().toISOString(), ...(shouldEscalate ? { status: 'ticketed' } : {}) }).eq('id', conversationId);
-    let ticketId: string | null = null;
+    let ticketId: string | null = existingTicketId;
     if (shouldEscalate) {
       const subject = cleanSupportText(decision.subject, 140) || `Support request from ${email}`;
       const summary = cleanSupportText(decision.summary, 2000) || message;
