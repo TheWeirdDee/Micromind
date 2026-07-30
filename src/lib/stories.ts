@@ -68,17 +68,28 @@ export async function getPastChallenges(limit = 10): Promise<StoryChallenge[]> {
 export async function getStoriesForChallenge(challengeId: string): Promise<Story[]> {
   const { data, error } = await supabase
     .from('stories')
-    .select('*, public_profiles(username)')
+    .select('*')
     .eq('challenge_id', challengeId)
     .eq('status', 'published')
     .order('vote_count', { ascending: false })
     .order('created_at', { ascending: true });
 
   if (error) throw new Error(error.message);
-  return (data ?? []).map((row) => {
-    const r = row as unknown as Story & { public_profiles: { username: string } | null };
-    return { ...r, author_username: r.public_profiles?.username };
-  });
+  const stories = (data ?? []) as Story[];
+  const userIds = [...new Set(stories.map((story) => story.user_id))];
+  if (userIds.length === 0) return stories;
+
+  // public_profiles is a privacy-safe view, not a table related by a foreign
+  // key, so PostgREST cannot embed it in the stories query. Fetch names in a
+  // second query and join them client-side instead.
+  const { data: profiles, error: profileError } = await supabase
+    .from('public_profiles')
+    .select('id, username')
+    .in('id', userIds);
+  if (profileError) throw new Error(profileError.message);
+
+  const usernameById = new Map((profiles ?? []).map((profile) => [profile.id, profile.username]));
+  return stories.map((story) => ({ ...story, author_username: usernameById.get(story.user_id) }));
 }
 
 export async function getMySubmission(challengeId: string, userId: string): Promise<Story | null> {
