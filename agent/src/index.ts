@@ -840,15 +840,21 @@ const cleanSupportText = (v: unknown, max: number) => typeof v === 'string' ? v.
 const validSupportEmail = (v: string) => /^\S+@\S+\.\S+$/.test(v) && v.length <= 254;
 const validUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
-app.post('/api/support/chat', supportRateLimiter, async (req, res) => {
+const supportUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 4 * 1024 * 1024, files: 1 } });
+const SUPPORT_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+app.post('/api/support/chat', supportRateLimiter, supportUpload.single('image'), async (req, res) => {
   if (!supabase) return res.status(503).json({ error: 'Support storage is not configured.' });
   const email = cleanSupportText(req.body?.email, 254).toLowerCase();
   const name = cleanSupportText(req.body?.name, 80);
-  const message = cleanSupportText(req.body?.message, 2000);
+  const suppliedMessage = cleanSupportText(req.body?.message, 2000);
+  const message = suppliedMessage || (req.file ? 'Please review the attached screenshot.' : '');
   const visitorId = cleanSupportText(req.body?.visitorId, 36);
   const requestedConversationId = cleanSupportText(req.body?.conversationId, 36);
   const pageUrl = cleanSupportText(req.body?.pageUrl, 500);
-  if (!validSupportEmail(email) || !message || !validUuid(visitorId)) return res.status(400).json({ error: 'A valid email and message are required.' });
+  const aiImageConsent = req.body?.aiImageConsent === 'true';
+  if (!validSupportEmail(email) || !message || !validUuid(visitorId)) return res.status(400).json({ error: 'A valid email and message or screenshot are required.' });
+  if (req.file && !SUPPORT_IMAGE_TYPES.has(req.file.mimetype)) return res.status(400).json({ error: 'Screenshots must be PNG, JPEG, or WebP.' });
   const userId = await resolveUserId(req.headers.authorization);
   try {
     let conversationId = requestedConversationId;
@@ -859,15 +865,40 @@ app.post('/api/support/chat', supportRateLimiter, async (req, res) => {
       if (existing.status === 'closed') return res.status(409).json({ error: 'This conversation has been closed.' });
     } else {
       const { data: created, error } = await supabase.from('support_conversations').insert({ user_id: userId, visitor_id: visitorId, name: name || null, email, page_url: pageUrl || null }).select('id').single();
-      if (error) throw error; conversationId = created.id;
+      if (error) throw error;
+      conversationId = created.id;
     }
+
+    let attachmentPath: string | null = null;
+    let attachmentUrl: string | null = null;
+    if (req.file) {
+      const extension = req.file.mimetype === 'image/png' ? 'png' : req.file.mimetype === 'image/webp' ? 'webp' : 'jpg';
+      attachmentPath = `${conversationId}/${globalThis.crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from('support-attachments').upload(attachmentPath, req.file.buffer, { contentType: req.file.mimetype, cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
+      const { data: signed, error: signedError } = await supabase.storage.from('support-attachments').createSignedUrl(attachmentPath, 600);
+      if (signedError) throw signedError;
+      attachmentUrl = signed.signedUrl;
+    }
+
     const { data: existingTicket } = await supabase.from('support_tickets').select('id').eq('conversation_id', conversationId).maybeSingle();
     const existingTicketId = existingTicket?.id ?? null;
-    const { error: messageError } = await supabase.from('support_messages').insert({ conversation_id: conversationId, role: 'user', content: message });
+    const { error: messageError } = await supabase.from('support_messages').insert({ conversation_id: conversationId, role: 'user', content: message, attachment_path: attachmentPath, attachment_mime: req.file?.mimetype ?? null, attachment_name: req.file?.originalname?.slice(0, 180) ?? null, attachment_ai_consent: !!req.file && aiImageConsent });
     if (messageError) throw messageError;
+
     const { data: history, error: historyError } = await supabase.from('support_messages').select('role,content').eq('conversation_id', conversationId).order('created_at', { ascending: true }).limit(20);
     if (historyError) throw historyError;
-    const completion = await groq.chat.completions.create({ model: 'llama-3.3-70b-versatile', temperature: 0.2, max_tokens: 500, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: SUPPORT_PROMPT }, ...(history || []).map(m => ({ role: m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: m.content }))] } as any);
+    const aiMessages: any[] = [{ role: 'system', content: SUPPORT_PROMPT }];
+    for (let index = 0; index < (history || []).length; index++) {
+      const item = history![index];
+      const analyzeCurrentImage = index === history!.length - 1 && attachmentUrl && aiImageConsent && item.role === 'user';
+      if (analyzeCurrentImage) {
+        aiMessages.push({ role: 'user', content: [{ type: 'text', text: item.content }, { type: 'image_url', image_url: { url: attachmentUrl } }] });
+      } else {
+        aiMessages.push({ role: item.role === 'assistant' ? 'assistant' : 'user', content: item.content });
+      }
+    }
+    const completion = await groq.chat.completions.create({ model: attachmentUrl && aiImageConsent ? 'qwen/qwen3.6-27b' : 'llama-3.3-70b-versatile', temperature: 0.2, max_tokens: 500, response_format: { type: 'json_object' }, messages: aiMessages } as any);
     let decision: { answer?: string; escalate?: boolean; subject?: string; summary?: string; priority?: string } = {};
     try { decision = JSON.parse(completion.choices[0]?.message?.content || '{}'); } catch { decision = { answer: 'I could not confidently resolve that, so I’m opening a support ticket for you.', escalate: true }; }
     const answer = cleanSupportText(decision.answer, 2000) || 'I could not confidently resolve that, so I’m opening a support ticket for you.';
@@ -880,13 +911,16 @@ app.post('/api/support/chat', supportRateLimiter, async (req, res) => {
       const summary = cleanSupportText(decision.summary, 2000) || message;
       const priority = ['low','normal','high','urgent'].includes(decision.priority || '') ? decision.priority : 'normal';
       const { data: ticket, error: ticketError } = await supabase.from('support_tickets').insert({ conversation_id: conversationId, user_id: userId, name: name || null, email, subject, summary, priority }).select('id').single();
-      if (ticketError) throw ticketError; ticketId = ticket.id;
-      if (resend) resend.emails.send({ from: RESEND_FROM, to: SUPPORT_EMAIL, replyTo: email, subject: `[MicroMind Support] ${subject}`, text: `New support ticket ${ticketId}\nFrom: ${name || 'Visitor'} <${email}>\nPriority: ${priority}\n\n${summary}\n\nOpen the MicroMind admin dashboard to review the full conversation.` }).catch(err => console.error('[SUPPORT EMAIL]', err));
+      if (ticketError) throw ticketError;
+      ticketId = ticket.id;
+      if (resend) resend.emails.send({ from: RESEND_FROM, to: SUPPORT_EMAIL, replyTo: email, subject: `[MicroMind Support] ${subject}`, text: `New support ticket ${ticketId}\nFrom: ${name || 'Visitor'} <${email}>\nPriority: ${priority}\nScreenshot attached in dashboard: ${attachmentPath ? 'yes' : 'no'}\n\n${summary}\n\nOpen the MicroMind admin dashboard to review the full conversation.` }).catch(err => console.error('[SUPPORT EMAIL]', err));
     }
-    res.json({ conversationId, answer, ticketId });
-  } catch (err) { console.error('[SUPPORT]', err); res.status(500).json({ error: 'Support could not process your message. Please email micromind16@gmail.com.' }); }
+    res.json({ conversationId, answer, ticketId, attachmentUrl });
+  } catch (err) {
+    console.error('[SUPPORT]', err);
+    res.status(500).json({ error: 'Support could not process your message. Please email micromind16@gmail.com.' });
+  }
 });
-
 app.get('/api/admin/support', async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
@@ -901,7 +935,13 @@ app.get('/api/admin/support/conversations/:id/messages', async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
   const { data, error } = await supabase.from('support_messages').select('*').eq('conversation_id', req.params.id).order('created_at', { ascending: true });
-  if (error) return res.status(500).json({ error: error.message }); res.json({ messages: data || [] });
+  if (error) return res.status(500).json({ error: error.message });
+  const messages = await Promise.all((data || []).map(async (message) => {
+    if (!message.attachment_path) return { ...message, attachment_url: null };
+    const { data: signed } = await supabase!.storage.from('support-attachments').createSignedUrl(message.attachment_path, 3600);
+    return { ...message, attachment_url: signed?.signedUrl ?? null };
+  }));
+  res.json({ messages });
 });
 app.patch('/api/admin/support/tickets/:id', async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
@@ -1191,17 +1231,19 @@ app.get('/api/admin/stories/challenges/:challengeId/submissions', async (req, re
   try {
     const { data, error } = await supabase
       .from('stories')
-      .select('*, public_profiles(username)')
+      .select('*')
       .eq('challenge_id', req.params.challengeId)
       .order('vote_count', { ascending: false });
 
     if (error) throw error;
-    const stories = (data ?? []).map((row: Record<string, unknown>) => {
-      const profile = row.public_profiles as { username?: string } | null;
-      const { public_profiles, ...rest } = row;
-      void public_profiles;
-      return { ...rest, author_username: profile?.username };
-    });
+    const rows = data ?? [];
+    const userIds = [...new Set(rows.map((row) => row.user_id))];
+    const { data: profiles, error: profileError } = userIds.length
+      ? await supabase.from('public_profiles').select('id, username').in('id', userIds)
+      : { data: [], error: null };
+    if (profileError) throw profileError;
+    const usernameById = new Map((profiles ?? []).map((profile) => [profile.id, profile.username]));
+    const stories = rows.map((row) => ({ ...row, author_username: usernameById.get(row.user_id) }));
     res.json({ stories });
   } catch (err) {
     const errorVal = err as Error;
