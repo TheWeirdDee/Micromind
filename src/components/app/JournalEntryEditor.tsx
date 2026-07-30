@@ -7,9 +7,8 @@ import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import {
   ChevronLeft, Check, X, Pencil, Trash2, Mail, Copy, Star,
-  Smile, Laugh, Meh, Angry, Frown, Sparkles,
+  Smile, Laugh, Meh, Angry, Frown, Sparkles, LockKeyhole,
 } from 'lucide-react';
-import { useWallet } from '@/context/WalletContext';
 import {
   getEntries, saveEntry, editEntry, getFolders, updateStreak, MOOD_ICONS,
   RECENTLY_DELETED_FOLDER_ID, moveEntryToTrash, permanentlyDeleteEntry, setEntryStarred,
@@ -19,6 +18,7 @@ import { uploadJournalImage, deleteJournalImage, fetchJournalImage } from '@/lib
 import { PhotoAttachButton, VoiceRecordButton, EntryImage } from './JournalMediaControls';
 import { MarkdownToolbar, type TextSelection } from './MarkdownToolbar';
 import { ConfirmDialog } from './ConfirmDialog';
+import { OnchainJournalDialog } from './OnchainJournalDialog';
 import { THERAPEUTIC_PROMPTS, DEFAULT_PROMPTS } from '@/constants/prompts';
 
 const MOODS = [
@@ -100,7 +100,6 @@ interface JournalEntryEditorProps {
 export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { address } = useWallet();
 
   const [folders, setFolders] = useState<Folder[]>(() => (typeof window !== 'undefined' ? getFolders() : []));
   const [entry, setEntry] = useState<JournalEntry | null>(null);
@@ -126,6 +125,7 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
   const [toast, setToast] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showOnchainDialog, setShowOnchainDialog] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -513,6 +513,14 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
               >
                 <Mail className="w-3 h-3" /> Send as Letter
               </Link>
+              {entryId && !isInTrash && (
+                <button
+                  onClick={() => setShowOnchainDialog(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-accent/30 rounded-lg text-xs font-mono text-accent hover:bg-accent/10 transition-colors"
+                >
+                  <LockKeyhole className="w-3 h-3" /> Save encrypted on-chain
+                </button>
+              )}
             </div>
           </>
         )}
@@ -542,6 +550,14 @@ export function JournalEntryEditor({ mode, entryId }: JournalEntryEditorProps) {
         </motion.div>
       )}
 
+      {entryId && (
+        <OnchainJournalDialog
+          open={showOnchainDialog}
+          journalId={entryId}
+          content={content}
+          onClose={() => setShowOnchainDialog(false)}
+        />
+      )}
       <ConfirmDialog
         isOpen={confirmingPermanentDelete}
         title="Permanently delete this entry?"
