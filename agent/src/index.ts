@@ -824,6 +824,85 @@ app.post('/api/cron/send-reminder-pushes', async (req, res) => {
   }
 });
 
+// --- Public support chat + admin ticketing -----------------------------------
+const supportRateLimiter = rateLimit({ windowMs: 60_000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many support messages. Please wait a minute and try again.' } });
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'micromind16@gmail.com';
+const SUPPORT_PROMPT = `You are MicroMind Support, a concise product-support assistant for a privacy-first journaling app on Celo.
+Known facts: normal journaling is free and local-first; signed-in sync is encrypted client-side in Supabase; AI tools are optional and paid per use in USDm; MiniPay is supported; transactions cannot be reversed by the assistant. Never request passwords, recovery phrases, private keys, payment card data, or journal text.
+Answer only when confident. Never invent account state, transaction status, policies, or troubleshooting results. Escalate if the visitor asks for a human, reports a payment/account/data-loss/security problem, needs account-specific investigation, requests a refund, or your known facts cannot answer the issue. For basic how-to questions, answer directly.
+Return JSON only: {"answer":"short helpful response","escalate":boolean,"subject":"ticket title if escalated","summary":"useful human handoff summary if escalated","priority":"low|normal|high|urgent"}.`;
+const cleanSupportText = (v: unknown, max: number) => typeof v === 'string' ? v.trim().slice(0, max) : '';
+const validSupportEmail = (v: string) => /^\S+@\S+\.\S+$/.test(v) && v.length <= 254;
+const validUuid = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+
+app.post('/api/support/chat', supportRateLimiter, async (req, res) => {
+  if (!supabase) return res.status(503).json({ error: 'Support storage is not configured.' });
+  const email = cleanSupportText(req.body?.email, 254).toLowerCase();
+  const name = cleanSupportText(req.body?.name, 80);
+  const message = cleanSupportText(req.body?.message, 2000);
+  const visitorId = cleanSupportText(req.body?.visitorId, 36);
+  const requestedConversationId = cleanSupportText(req.body?.conversationId, 36);
+  const pageUrl = cleanSupportText(req.body?.pageUrl, 500);
+  if (!validSupportEmail(email) || !message || !validUuid(visitorId)) return res.status(400).json({ error: 'A valid email and message are required.' });
+  const userId = await resolveUserId(req.headers.authorization);
+  try {
+    let conversationId = requestedConversationId;
+    if (conversationId) {
+      if (!validUuid(conversationId)) return res.status(400).json({ error: 'Invalid conversation.' });
+      const { data: existing } = await supabase.from('support_conversations').select('id,user_id,visitor_id,email,status').eq('id', conversationId).maybeSingle();
+      if (!existing || existing.visitor_id !== visitorId || existing.email !== email || (existing.user_id && existing.user_id !== userId)) return res.status(403).json({ error: 'Conversation access denied.' });
+      if (existing.status === 'ticketed' || existing.status === 'closed') return res.status(409).json({ error: 'This conversation is no longer accepting AI messages.' });
+    } else {
+      const { data: created, error } = await supabase.from('support_conversations').insert({ user_id: userId, visitor_id: visitorId, name: name || null, email, page_url: pageUrl || null }).select('id').single();
+      if (error) throw error; conversationId = created.id;
+    }
+    const { error: messageError } = await supabase.from('support_messages').insert({ conversation_id: conversationId, role: 'user', content: message });
+    if (messageError) throw messageError;
+    const { data: history, error: historyError } = await supabase.from('support_messages').select('role,content').eq('conversation_id', conversationId).order('created_at', { ascending: true }).limit(20);
+    if (historyError) throw historyError;
+    const completion = await groq.chat.completions.create({ model: 'llama-3.3-70b-versatile', temperature: 0.2, max_tokens: 500, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: SUPPORT_PROMPT }, ...(history || []).map(m => ({ role: m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: m.content }))] } as any);
+    let decision: { answer?: string; escalate?: boolean; subject?: string; summary?: string; priority?: string } = {};
+    try { decision = JSON.parse(completion.choices[0]?.message?.content || '{}'); } catch { decision = { answer: 'I could not confidently resolve that, so I’m opening a support ticket for you.', escalate: true }; }
+    const answer = cleanSupportText(decision.answer, 2000) || 'I could not confidently resolve that, so I’m opening a support ticket for you.';
+    const shouldEscalate = decision.escalate === true;
+    await supabase.from('support_messages').insert({ conversation_id: conversationId, role: 'assistant', content: answer });
+    await supabase.from('support_conversations').update({ updated_at: new Date().toISOString(), ...(shouldEscalate ? { status: 'ticketed' } : {}) }).eq('id', conversationId);
+    let ticketId: string | null = null;
+    if (shouldEscalate) {
+      const subject = cleanSupportText(decision.subject, 140) || `Support request from ${email}`;
+      const summary = cleanSupportText(decision.summary, 2000) || message;
+      const priority = ['low','normal','high','urgent'].includes(decision.priority || '') ? decision.priority : 'normal';
+      const { data: ticket, error: ticketError } = await supabase.from('support_tickets').insert({ conversation_id: conversationId, user_id: userId, name: name || null, email, subject, summary, priority }).select('id').single();
+      if (ticketError) throw ticketError; ticketId = ticket.id;
+      if (resend) resend.emails.send({ from: RESEND_FROM, to: SUPPORT_EMAIL, replyTo: email, subject: `[MicroMind Support] ${subject}`, text: `New support ticket ${ticketId}\nFrom: ${name || 'Visitor'} <${email}>\nPriority: ${priority}\n\n${summary}\n\nOpen the MicroMind admin dashboard to review the full conversation.` }).catch(err => console.error('[SUPPORT EMAIL]', err));
+    }
+    res.json({ conversationId, answer, ticketId });
+  } catch (err) { console.error('[SUPPORT]', err); res.status(500).json({ error: 'Support could not process your message. Please email micromind16@gmail.com.' }); }
+});
+
+app.get('/api/admin/support', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+  const [{ data: conversations, error: cError }, { data: tickets, error: tError }] = await Promise.all([
+    supabase.from('support_conversations').select('*').order('updated_at', { ascending: false }).limit(200),
+    supabase.from('support_tickets').select('*').order('created_at', { ascending: false }).limit(200),
+  ]);
+  if (cError || tError) return res.status(500).json({ error: cError?.message || tError?.message });
+  res.json({ conversations: conversations || [], tickets: tickets || [] });
+});
+app.get('/api/admin/support/conversations/:id/messages', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+  const { data, error } = await supabase.from('support_messages').select('*').eq('conversation_id', req.params.id).order('created_at', { ascending: true });
+  if (error) return res.status(500).json({ error: error.message }); res.json({ messages: data || [] });
+});
+app.patch('/api/admin/support/tickets/:id', async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
+  const status = req.body?.status; if (!['open','in_progress','resolved','closed'].includes(status)) return res.status(400).json({ error: 'Invalid ticket status.' });
+  const { error } = await supabase.from('support_tickets').update({ status, updated_at: new Date().toISOString() }).eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message }); res.json({ success: true });
+});
 // ─── Story Challenge Admin Routes ──────────────────────────────────────────
 // Opening/finalizing a challenge period are operator actions, not something
 // any signed-in user should be able to trigger. Two ways in:

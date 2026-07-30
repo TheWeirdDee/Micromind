@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ShieldAlert, ShieldCheck, Trophy, Plus, Trash2, ArrowLeft, Pause, Play, Coins, Users, BookOpen, Feather, RotateCcw, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
+import { SupportAdminPanel } from '@/components/app/SupportAdminPanel';
 import { useAuth } from '@/context/AuthContext';
 import { getChallengePhase } from '@/lib/stories';
 import {
@@ -624,6 +625,8 @@ export default function AdminDashboardPage() {
           )}
         </div>
       </section>
+
+      {token && <SupportAdminPanel token={token} />}
 
       {/* Admins */}
       <section className="space-y-4">

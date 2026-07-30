@@ -22,7 +22,7 @@ export default function PrivacyPage() {
               Privacy Policy
             </h1>
             <p className="font-mono text-xs text-text-muted">
-              Last Updated: July 14, 2026
+              Last Updated: July 30, 2026
             </p>
           </div>
 
@@ -47,6 +47,7 @@ export default function PrivacyPage() {
                 <li><strong>Journal Entries:</strong> Saved locally in your browser&apos;s secure IndexedDB database. If synced to Supabase backup escrow, they are encrypted with your secret key before transmission.</li>
                 <li><strong>Blockchain Address:</strong> When you connect a Web3 wallet (such as MiniPay or Valora), we read your public Celo address to verify prompt balances.</li>
                 <li><strong>AI Inference Logs:</strong> When you query an AI companion, the request contains the context you submit. These prompts are processed statelessly and are never persisted or used to train public LLM models.</li>
+                <li><strong>Support Conversations:</strong> When you use the support widget, we store your name (if provided), email address, messages, AI replies, and any resulting ticket so MicroMind administrators can assist you. Do not include journal content, passwords, recovery phrases, private keys, or payment details.</li>
               </ul>
             </section>
 
