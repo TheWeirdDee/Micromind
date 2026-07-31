@@ -1,5 +1,5 @@
 export const ONCHAIN_JOURNAL_ADDRESS =
-  process.env.NEXT_PUBLIC_ONCHAIN_JOURNAL_ADDRESS as `0x${string}` | undefined;
+  (process.env.NEXT_PUBLIC_ONCHAIN_JOURNAL_ADDRESS ?? '0x34eA16Fad1Ba69d7aaA1e11ADA59D90d94cb9a09') as `0x${string}`;
 
 export const ONCHAIN_JOURNAL_ABI = [
   {
