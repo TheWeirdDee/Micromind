@@ -27,6 +27,10 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 95, damping: 14 } },
 } as const;
 
+function articleCopy(value: string): string {
+  return value.replace(/\bshort story\b/gi, 'short article').replace(/\bstories\b/gi, 'articles').replace(/\bstory\b/gi, 'article');
+}
+
 function formatDeadline(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
@@ -63,14 +67,15 @@ export default function StoriesPage() {
         }
       }
     } catch (e) {
-      setError((e as Error).message || 'Failed to load story challenge');
+      setError((e as Error).message || 'Failed to load article challenge');
     } finally {
       setLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    load();
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
   const handleVote = async (storyId: string) => {
@@ -100,7 +105,7 @@ export default function StoriesPage() {
         </Link>
         <div>
           <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-text-muted mb-1">Community</p>
-          <h1 className="text-2xl font-serif">Short Story Challenge</h1>
+          <h1 className="text-2xl font-serif">Short Article Challenge</h1>
         </div>
       </motion.div>
 
@@ -138,7 +143,7 @@ export default function StoriesPage() {
               </span>
             </div>
             <h2 className="font-serif text-xl font-bold">{challenge.title}</h2>
-            <p className="text-sm text-text-muted leading-relaxed">{challenge.prompt}</p>
+            <p className="text-sm text-text-muted leading-relaxed">{articleCopy(challenge.prompt)}</p>
 
             {phase === 'submissions' && user && (
               <Link
@@ -146,7 +151,7 @@ export default function StoriesPage() {
                 className="inline-flex items-center gap-2 bg-accent hover:bg-accent-gold text-bg font-serif font-bold text-sm px-5 py-3 rounded-2xl transition shadow-lg shadow-accent/15"
               >
                 <Feather className="w-4 h-4" />
-                {mySubmission ? 'Edit your story' : 'Write your story'}
+                {mySubmission ? 'Edit your article' : 'Write your article'}
               </Link>
             )}
           </motion.div>
@@ -154,7 +159,7 @@ export default function StoriesPage() {
           {winnerStory && (
             <motion.div variants={itemVariants} className="bg-accent/10 border border-accent/25 rounded-3xl p-6 space-y-2 text-center">
               <Trophy className="w-7 h-7 text-accent mx-auto" />
-              <p className="text-[10px] font-mono uppercase tracking-widest text-text-muted">Winning Story</p>
+              <p className="text-[10px] font-mono uppercase tracking-widest text-text-muted">Winning Article</p>
               <h3 className="font-serif text-lg font-bold">{winnerStory.title}</h3>
               <p className="text-xs font-mono text-text-muted">by {winnerStory.author_username ?? 'anonymous'}</p>
             </motion.div>
@@ -180,6 +185,9 @@ export default function StoriesPage() {
                       isMyVote ? 'border-accent/40' : 'border-border'
                     }`}
                   >
+                    {story.image_url && (
+                      <div className="-mx-5 -mt-5 mb-4 aspect-[16/8] bg-cover bg-center border-b border-border" style={{ backgroundImage: `url(${story.image_url})` }} role="img" aria-label={`${story.title} cover`} />
+                    )}
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h4 className="font-serif text-base font-bold">{story.title}</h4>

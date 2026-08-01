@@ -100,8 +100,8 @@ export const TOOLS: Tool[] = [
   {
     id: 0,
     slug: 'stories',
-    name: 'Short Story Challenge',
-    description: 'Write a short story on the monthly prompt and vote for the community\'s best.',
+    name: 'Short Article Challenge',
+    description: 'Write a short article on the monthly prompt and vote for the community\'s best.',
     price: 'Free',
     priceWei: '0',
     route: '/app/stories',

@@ -40,7 +40,7 @@ const ADMIN_SECTIONS = [
   { id: 'support' as const, label: 'Support', description: 'Conversations and tickets', icon: LifeBuoy },
   { id: 'staking' as const, label: 'Staking', description: 'Contract and reward controls', icon: Coins },
   { id: 'letters' as const, label: 'Letters', description: 'Delivery status and retries', icon: Mail },
-  { id: 'stories' as const, label: 'Stories', description: 'Challenges and moderation', icon: Feather },
+  { id: 'stories' as const, label: 'Articles', description: 'Challenges and moderation', icon: Feather },
   { id: 'admins' as const, label: 'Access', description: 'Administrator permissions', icon: Settings2 },
 ];
 function toLocalInputValue(date: Date): string {
@@ -377,7 +377,7 @@ export default function AdminDashboardPage() {
             <Feather className="w-4 h-4 text-accent shrink-0" />
             <div>
               <p className="text-lg font-serif font-bold">{overview.storyCount}</p>
-              <p className="text-[9px] font-mono uppercase text-text-muted">Story submissions</p>
+              <p className="text-[9px] font-mono uppercase text-text-muted">Article submissions</p>
             </div>
           </div>
         </section>
@@ -507,9 +507,9 @@ export default function AdminDashboardPage() {
         )}
       </section>}
 
-      {/* Story Challenges */}
+      {/* Article Challenges */}
       {activeSection === 'stories' && <section className="space-y-4">
-        <h2 className="text-sm font-mono uppercase tracking-widest text-text-muted">Story Challenges</h2>
+        <h2 className="text-sm font-mono uppercase tracking-widest text-text-muted">Article Challenges</h2>
 
         <div className="bg-surface border border-border rounded-2xl p-5 space-y-3">
           <p className="text-xs font-mono text-text-muted">Open a new challenge</p>

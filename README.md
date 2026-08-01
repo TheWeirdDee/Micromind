@@ -27,7 +27,7 @@ Built for MiniPay users across Africa and beyond.
 | **Tweet Generator** | 0.005 USDm | Turn any personal thought or entry into an engaging, voice-authentic draft tweet. |
 | **Mind Chat** | 0.005 USDm | A secure, general-purpose AI chat companion for guidance. |
 | **30-Day Staking Challenge** | 5.00 USDm Stake | Stake USDm, journal daily for 30 days, and withdraw your stake plus a reward if you complete it — principal is always returned even if you don't. |
-| **Short Story Challenge** | Free | Write a short story on the monthly community prompt, then vote for your favorite among everyone's submissions. The most-voted story wins. |
+| **Short Article Challenge** | Free | Write a short article on the monthly community prompt, then vote for your favorite among everyone's submissions. The most-voted story wins. |
 | **Therapeutic Writing** | Free | Tell us what you want to explore and get 3 tailored journaling prompts — meant to help you find your own words, not replace them. |
 
 ---
@@ -61,12 +61,12 @@ A free AI tool built around a simple idea: in a world where people write less an
 
 ---
 
-## 30-Day Staking Challenge & Short Story Challenge
+## 30-Day Staking Challenge & Short Article Challenge
 
 Two community-driven, Web3-native incentive loops layered on top of journaling:
 
 * **30-Day Staking Challenge:** Stake USDm on-chain (`MicroMindStaking.sol`) and commit to a daily "morning pages" habit. Miss too many days and you still get your full stake back — the challenge is lossless. Hit the required check-in count and you also collect a USDm reward, guaranteed and reserved for you the moment you start, unaffected by how many other people finish before you. Fully gasless via an EIP-712-signed relayer flow.
-* **Short Story Challenge:** Each month opens a themed writing prompt. Submit one short story while the window is open, then the community votes for its favorite during the voting window — one vote per person, no self-votes, no revote spam. The most-voted story wins the challenge. Pure reputation/leaderboard feature, no token stake required.
+* **Short Article Challenge:** Each month opens a themed writing prompt. Submit one short article while the window is open, then the community votes for its favorite during the voting window — one vote per person, no self-votes, no revote spam. The most-voted story wins the challenge. Pure reputation/leaderboard feature, no token stake required.
 
 ---
 
@@ -212,8 +212,9 @@ CREATE OR REPLACE VIEW public.public_profiles WITH (security_invoker = false) AS
 GRANT SELECT ON public.public_profiles TO anon, authenticated;
 ```
 
-For the short story challenge and staking-relayer nonce tables, run
+For the short article challenge and staking-relayer nonce tables, run
 `docs/story_challenges.sql` and `docs/relay_nonces.sql` as well.
+For an existing community-writing deployment, also run docs/short_articles_migration.sql to apply the short-article limits and create the article cover-image bucket/policies.
 
 ---
 

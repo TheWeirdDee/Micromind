@@ -1,10 +1,10 @@
--- MicroMind Short Story Challenges — Database Setup
+-- MicroMind Short Article Challenges — Database Setup
 -- Run this script inside the Supabase SQL Editor dashboard.
 --
 -- Community writing contest: each month (or whatever cadence the operator
 -- chooses) opens a `story_challenges` period with a prompt/theme. Users
--- submit one short story per challenge while submissions are open, then the
--- community votes (one vote per user per challenge, cast for a single story)
+-- submit one short article per challenge while submissions are open, then the
+-- community votes (one vote per user per challenge, cast for a single article)
 -- during the voting window. There is no monetary stake or payout here —
 -- winners are purely a reputation/leaderboard feature, so client-direct
 -- writes (unlike quest_progress or the staking flow, which move real USDm)
@@ -40,13 +40,16 @@ FOR SELECT
 TO authenticated
 USING (true);
 
--- 2. Story submissions ----------------------------------------------------
+-- 2. Article submissions ----------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.stories (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     challenge_id UUID NOT NULL REFERENCES public.story_challenges(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    title TEXT NOT NULL CHECK (char_length(title) BETWEEN 1 AND 120),
-    content TEXT NOT NULL CHECK (char_length(content) BETWEEN 200 AND 8000),
+    title TEXT NOT NULL CHECK (char_length(title) BETWEEN 3 AND 80),
+    content TEXT NOT NULL CHECK (
+      array_length(regexp_split_to_array(btrim(content), '\s+'), 1) BETWEEN 100 AND 1000
+    ),
+    image_url TEXT,
     vote_count INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'hidden')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
@@ -115,7 +118,7 @@ USING (
 
 -- 3. Votes ------------------------------------------------------------------
 -- Raw votes are NOT broadly readable (see SELECT policy below) so voter
--- identity per story can't be scraped for brigading/retaliation — public
+-- identity per article can't be scraped for brigading/retaliation — public
 -- ranking uses stories.vote_count (kept in sync by the trigger further down).
 CREATE TABLE IF NOT EXISTS public.story_votes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -146,7 +149,7 @@ WITH CHECK (
   AND NOT EXISTS (
     SELECT 1 FROM public.stories s WHERE s.id = story_id AND s.user_id = auth.uid()
   )
-  -- Story must belong to the challenge being voted in, and only published stories are votable.
+  -- Article must belong to the challenge being voted in, and only published stories are votable.
   AND EXISTS (
     SELECT 1 FROM public.stories s
     WHERE s.id = story_id AND s.challenge_id = story_votes.challenge_id AND s.status = 'published'
@@ -196,7 +199,34 @@ AFTER INSERT OR DELETE ON public.story_votes
 FOR EACH ROW EXECUTE FUNCTION public.apply_story_vote_change();
 
 -- 4. Author display name ----------------------------------------------------
--- Stories join to `public.public_profiles` (id, username only) for the
+-- Articles join to `public.public_profiles` (id, username only) for the
 -- author's display name. That view is defined in
 -- docs/profiles_security_hardening.sql — run that script first (it also
 -- fixes a critical pre-existing leak on the base `profiles` table).
+-- 5. Public article cover images -------------------------------------------
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('article-images', 'article-images', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS "Public can view article images" ON storage.objects;
+CREATE POLICY "Public can view article images" ON storage.objects
+FOR SELECT USING (bucket_id = 'article-images');
+
+DROP POLICY IF EXISTS "Users upload own article images" ON storage.objects;
+CREATE POLICY "Users upload own article images" ON storage.objects
+FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'article-images' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+DROP POLICY IF EXISTS "Users update own article images" ON storage.objects;
+CREATE POLICY "Users update own article images" ON storage.objects
+FOR UPDATE TO authenticated
+USING (bucket_id = 'article-images' AND (storage.foldername(name))[1] = auth.uid()::text)
+WITH CHECK (bucket_id = 'article-images' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+DROP POLICY IF EXISTS "Users delete own article images" ON storage.objects;
+CREATE POLICY "Users delete own article images" ON storage.objects
+FOR DELETE TO authenticated
+USING (bucket_id = 'article-images' AND (storage.foldername(name))[1] = auth.uid()::text);

@@ -21,7 +21,7 @@ const faqs = [
   },
   {
     q: "How can I earn with MicroMind?",
-    a: "A few ways, all free to start: solve Clarity Quest puzzles and cash your points out to USDm; write the winning entry in the monthly Short Story Challenge, voted on by the community; or complete the 30-Day Staking Challenge to get your full stake back plus a reward. Writing and playing are always free — you only ever spend USDm if you choose a paid AI tool.",
+    a: "A few ways, all free to start: solve Clarity Quest puzzles and cash your points out to USDm; write the winning entry in the monthly Short Article Challenge, voted on by the community; or complete the 30-Day Staking Challenge to get your full stake back plus a reward. Writing and playing are always free — you only ever spend USDm if you choose a paid AI tool.",
   },
   {
     q: "What is the Clarity Quest?",

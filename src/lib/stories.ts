@@ -17,6 +17,7 @@ export interface Story {
   user_id: string;
   title: string;
   content: string;
+  image_url: string | null;
   vote_count: number;
   status: 'published' | 'hidden';
   created_at: string;
@@ -104,10 +105,10 @@ export async function getMySubmission(challengeId: string, userId: string): Prom
   return data;
 }
 
-export async function submitStory(challengeId: string, title: string, content: string, userId: string): Promise<Story> {
+export async function submitStory(challengeId: string, title: string, content: string, userId: string, imageUrl: string | null): Promise<Story> {
   const { data, error } = await supabase
     .from('stories')
-    .insert({ challenge_id: challengeId, user_id: userId, title, content })
+    .insert({ challenge_id: challengeId, user_id: userId, title, content, image_url: imageUrl })
     .select()
     .single();
 
@@ -115,10 +116,10 @@ export async function submitStory(challengeId: string, title: string, content: s
   return data;
 }
 
-export async function updateStory(storyId: string, title: string, content: string): Promise<void> {
+export async function updateStory(storyId: string, title: string, content: string, imageUrl: string | null): Promise<void> {
   const { error } = await supabase
     .from('stories')
-    .update({ title, content, updated_at: new Date().toISOString() })
+    .update({ title, content, image_url: imageUrl, updated_at: new Date().toISOString() })
     .eq('id', storyId);
 
   if (error) throw new Error(error.message);
@@ -164,4 +165,29 @@ export async function retractVote(challengeId: string, userId: string): Promise<
     .eq('challenge_id', challengeId)
     .eq('user_id', userId);
   if (error) throw new Error(error.message);
+}
+const ARTICLE_IMAGE_BUCKET = 'article-images';
+
+export async function uploadArticleImage(file: File, userId: string): Promise<string> {
+  if (!file.type.startsWith('image/')) throw new Error('Please choose an image file.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('The image must be 5 MB or smaller.');
+  const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `${userId}/${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage.from(ARTICLE_IMAGE_BUCKET).upload(path, file, {
+    cacheControl: '31536000',
+    contentType: file.type,
+    upsert: false,
+  });
+  if (error) throw new Error(error.message);
+  return supabase.storage.from(ARTICLE_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+export async function deleteArticleImage(publicUrl: string, userId: string): Promise<void> {
+  const marker = `/${ARTICLE_IMAGE_BUCKET}/`;
+  const index = publicUrl.indexOf(marker);
+  if (index < 0) return;
+  const path = decodeURIComponent(publicUrl.slice(index + marker.length));
+  if (!path.startsWith(`${userId}/`)) return;
+  const { error } = await supabase.storage.from(ARTICLE_IMAGE_BUCKET).remove([path]);
+  if (error) console.warn('Failed to remove replaced article image', error);
 }

@@ -52,7 +52,7 @@ const ITEMS: RoadmapItem[] = [
     title: "Community-picked challenge themes",
     status: "Planned",
     description:
-      "Right now an admin sets each month's Short Story Challenge prompt. Next: submit and vote on the theme you want to see, so the community picks what it writes about.",
+      "Right now an admin sets each month's Short Article Challenge prompt. Next: submit and vote on the theme you want to see, so the community picks what it writes about.",
   },
 ];
 

@@ -89,8 +89,8 @@ const tools = [
   {
     icon: Feather,
     slug: 'stories',
-    name: 'Short Story Challenge',
-    desc: 'Write a short story on the monthly community prompt, then vote for your favorite among everyone\'s submissions.',
+    name: 'Short Article Challenge',
+    desc: 'Write a short article on the monthly community prompt, then vote for your favorite among everyone\'s submissions.',
     price: 'Free',
     btnText: 'Read & Vote',
     route: '/app/stories',
