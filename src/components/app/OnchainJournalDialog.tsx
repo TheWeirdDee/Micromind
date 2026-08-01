@@ -6,6 +6,7 @@ import { useWallet } from '@/context/WalletContext';
 import {
   getOnchainLink,
   ONCHAIN_PLAINTEXT_BYTE_LIMIT,
+  ONCHAIN_JOURNAL_PRICE_USDM,
   saveEncryptedJournalOnchain,
   saveOnchainLink,
   utf8ByteLength,
@@ -23,7 +24,7 @@ export function OnchainJournalDialog({
   content: string;
   onClose: () => void;
 }) {
-  const { address, walletClient } = useWallet();
+  const { address, walletClient, isMiniPay } = useWallet();
   const [consented, setConsented] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -45,13 +46,21 @@ export function OnchainJournalDialog({
         content,
         address: address as `0x${string}`,
         walletClient,
+        isMiniPay,
       });
       const saved = { ...receipt, savedAt: Date.now() };
       saveOnchainLink(journalId, receipt);
       setLink(saved);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'Could not save this entry on-chain.';
-      setError(message.includes('User rejected') ? 'The wallet request was cancelled.' : message);
+      const lowerMessage = message.toLowerCase();
+      if (lowerMessage.includes('user rejected') || lowerMessage.includes('rejected the request')) {
+        setError('The wallet request was cancelled.');
+      } else if (lowerMessage.includes('insufficient funds')) {
+        setError('The wallet could not reserve the transaction. Refresh your wallet balance and try again.');
+      } else {
+        setError('The encrypted entry could not be saved. Please try again.');
+      }
     } finally {
       setSaving(false);
     }
@@ -99,7 +108,7 @@ export function OnchainJournalDialog({
                 <li>• Wallet access: use the same wallet to recreate the decryption key.</li>
                 <li>• Public metadata: wallet address, time, size and integrity hash are visible.</li>
                 <li>• Text only: images and audio are not included.</li>
-                <li>• Cost: your wallet pays the live Celo network fee.</li>
+                <li>• App fee: {ONCHAIN_JOURNAL_PRICE_USDM} USDm.</li>
               </ul>
             </div>
 

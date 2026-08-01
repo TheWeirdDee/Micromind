@@ -14,10 +14,18 @@ interface AppContentWrapperProps {
 export function AppContentWrapper({ children }: AppContentWrapperProps) {
   const { user, loading } = useAuth();
   const [showReminder, setShowReminder] = useState(false);
-  const [onboarded, setOnboarded] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('mm_onboarding_completed') === 'true';
-  });
+  const [onboardedUserId, setOnboardedUserId] = useState<string | null>(null);
+  const accountKey = user ? `mm_onboarding_completed:${user.id}` : null;
+  const locallyCompleted = typeof window !== 'undefined' && accountKey
+    ? localStorage.getItem(accountKey) === 'true'
+    : false;
+  // New signups explicitly carry false. Legacy accounts have no metadata
+  // value and are already established, so they skip new-user onboarding.
+  const onboarded = !!user && (
+    onboardedUserId === user.id ||
+    locallyCompleted ||
+    user.user_metadata?.onboarding_completed !== false
+  );
 
   const isAuthed = !!user && onboarded;
 
@@ -106,9 +114,12 @@ export function AppContentWrapper({ children }: AppContentWrapperProps) {
   }
 
   if (!onboarded) {
-    return <OnboardingWizard onComplete={() => {
-      localStorage.setItem('mm_onboarding_completed', 'true');
-      setOnboarded(true);
+    return <OnboardingWizard onComplete={async () => {
+      localStorage.setItem(`mm_onboarding_completed:${user.id}`, 'true');
+      const { supabase } = await import('@/lib/supabase');
+      const { error } = await supabase.auth.updateUser({ data: { onboarding_completed: true } });
+      if (error) console.warn('Failed to persist onboarding completion', error);
+      setOnboardedUserId(user.id);
     }} />;
   }
 

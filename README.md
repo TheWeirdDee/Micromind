@@ -93,6 +93,11 @@ MicroMind is optimized to run smoothly on low-end smartphones in emerging market
 | :--- | :--- | :--- |
 | `MicroMindPayment` (AI tool payments) | `0x3e449ebd5ee4278db9258350486137350a6B1556` | [Celoscan](https://celoscan.io/address/0x3e449ebd5ee4278db9258350486137350a6B1556) |
 | `MicroMindStaking` (30-Day Challenge) | `0x04Eb288d2e2c6f506769a76532564818E22D18Ff` | [Celoscan](https://celoscan.io/address/0x04Eb288d2e2c6f506769a76532564818E22D18Ff#code) |
+| `EncryptedOnchainJournal` (0.01 USDm permanent encrypted saves only) | `0xabB385E7e9e482f871fCEfb15aEFabc7B3AA63f7` | [Celoscan](https://celoscan.io/address/0xabB385E7e9e482f871fCEfb15aEFabc7B3AA63f7) |
+
+
+
+MicroMindPayment handles AI-tool charges. EncryptedOnchainJournal is a separate contract used only for permanent encrypted journal saves; it atomically collects the 0.01 USDm save fee and stores ciphertext. It is not the address for other MicroMind payments.
 
 ### Environment Setup
 
@@ -101,6 +106,7 @@ Create a `/.env.local` file in the root directory:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 NEXT_PUBLIC_CONTRACT_ADDRESS=0x3e449ebd5ee4278db9258350486137350a6B1556
+NEXT_PUBLIC_ONCHAIN_JOURNAL_ADDRESS=0xabB385E7e9e482f871fCEfb15aEFabc7B3AA63f7
 NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS=0x04Eb288d2e2c6f506769a76532564818E22D18Ff
 NEXT_PUBLIC_AGENT_API_URL=https://your-hosted-agent.up.railway.app
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key

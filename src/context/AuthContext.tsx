@@ -138,7 +138,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Email-existence can no longer be pre-checked client-side (that query
     // required anon SELECT on `profiles.email`, which was the leak). Rely on
     // auth.signUp's own duplicate-email handling below instead.
-    const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password });
+    const { data, error } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: { data: { onboarding_completed: false } },
+    });
     if (error) throw new Error(error.message);
     if (!data.user) throw new Error('Signup failed. Please try again.');
     // Supabase's documented signal for "this email is already registered":

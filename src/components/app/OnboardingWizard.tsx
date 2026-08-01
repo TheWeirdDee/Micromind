@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
 
 interface OnboardingWizardProps {
-  onComplete: () => void;
+  onComplete: () => void | Promise<void>;
 }
 
 const GOALS = [
@@ -38,7 +38,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     );
   };
 
-  const handleFinalize = () => {
+  const handleFinalize = async () => {
     let profile: Record<string, unknown> = {};
     try {
       const raw = localStorage.getItem('mm_user_profile');
@@ -46,8 +46,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     } catch { /* ignore */ }
 
     localStorage.setItem('mm_user_profile', JSON.stringify({ ...profile, goals }));
-    localStorage.setItem('mm_onboarding_completed', 'true');
-    onComplete();
+    await onComplete();
   };
 
   return (
