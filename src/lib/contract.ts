@@ -1,6 +1,6 @@
 /** MicroMindPayment contract address on Celo Mainnet. */
 export const CONTRACT_ADDRESS =
-  process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`;
+  (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ?? '0x3e449ebd5ee4278db9258350486137350a6B1556') as `0x${string}`;
 
 /** USDm token address on Celo Mainnet. */
 export const USDm_ADDRESS =
@@ -87,7 +87,7 @@ Object.freeze(MICROMIND_ABI);
 
 /** MicroMindStaking contract address on Celo Mainnet. */
 export const STAKING_CONTRACT_ADDRESS =
-  process.env.NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS as `0x${string}`;
+  (process.env.NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS ?? '0x04Eb288d2e2c6f506769a76532564818E22D18Ff') as `0x${string}`;
 
 export const MICROMIND_STAKING_ABI = [
   {

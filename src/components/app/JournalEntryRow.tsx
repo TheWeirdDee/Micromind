@@ -63,7 +63,7 @@ export function JournalEntryRow({
   };
 
   return (
-    <div className="relative overflow-hidden group bg-bg">
+    <div className="relative overflow-hidden group bg-bg" style={{ contentVisibility: 'auto', containIntrinsicSize: '88px' }}>
       {/* Right-side actions, revealed by swiping left */}
       <div className="absolute inset-y-0 right-0 flex" style={{ width: ACTIONS_WIDTH }}>
         <button

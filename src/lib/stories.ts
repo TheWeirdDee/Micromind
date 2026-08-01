@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { compressImage } from './imageCompression';
 
 export interface StoryChallenge {
   id: string;
@@ -171,11 +172,14 @@ const ARTICLE_IMAGE_BUCKET = 'article-images';
 export async function uploadArticleImage(file: File, userId: string): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('Please choose an image file.');
   if (file.size > 5 * 1024 * 1024) throw new Error('The image must be 5 MB or smaller.');
-  const extension = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const optimized = await compressImage(file, { maxDimension: 1920, quality: 0.8 });
+  const extension = optimized.type === 'image/webp'
+    ? 'webp'
+    : (file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg');
   const path = `${userId}/${crypto.randomUUID()}.${extension}`;
-  const { error } = await supabase.storage.from(ARTICLE_IMAGE_BUCKET).upload(path, file, {
+  const { error } = await supabase.storage.from(ARTICLE_IMAGE_BUCKET).upload(path, optimized, {
     cacheControl: '31536000',
-    contentType: file.type,
+    contentType: optimized.type || file.type,
     upsert: false,
   });
   if (error) throw new Error(error.message);

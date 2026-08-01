@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { CONTRACT_ADDRESS } from '@/lib/contract';
+import { ONCHAIN_JOURNAL_ADDRESS } from '@/lib/onchainJournalContract';
 
 /**
  * MiniPay Hook — POST /api/minipay/hook
@@ -47,10 +49,16 @@ export async function GET() {
     contracts: [
       {
         name: 'MicroMindPayment',
-        address: '0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c',
+        address: CONTRACT_ADDRESS,
         network: 'celo',
         paymentToken: 'USDm',
-      }
+      },
+      {
+        name: 'MicroMindJournal',
+        address: ONCHAIN_JOURNAL_ADDRESS,
+        network: 'celo',
+        paymentToken: 'USDm',
+      },
     ],
     pricing: {
       chat: '0.005 USDm',
@@ -58,7 +66,7 @@ export async function GET() {
       reflect: '0.005 USDm',
       pattern: '0.005 USDm',
       letter_polish: '0.01 USDm',
-      journal: 'free',
+      journal: '0.01 USDm',
       letter_send: 'free',
     },
     category: 'productivity',

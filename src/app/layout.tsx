@@ -4,6 +4,7 @@ import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ServiceWorkerRegistration } from "@/components/app/ServiceWorkerRegistration";
+import { WebVitalsReporter } from "@/components/performance/WebVitalsReporter";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -96,6 +97,7 @@ export default function RootLayout({
         className={`${playfair.variable} ${dmMono.variable} ${ultra.variable} antialiased selection:bg-accent selection:text-bg`}
       >
         <ServiceWorkerRegistration />
+        <WebVitalsReporter />
         <AuthProvider>
           <WalletProvider>
             <div className="grain-overlay" />

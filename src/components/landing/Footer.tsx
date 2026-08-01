@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Logo } from '@/components/brand/Logo';
+import { CONTRACT_ADDRESS } from '@/lib/contract';
 
 export function Footer() {
   return (
@@ -41,7 +42,7 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="https://celoscan.io/address/0xDdf2E45be95B416fE5E704073B3E3f0fB75D214c"
+                  href={`https://celoscan.io/address/${CONTRACT_ADDRESS}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-mono text-[11px] text-text-muted hover:text-text-primary transition-colors"

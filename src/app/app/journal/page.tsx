@@ -49,6 +49,7 @@ export default function JournalPage() {
 
   const selectView = (v: ListView) => {
     setView(v);
+    setVisibleCount(80);
     setMobileDrilledIn(true);
     setFolderMenuId(null);
     setSearchQuery('');
@@ -68,6 +69,8 @@ export default function JournalPage() {
   );
 
   const newFolderInputRef = useRef<HTMLInputElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(80);
 
   const refresh = () => {
     setFolders(getFolders());
@@ -100,6 +103,18 @@ export default function JournalPage() {
       view.kind === 'starred' ? nonTrashedEntries.filter(e => e.starred) :
       view.id === null ? nonTrashedEntries :
       nonTrashedEntries.filter(e => e.folderId === view.id);
+
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || visibleCount >= filteredEntries.length) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisibleCount((count) => Math.min(count + 80, filteredEntries.length)); },
+      { rootMargin: '600px 0px' }
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [filteredEntries.length, visibleCount]);
 
   // -- Folder handlers -------------------------------------------------------
 
@@ -280,7 +295,7 @@ export default function JournalPage() {
         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted/60 pointer-events-none" />
         <input
           value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          onChange={e => { setSearchQuery(e.target.value); setVisibleCount(80); }}
           placeholder="Search your journal..."
           className="w-full bg-surface border border-border rounded-2xl pl-10 pr-10 py-2.5 text-sm text-text-primary placeholder:text-text-muted/50 outline-none focus:border-accent transition-colors"
         />
@@ -458,7 +473,7 @@ export default function JournalPage() {
           {/* Entry list — flat, Notes-app style, hairline dividers between rows */}
           {filteredEntries.length > 0 ? (
             <div className="divide-y divide-border/40 rounded-xl border border-border/40 overflow-hidden">
-              {filteredEntries.map(entry => (
+              {filteredEntries.slice(0, visibleCount).map(entry => (
                 <JournalEntryRow
                   key={entry.id}
                   entry={entry}
@@ -472,6 +487,7 @@ export default function JournalPage() {
                   onToggleStar={() => handleToggleStar(entry)}
                 />
               ))}
+              {visibleCount < filteredEntries.length && <div ref={loadMoreRef} className="h-px" aria-hidden="true" />}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center text-center py-16 px-4">

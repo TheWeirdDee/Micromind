@@ -12,7 +12,10 @@
     "lint": "eslint",
     "type-check": "tsc --noEmit",
     "agent": "cd agent && npm run dev",
-    "dev:all": "concurrently \"npm run dev\" \"npm run agent\" --names \"web,agent\" --prefix-colors \"cyan,yellow\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run agent\" --names \"web,agent\" --prefix-colors \"cyan,yellow\"",
+    "analyze": "cross-env ANALYZE=true next build --webpack",
+    "check:bundle": "node scripts/check-bundle-budget.mjs",
+    "build:budget": "next build && node scripts/check-bundle-budget.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
@@ -34,12 +37,14 @@
     "wagmi": "^3.6.9"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.12",
     "@tailwindcss/postcss": "^4",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "sharp": "^0.35.3",

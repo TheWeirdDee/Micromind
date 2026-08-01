@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -18,7 +19,10 @@ import { uploadJournalImage, deleteJournalImage, fetchJournalImage } from '@/lib
 import { PhotoAttachButton, VoiceRecordButton, EntryImage } from './JournalMediaControls';
 import { MarkdownToolbar, type TextSelection } from './MarkdownToolbar';
 import { ConfirmDialog } from './ConfirmDialog';
-import { OnchainJournalDialog } from './OnchainJournalDialog';
+const OnchainJournalDialog = dynamic(
+  () => import('./OnchainJournalDialog').then((module) => module.OnchainJournalDialog),
+  { ssr: false }
+);
 import { THERAPEUTIC_PROMPTS, DEFAULT_PROMPTS } from '@/constants/prompts';
 
 const MOODS = [

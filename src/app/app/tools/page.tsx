@@ -98,7 +98,7 @@ export default function ToolsPage() {
 
           return isLocked
             ? <div key={tool.slug}>{card}</div>
-            : <Link key={tool.slug} href={tool.route}>{card}</Link>;
+            : <Link key={tool.slug} href={tool.route} prefetch={false}>{card}</Link>;
         })}
       </motion.div>
     </motion.div>

@@ -27,7 +27,7 @@ Built for MiniPay users across Africa and beyond.
 | **Tweet Generator** | 0.005 USDm | Turn any personal thought or entry into an engaging, voice-authentic draft tweet. |
 | **Mind Chat** | 0.005 USDm | A secure, general-purpose AI chat companion for guidance. |
 | **30-Day Staking Challenge** | 5.00 USDm Stake | Stake USDm, journal daily for 30 days, and withdraw your stake plus a reward if you complete it — principal is always returned even if you don't. |
-| **Short Article Challenge** | Free | Write a short article on the monthly community prompt, then vote for your favorite among everyone's submissions. The most-voted story wins. |
+| **Short Article Challenge** | Free | Write a short article on the monthly community prompt, then vote for your favorite among everyone's submissions. The most-voted article wins. |
 | **Therapeutic Writing** | Free | Tell us what you want to explore and get 3 tailored journaling prompts — meant to help you find your own words, not replace them. |
 
 ---
@@ -79,6 +79,22 @@ MicroMind is optimized to run smoothly on low-end smartphones in emerging market
 
 ---
 
+## Performance controls
+
+Production performance is checked rather than assumed:
+
+- `npm run analyze` creates client/server bundle-analyzer reports under `.next/analyze/`.
+- `npm run build:budget` builds the app and fails when a compressed JavaScript chunk exceeds 250 KB or total route chunks exceed 2 MB.
+- Core Web Vitals are collected through `/api/performance/vitals` and emitted as structured platform logs.
+- Heavy optional interfaces are loaded on demand; the support widget waits until after initial rendering and the permanent on-chain dialog is split from the editor.
+- Journal and article images are resized and converted in a Web Worker before encryption/upload, keeping expensive image work off the UI thread.
+- Large journal folders render in 80-entry windows and use browser offscreen rendering to avoid laying out unseen rows.
+- Static build assets are immutable-cached; the service worker itself is never cached, and heavy tool routes opt out of eager prefetching.
+
+Future importers must be opened through a dynamic import and must perform parsing in a dedicated Web Worker. Importer code and format-specific parsers must not be included in the normal journal or dashboard bundle.
+
+---
+
 ## Tech Stack & Environment Setup
 
 * **Frontend:** Next.js 16 (App Router), React 19, Framer Motion v12, Tailwind CSS v4.
@@ -118,7 +134,7 @@ Create a `/agent/.env` file in the agent directory:
 ```env
 PORT=3001
 CONTRACT_ADDRESS=0x3e449ebd5ee4278db9258350486137350a6B1556
-STAKING_CONTRACT_ADDRESS=0xe57C982D669869673750d46a935A97eC756A2281
+STAKING_CONTRACT_ADDRESS=0x04Eb288d2e2c6f506769a76532564818E22D18Ff
 PRIVATE_KEY=0x_your_developer_relayer_wallet_private_key
 GROQ_API_KEY=gsk_your_groq_api_key
 RESEND_API_KEY=re_your_resend_api_key

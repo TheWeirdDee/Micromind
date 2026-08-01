@@ -5,41 +5,13 @@
 // ({__enc:true, path, iv}) pointing at the encrypted object — never the bytes inline.
 
 import { getJournalKey } from './journal';
-
-const MAX_DIMENSION = 1600;
-const JPEG_QUALITY = 0.7;
+import { compressImage } from './imageCompression';
 
 interface ImageEnvelope {
   __enc: true;
   path: string;
   iv: string;
-}
-
-/** Resizes/re-encodes an image file to a compressed JPEG before encryption. */
-async function compressImage(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
-  let { width, height } = bitmap;
-
-  if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-    const scale = MAX_DIMENSION / Math.max(width, height);
-    width = Math.round(width * scale);
-    height = Math.round(height * scale);
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas not supported');
-  ctx.drawImage(bitmap, 0, 0, width, height);
-
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('Image compression failed'))),
-      'image/jpeg',
-      JPEG_QUALITY
-    );
-  });
+  mime?: string;
 }
 
 /**
@@ -55,7 +27,7 @@ export async function uploadJournalImage(entryId: string, file: File): Promise<s
   if (!session) throw new Error('Sign in required to attach an image.');
 
   const { encryptBytes } = await import('./crypto');
-  const compressed = await compressImage(file);
+  const compressed = await compressImage(file, { maxDimension: 1600, quality: 0.72 });
   const buffer = await compressed.arrayBuffer();
   const { ciphertext, iv } = await encryptBytes(buffer, key);
 
@@ -65,7 +37,7 @@ export async function uploadJournalImage(entryId: string, file: File): Promise<s
     .upload(path, ciphertext, { contentType: 'application/octet-stream', upsert: true });
   if (error) throw error;
 
-  const envelope: ImageEnvelope = { __enc: true, path, iv };
+  const envelope: ImageEnvelope = { __enc: true, path, iv, mime: compressed.type };
   return JSON.stringify(envelope);
 }
 
@@ -90,7 +62,7 @@ export async function fetchJournalImage(raw: string): Promise<string | null> {
   const ciphertext = await data.arrayBuffer();
   try {
     const plaintext = await decryptBytes(ciphertext, parsed.iv, key);
-    const blob = new Blob([plaintext], { type: 'image/jpeg' });
+    const blob = new Blob([plaintext], { type: parsed.mime || 'image/jpeg' });
     return URL.createObjectURL(blob);
   } catch {
     return null;
