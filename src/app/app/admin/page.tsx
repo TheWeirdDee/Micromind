@@ -71,6 +71,8 @@ function fromWei(wei: string, decimals = 18): string {
  * date+time (noon, so it isn't mistaken for midnight-of-the-wrong-day in a
  * timezone) means the form is submittable immediately and the admin only
  * needs to adjust what they want to change. */
+const DEFAULT_ARTICLE_PRIZE = 'Community Winner recognition and featured placement (no cash or token prize).';
+
 function defaultChallengeDates() {
   const open = new Date();
   open.setHours(12, 0, 0, 0);
@@ -100,7 +102,7 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ title: '', prompt: '', ...defaultChallengeDates() });
+  const [form, setForm] = useState({ title: '', prompt: '', prizeDescription: DEFAULT_ARTICLE_PRIZE, ...defaultChallengeDates() });
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [fundAmount, setFundAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -161,8 +163,9 @@ export default function AdminDashboardPage() {
         submissionsOpenAt: new Date(form.submissionsOpenAt).toISOString(),
         submissionsCloseAt: new Date(form.submissionsCloseAt).toISOString(),
         votingCloseAt: new Date(form.votingCloseAt).toISOString(),
+        prizeDescription: form.prizeDescription.trim(),
       });
-      setForm({ title: '', prompt: '', ...defaultChallengeDates() });
+      setForm({ title: '', prompt: '', prizeDescription: DEFAULT_ARTICLE_PRIZE, ...defaultChallengeDates() });
       await loadAll();
     } catch (e) {
       setError((e as Error).message);
@@ -337,7 +340,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  const formValid = form.title.trim() && form.prompt.trim() && form.submissionsOpenAt && form.submissionsCloseAt && form.votingCloseAt;
+  const formValid = form.title.trim() && form.prompt.trim() && form.prizeDescription.trim() && form.submissionsOpenAt && form.submissionsCloseAt && form.votingCloseAt;
   const activeMeta = ADMIN_SECTIONS.find((section) => section.id === activeSection)!;
 
   return (
@@ -524,6 +527,14 @@ export default function AdminDashboardPage() {
             onChange={(e) => setForm({ ...form, prompt: e.target.value })}
             placeholder="Prompt / theme"
             rows={2}
+            className="w-full bg-bg/40 border border-border rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-accent/50"
+          />
+          <textarea
+            value={form.prizeDescription}
+            onChange={(e) => setForm({ ...form, prizeDescription: e.target.value })}
+            placeholder="Winner prize / reward (state clearly if there is no cash or token prize)"
+            rows={2}
+            maxLength={500}
             className="w-full bg-bg/40 border border-border rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-accent/50"
           />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.story_challenges (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     prompt TEXT NOT NULL,
+    prize_description TEXT NOT NULL DEFAULT 'Community Winner recognition and featured placement (no cash or token prize).' CHECK (char_length(prize_description) BETWEEN 3 AND 500),
     submissions_open_at TIMESTAMP WITH TIME ZONE NOT NULL,
     submissions_close_at TIMESTAMP WITH TIME ZONE NOT NULL,
     voting_close_at TIMESTAMP WITH TIME ZONE NOT NULL,

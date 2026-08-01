@@ -24,6 +24,7 @@ export interface AdminChallenge {
   submissions_close_at: string;
   voting_close_at: string;
   winner_story_id: string | null;
+  prize_description?: string | null;
   winner_title: string | null;
   submission_count: number;
   total_votes: number;
@@ -42,6 +43,7 @@ export interface OpenChallengeInput {
   submissionsOpenAt: string;
   submissionsCloseAt: string;
   votingCloseAt: string;
+  prizeDescription: string;
 }
 
 export async function openChallenge(token: string, input: OpenChallengeInput): Promise<void> {

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Feather, Trophy, Heart, ArrowLeft, Clock, Sparkles } from 'lucide-react';
+import { Feather, Trophy, Heart, ArrowLeft, Clock, Sparkles, Share2, Check, Gift, ListChecks } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -31,6 +31,11 @@ function articleCopy(value: string): string {
   return value.replace(/\bshort story\b/gi, 'short article').replace(/\bstories\b/gi, 'articles').replace(/\bstory\b/gi, 'article');
 }
 
+function readingStats(content: string): string {
+  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  return words + ' words · ' + Math.max(1, Math.ceil(words / 200)) + ' min read';
+}
+
 function formatDeadline(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
@@ -45,6 +50,7 @@ export default function StoriesPage() {
   const [pastChallenges, setPastChallenges] = useState<StoryChallenge[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [voting, setVoting] = useState<string | null>(null);
+  const [shared, setShared] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,6 +98,30 @@ export default function StoriesPage() {
     }
   };
 
+  const handleShare = async (story: Story) => {
+    const url = `${window.location.origin}/app/stories?article=${encodeURIComponent(story.id)}`;
+    const shareData = { title: story.title, text: `Read “${story.title}” on MicroMind`, url };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else await navigator.clipboard.writeText(url);
+      setShared(story.id);
+      window.setTimeout(() => setShared((current) => current === story.id ? null : current), 2200);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      try { await navigator.clipboard.writeText(url); setShared(story.id); } catch { setError('Could not share this article. Copy the page address and try again.'); }
+    }
+  };
+
+  useEffect(() => {
+    if (!stories.length) return;
+    const articleId = new URLSearchParams(window.location.search).get('article');
+    if (!articleId || !stories.some((story) => story.id === articleId)) return;
+    const timer = window.setTimeout(() => {
+      setExpanded(articleId);
+      document.getElementById(`article-${articleId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+    return () => window.clearTimeout(timer);
+  }, [stories]);
   const phase = challenge ? getChallengePhase(challenge) : null;
   const winnerStory = challenge?.winner_story_id
     ? stories.find((s) => s.id === challenge.winner_story_id)
@@ -145,6 +175,21 @@ export default function StoriesPage() {
             <h2 className="font-serif text-xl font-bold">{challenge.title}</h2>
             <p className="text-sm text-text-muted leading-relaxed">{articleCopy(challenge.prompt)}</p>
 
+            <div className="grid sm:grid-cols-2 gap-3 pt-2">
+              <div className="rounded-2xl border border-border bg-bg/40 p-4 flex gap-3">
+                <Gift className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                <div><p className="text-[10px] font-mono uppercase tracking-wider text-text-muted">What the winner receives</p><p className="text-xs leading-relaxed mt-1">{challenge.prize_description || 'Community Winner recognition and featured placement. No cash or token prize has been announced for this challenge.'}</p></div>
+              </div>
+              <div className="rounded-2xl border border-border bg-bg/40 p-4 flex gap-3">
+                <Trophy className="w-4 h-4 text-accent-gold shrink-0 mt-0.5" />
+                <div><p className="text-[10px] font-mono uppercase tracking-wider text-text-muted">How to win</p><p className="text-xs leading-relaxed mt-1">The eligible published article with the most community votes wins. If votes are tied, the earlier submission wins.</p></div>
+              </div>
+              <div className="rounded-2xl border border-border bg-bg/40 p-4 flex gap-3 sm:col-span-2">
+                <ListChecks className="w-4 h-4 text-text-muted shrink-0 mt-0.5" />
+                <div><p className="text-[10px] font-mono uppercase tracking-wider text-text-muted">Eligibility and voting rules</p><p className="text-xs leading-relaxed mt-1">Submit one original 100–1,000 word short article with a 3–80 character title before submissions close. Each signed-in user has one vote, cannot vote for their own article, and may vote only during the voting window. Hidden or disqualified submissions cannot win.</p></div>
+              </div>
+            </div>
+
             {phase === 'submissions' && user && (
               <Link
                 href="/app/stories/submit"
@@ -181,12 +226,13 @@ export default function StoriesPage() {
                   <motion.div
                     key={story.id}
                     variants={itemVariants}
+                    id={`article-${story.id}`}
                     className={`bg-surface border rounded-2xl p-5 space-y-2 transition ${
                       isMyVote ? 'border-accent/40' : 'border-border'
                     }`}
                   >
                     {story.image_url && (
-                      <div className="-mx-5 -mt-5 mb-4 aspect-[16/8] bg-cover bg-center border-b border-border" style={{ backgroundImage: `url(${story.image_url})` }} role="img" aria-label={`${story.title} cover`} />
+                      <div className="-mx-5 -mt-5 mb-4 h-44 sm:h-56 lg:mx-auto lg:mt-0 lg:h-64 lg:max-w-3xl lg:rounded-xl bg-contain bg-no-repeat bg-center bg-bg border-b lg:border border-border" style={{ backgroundImage: `url(${story.image_url})` }} role="img" aria-label={`${story.title} cover`} />
                     )}
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -194,21 +240,28 @@ export default function StoriesPage() {
                         <p className="text-[11px] font-mono text-text-muted">
                           by {story.author_username ?? 'anonymous'}{isMine && ' (you)'}
                         </p>
+                        <p className="text-[10px] font-mono text-text-muted/70 mt-0.5">{readingStats(story.content)}</p>
                       </div>
-                      <button
-                        onClick={() => canVote && handleVote(story.id)}
-                        disabled={!canVote || voting === story.id}
-                        className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-xl border text-xs font-mono transition ${
-                          isMyVote
-                            ? 'bg-accent text-bg border-accent'
-                            : canVote
-                            ? 'border-border hover:border-accent/40 text-text-muted hover:text-accent cursor-pointer'
-                            : 'border-border/40 text-text-muted/50 cursor-not-allowed'
-                        }`}
-                      >
-                        <Heart className={`w-3.5 h-3.5 ${isMyVote ? 'fill-bg' : ''}`} />
-                        {story.vote_count}
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button onClick={() => void handleShare(story)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border text-xs font-mono text-text-muted hover:text-accent hover:border-accent/40 transition" aria-label={`Share ${story.title}`}>
+                          {shared === story.id ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
+                          <span className="hidden sm:inline">{shared === story.id ? 'Copied' : 'Share'}</span>
+                        </button>
+                        <button
+                          onClick={() => canVote && handleVote(story.id)}
+                          disabled={!canVote || voting === story.id}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono transition ${
+                            isMyVote
+                              ? 'bg-accent text-bg border-accent'
+                              : canVote
+                              ? 'border-border hover:border-accent/40 text-text-muted hover:text-accent cursor-pointer'
+                              : 'border-border/40 text-text-muted/50 cursor-not-allowed'
+                          }`}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${isMyVote ? 'fill-bg' : ''}`} />
+                          {story.vote_count}
+                        </button>
+                      </div>
                     </div>
 
                     <p className={`text-sm text-text-muted leading-relaxed whitespace-pre-wrap ${!isExpanded ? 'line-clamp-3' : ''}`}>

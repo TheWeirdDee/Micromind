@@ -150,6 +150,12 @@ VAPID_SUBJECT=mailto:you@yourdomain.com
 
 ---
 
+### Article challenge prize migration
+
+Before creating a new Short Article Challenge from the admin dashboard, run `docs/article_challenge_prize.sql` once in Supabase. It adds the required public prize description used by the challenge page. Existing challenges are backfilled with an explicit recognition-only/no-announced-cash-prize disclosure. Winners are selected by highest eligible community vote count; exact ties go to the earliest submission.
+
+---
+
 ## Database Schema
 
 Execute the following script in the Supabase SQL editor:

@@ -6,6 +6,7 @@ export interface OpenChallengeFields {
   submissionsOpenAt: string;
   submissionsCloseAt: string;
   votingCloseAt: string;
+  prizeDescription: string;
 }
 
 export interface OpenChallengeResult {
@@ -17,8 +18,8 @@ export interface OpenChallengeResult {
 export async function openStoryChallenge(fields: OpenChallengeFields): Promise<OpenChallengeResult> {
   if (!supabase) return { ok: false, status: 500, body: { error: 'Supabase client not initialized' } };
 
-  const { title, prompt, submissionsOpenAt, submissionsCloseAt, votingCloseAt } = fields;
-  if (!title || !prompt || !submissionsOpenAt || !submissionsCloseAt || !votingCloseAt) {
+  const { title, prompt, submissionsOpenAt, submissionsCloseAt, votingCloseAt, prizeDescription } = fields;
+  if (!title || !prompt || !submissionsOpenAt || !submissionsCloseAt || !votingCloseAt || !prizeDescription?.trim()) {
     return { ok: false, status: 400, body: { error: 'Missing required challenge fields' } };
   }
 
@@ -40,6 +41,7 @@ export async function openStoryChallenge(fields: OpenChallengeFields): Promise<O
       submissions_open_at: openAt.toISOString(),
       submissions_close_at: closeAt.toISOString(),
       voting_close_at: voteCloseAt.toISOString(),
+      prize_description: prizeDescription.trim(),
     })
     .select()
     .single();
@@ -115,6 +117,7 @@ export interface ChallengeWithStats {
   submissions_close_at: string;
   voting_close_at: string;
   winner_story_id: string | null;
+  prize_description?: string | null;
   created_at: string;
   submission_count: number;
   total_votes: number;

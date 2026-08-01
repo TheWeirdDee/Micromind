@@ -9,6 +9,7 @@ export interface StoryChallenge {
   submissions_close_at: string;
   voting_close_at: string;
   winner_story_id: string | null;
+  prize_description?: string | null;
   created_at: string;
 }
 
