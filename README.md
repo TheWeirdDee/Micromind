@@ -91,7 +91,7 @@ Production performance is checked rather than assumed:
 - Large journal folders render in 80-entry windows and use browser offscreen rendering to avoid laying out unseen rows.
 - Static build assets are immutable-cached; the service worker itself is never cached, and heavy tool routes opt out of eager prefetching.
 
-Future importers must be opened through a dynamic import and must perform parsing in a dedicated Web Worker. Importer code and format-specific parsers must not be included in the normal journal or dashboard bundle.
+The journal importer lives only at `/app/settings/import`, is linked with prefetch disabled, and parses files in a dedicated Web Worker. It supports Apple Journal ZIP, generic ZIP, TXT, Markdown, JSON, CSV, and HTML. The ZIP library is dynamically imported only for ZIP files. Imports are previewed, selectable, duplicate-checked, and merged locally in one write; merely choosing a file never uploads its contents. Linked ZIP media is detected but intentionally not uploaded in this first privacy-safe release. PDF, DOCX, RTF, ENEX, and explicit encrypted attachment transfer remain optional follow-up modules.
 
 ---
 

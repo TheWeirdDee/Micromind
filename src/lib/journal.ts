@@ -312,6 +312,77 @@ export function saveEntry(entry: Omit<JournalEntry, 'id' | 'date' | 'timestamp'>
   return newEntry;
 }
 
+export interface JournalImportInput {
+  sourceId: string;
+  title?: string;
+  content: string;
+  timestamp: number;
+  folder?: string;
+  tags?: string[];
+  mood?: string;
+}
+
+export interface JournalImportResult {
+  imported: JournalEntry[];
+  skippedDuplicates: number;
+}
+
+/** Adds normalized external entries locally in a single write. Import never silently uploads an archive. */
+export function importJournalEntries(inputs: JournalImportInput[]): JournalImportResult {
+  const existing = getEntries();
+  const fingerprint = (content: string, timestamp: number) => `${Math.floor(timestamp / 86_400_000)}|${content.trim().replace(/\s+/g, ' ').toLowerCase()}`;
+  const known = new Set(existing.map((entry) => fingerprint(entry.content, entry.timestamp)));
+  const folders = getFolders();
+  const folderByName = new Map(folders.map((folder) => [folder.name.trim().toLowerCase(), folder]));
+  const imported: JournalEntry[] = [];
+  let skippedDuplicates = 0;
+
+  for (const input of inputs) {
+    const rawContent = input.content.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '').trim();
+    if (!rawContent) continue;
+    const content = input.title && !rawContent.toLowerCase().startsWith(input.title.trim().toLowerCase())
+      ? `# ${input.title.trim()}\n\n${rawContent}`
+      : rawContent;
+    const timestamp = Number.isFinite(input.timestamp) ? input.timestamp : Date.now();
+    const key = fingerprint(content, timestamp);
+    if (known.has(key)) { skippedDuplicates++; continue; }
+    known.add(key);
+
+    let folderId: string | undefined;
+    if (input.folder?.trim()) {
+      const normalizedName = input.folder.trim().slice(0, 80);
+      let folder = folderByName.get(normalizedName.toLowerCase());
+      if (!folder) {
+        folder = { id: newId(), name: normalizedName, createdAt: Date.now() };
+        folders.push(folder);
+        folderByName.set(normalizedName.toLowerCase(), folder);
+      }
+      folderId = folder.id;
+    }
+
+    imported.push({
+      id: newId(),
+      date: new Date(timestamp).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      content,
+      mood: ['happy', 'excited', 'neutral', 'angry', 'sad'].includes(input.mood || '') ? input.mood! : 'neutral',
+      timestamp,
+      folderId,
+      tags: input.tags?.slice(0, 20) ?? [],
+    });
+  }
+
+  if (!imported.length) return { imported, skippedDuplicates };
+  const previousFolders = localStorage.getItem(FOLDERS_KEY);
+  try {
+    localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
+    localStorage.setItem(JOURNAL_KEY, JSON.stringify([...imported, ...existing].sort((a, b) => b.timestamp - a.timestamp)));
+  } catch {
+    if (previousFolders === null) localStorage.removeItem(FOLDERS_KEY); else localStorage.setItem(FOLDERS_KEY, previousFolders);
+    throw new Error('There is not enough device storage for this import. Select fewer entries or split the archive.');
+  }
+  dispatch();
+  return { imported, skippedDuplicates };
+}
 /** Updates fields of an existing journal entry by id. */
 export function editEntry(id: string, updates: Partial<Pick<JournalEntry, 'content' | 'mood' | 'folderId' | 'image' | 'tags' | 'starred'>>): void {
   const entries = getEntries().map(e => e.id === id ? { ...e, ...updates } : e);

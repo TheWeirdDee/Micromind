@@ -514,39 +514,6 @@ export default function SettingsPage() {
     }
   };
 
-  const importJournal = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target?.result as string);
-        if (!data || !Array.isArray(data.entries) || !Array.isArray(data.folders)) {
-          alert('Invalid backup file format.');
-          return;
-        }
-        const currentEntries = JSON.parse(localStorage.getItem('mm_journal') || '[]');
-        const entryIds = new Set(currentEntries.map((entry: { id: string }) => entry.id));
-        const mergedEntries = [...currentEntries];
-        data.entries.forEach((entry: { id: string }) => { if (!entryIds.has(entry.id)) mergedEntries.push(entry); });
-
-        const currentFolders = JSON.parse(localStorage.getItem('mm_journal_folders') || '[]');
-        const folderIds = new Set(currentFolders.map((f: { id: string }) => f.id));
-        const mergedFolders = [...currentFolders];
-        data.folders.forEach((f: { id: string }) => { if (!folderIds.has(f.id)) mergedFolders.push(f); });
-
-        localStorage.setItem('mm_journal', JSON.stringify(mergedEntries));
-        localStorage.setItem('mm_journal_folders', JSON.stringify(mergedFolders));
-        window.dispatchEvent(new Event('journal_updated'));
-        window.dispatchEvent(new Event('streak_updated'));
-        alert('Backup successfully imported and merged!');
-      } catch {
-        alert('Failed to parse backup file.');
-      }
-    };
-    reader.readAsText(file);
-  };
-
   const toggleGoal = (goal: string) => {
     setGoals((prev) => prev.includes(goal) ? prev.filter((g) => g !== goal) : [...prev, goal]);
   };
@@ -913,14 +880,13 @@ export default function SettingsPage() {
                   <Printer className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors shrink-0 ml-4" />
                 </button>
 
-                <label className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group cursor-pointer">
+                <Link href="/app/settings/import" prefetch={false} className="w-full flex items-center justify-between px-5 py-4 hover:bg-surface-2 transition-colors text-left group">
                   <div>
-                    <p className="font-mono text-xs text-text-primary">Import Journal Backup</p>
-                    <p className="font-mono text-[10px] text-text-muted mt-0.5">Restore entries and folders from JSON file</p>
-                    <input type="file" accept=".json" onChange={importJournal} className="hidden" />
+                    <p className="font-mono text-xs text-text-primary">Import a Previous Journal</p>
+                    <p className="font-mono text-[10px] text-text-muted mt-0.5">Apple Journal ZIP, ZIP, TXT, Markdown, JSON, CSV, or HTML</p>
                   </div>
                   <Upload className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors shrink-0 ml-4" />
-                </label>
+                </Link>
               </div>
             </section>
 
