@@ -43,6 +43,15 @@ function formatDeadline(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+const LEGACY_PLACEHOLDER_PRIZE = 'Community Winner recognition and featured placement. No cash or token prize has been announced for this challenge.';
+
+function prizeDescriptionOrDefault(prizeDescription?: string | null): string {
+  if (!prizeDescription || prizeDescription.trim() === '' || prizeDescription.trim() === LEGACY_PLACEHOLDER_PRIZE) {
+    return '$1 in USDm/USDT on Celo, awarded to the winning author, plus recognition as the most meaningful article of the month.';
+  }
+  return prizeDescription;
+}
+
 export default function StoriesPage() {
   const { user } = useAuth();
 
@@ -196,7 +205,7 @@ export default function StoriesPage() {
             <div className="grid sm:grid-cols-2 gap-3 pt-2">
               <div className="rounded-2xl border border-border bg-bg/40 p-4 flex gap-3">
                 <Gift className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                <div><p className="text-[10px] font-mono uppercase tracking-wider text-text-muted">What the winner receives</p><p className="text-xs leading-relaxed mt-1">{challenge.prize_description || '$1 in USDm/USDT on Celo, awarded to the winning author.'}</p></div>
+                <div><p className="text-[10px] font-mono uppercase tracking-wider text-text-muted">What the winner receives</p><p className="text-xs leading-relaxed mt-1">{prizeDescriptionOrDefault(challenge.prize_description)}</p></div>
               </div>
               <div className="rounded-2xl border border-border bg-bg/40 p-4 flex gap-3">
                 <Trophy className="w-4 h-4 text-accent-gold shrink-0 mt-0.5" />
