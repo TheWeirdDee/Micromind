@@ -2,9 +2,10 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Feather, Trophy, Heart, ArrowLeft, Clock, Sparkles, Share2, Check, Gift, ListChecks } from 'lucide-react';
+import { Feather, Trophy, Heart, ArrowLeft, Clock, Sparkles, Share2, Check, Gift, ListChecks, Trash2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { ConfirmDialog } from '@/components/app/ConfirmDialog';
 import {
   getActiveChallenge,
   getPastChallenges,
@@ -12,6 +13,8 @@ import {
   getMySubmission,
   getMyVote,
   castVote,
+  deleteStory,
+  deleteArticleImage,
   getChallengePhase,
   type StoryChallenge,
   type Story,
@@ -51,6 +54,8 @@ export default function StoriesPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [voting, setVoting] = useState<string | null>(null);
   const [shared, setShared] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,6 +103,19 @@ export default function StoriesPage() {
     }
   };
 
+  const handleDeleteSubmission = async () => {
+    if (!mySubmission || !user) return;
+    setDeleting(true); setError(null);
+    try {
+      const deleted = mySubmission;
+      await deleteStory(deleted.id);
+      if (deleted.image_url) await deleteArticleImage(deleted.image_url, user.id);
+      setStories((current) => current.filter((story) => story.id !== deleted.id));
+      setMySubmission(null); setDeleteConfirmOpen(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Failed to delete your submission.');
+    } finally { setDeleting(false); }
+  };
   const handleShare = async (story: Story) => {
     const url = `${window.location.origin}/app/stories?article=${encodeURIComponent(story.id)}`;
     const shareData = { title: story.title, text: `Read “${story.title}” on MicroMind`, url };
@@ -178,11 +196,11 @@ export default function StoriesPage() {
             <div className="grid sm:grid-cols-2 gap-3 pt-2">
               <div className="rounded-2xl border border-border bg-bg/40 p-4 flex gap-3">
                 <Gift className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                <div><p className="text-[10px] font-mono uppercase tracking-wider text-text-muted">What the winner receives</p><p className="text-xs leading-relaxed mt-1">{challenge.prize_description || 'Community Winner recognition and featured placement. No cash or token prize has been announced for this challenge.'}</p></div>
+                <div><p className="text-[10px] font-mono uppercase tracking-wider text-text-muted">What the winner receives</p><p className="text-xs leading-relaxed mt-1">{challenge.prize_description || '$1 in USDm/USDT on Celo, awarded to the winning author.'}</p></div>
               </div>
               <div className="rounded-2xl border border-border bg-bg/40 p-4 flex gap-3">
                 <Trophy className="w-4 h-4 text-accent-gold shrink-0 mt-0.5" />
-                <div><p className="text-[10px] font-mono uppercase tracking-wider text-text-muted">How to win</p><p className="text-xs leading-relaxed mt-1">The eligible published article with the most community votes wins. If votes are tied, the earlier submission wins.</p></div>
+                <div><p className="text-[10px] font-mono uppercase tracking-wider text-text-muted">How to win</p><p className="text-xs leading-relaxed mt-1">The eligible published article judged most meaningful by the community wins. If votes are tied, the earlier submission wins.</p></div>
               </div>
               <div className="rounded-2xl border border-border bg-bg/40 p-4 flex gap-3 sm:col-span-2">
                 <ListChecks className="w-4 h-4 text-text-muted shrink-0 mt-0.5" />
@@ -191,16 +209,22 @@ export default function StoriesPage() {
             </div>
 
             {phase === 'submissions' && user && (
-              <Link
-                href="/app/stories/submit"
-                className="inline-flex items-center gap-2 bg-accent hover:bg-accent-gold text-bg font-serif font-bold text-sm px-5 py-3 rounded-2xl transition shadow-lg shadow-accent/15"
-              >
-                <Feather className="w-4 h-4" />
-                {mySubmission ? 'Edit your article' : 'Write your article'}
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                <Link href="/app/stories/submit" className="inline-flex items-center gap-2 bg-accent hover:bg-accent-gold text-bg font-serif font-bold text-sm px-5 py-3 rounded-2xl transition shadow-lg shadow-accent/15">
+                  <Feather className="w-4 h-4" />
+                  {mySubmission ? 'Edit your article' : 'Write your article'}
+                </Link>
+                {mySubmission && <button onClick={() => setDeleteConfirmOpen(true)} className="inline-flex items-center gap-2 border border-red-500/30 text-red-400 hover:bg-red-500/10 px-4 py-3 rounded-2xl text-xs font-mono transition"><Trash2 className="w-4 h-4" /> Delete submission</button>}
+              </div>
             )}
           </motion.div>
 
+          {mySubmission?.status === 'hidden' && (
+            <motion.div variants={itemVariants} className="bg-red-500/10 border border-red-500/30 rounded-3xl p-5 flex items-start gap-3" role="status">
+              <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <div><p className="font-serif font-bold text-red-300">Your article has been hidden</p><p className="text-xs font-mono text-text-muted mt-1 leading-relaxed">Reason: {mySubmission.moderation_reason || 'The moderator did not provide a reason. Contact support if you believe this was an error.'}</p>{mySubmission.moderated_at && <p className="text-[10px] font-mono text-text-muted/70 mt-2">Moderated {new Date(mySubmission.moderated_at).toLocaleString()}</p>}</div>
+            </motion.div>
+          )}
           {winnerStory && (
             <motion.div variants={itemVariants} className="bg-accent/10 border border-accent/25 rounded-3xl p-6 space-y-2 text-center">
               <Trophy className="w-7 h-7 text-accent mx-auto" />
@@ -296,6 +320,15 @@ export default function StoriesPage() {
           ))}
         </motion.div>
       )}
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        title="Delete your article submission?"
+        message="This permanently removes your article and its votes. You may submit again only while submissions remain open."
+        confirmLabel={deleting ? 'Deleting…' : 'Delete Submission'}
+        danger
+        onConfirm={() => void handleDeleteSubmission()}
+        onCancel={() => !deleting && setDeleteConfirmOpen(false)}
+      />
     </motion.div>
   );
 }

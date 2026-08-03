@@ -71,7 +71,7 @@ function fromWei(wei: string, decimals = 18): string {
  * date+time (noon, so it isn't mistaken for midnight-of-the-wrong-day in a
  * timezone) means the form is submittable immediately and the admin only
  * needs to adjust what they want to change. */
-const DEFAULT_ARTICLE_PRIZE = 'Community Winner recognition and featured placement (no cash or token prize).';
+const DEFAULT_ARTICLE_PRIZE = '$1 in USDm/USDT on Celo, awarded to the winning author.';
 
 function defaultChallengeDates() {
   const open = new Date();
@@ -111,6 +111,8 @@ export default function AdminDashboardPage() {
   const [expandedChallengeId, setExpandedChallengeId] = useState<string | null>(null);
   const [submissions, setSubmissions] = useState<AdminStory[]>([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [moderationTarget, setModerationTarget] = useState<string | null>(null);
+  const [moderationReason, setModerationReason] = useState('');
 
   const token = session?.access_token;
 
@@ -312,17 +314,17 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleModerateStory = async (storyId: string, status: 'published' | 'hidden') => {
+  const handleModerateStory = async (storyId: string, status: 'published' | 'hidden', reason?: string) => {
     if (!token) return;
-    setBusy(storyId);
+    if (status === 'hidden' && (!reason || reason.trim().length < 5)) { setError('Give the author a clear moderation reason of at least 5 characters.'); return; }
+    setBusy(storyId); setError(null);
     try {
-      await moderateStory(token, storyId, status);
-      setSubmissions((prev) => prev.map((s) => (s.id === storyId ? { ...s, status } : s)));
+      await moderateStory(token, storyId, status, reason?.trim());
+      setSubmissions((prev) => prev.map((story) => story.id === storyId ? { ...story, status, moderation_reason: status === 'hidden' ? reason!.trim() : null, moderated_at: new Date().toISOString() } : story));
+      setModerationTarget(null); setModerationReason('');
     } catch (e) {
       setError((e as Error).message);
-    } finally {
-      setBusy(null);
-    }
+    } finally { setBusy(null); }
   };
 
   if (checking && token) {
@@ -623,20 +625,27 @@ export default function AdminDashboardPage() {
                         <p className="text-xs font-mono text-text-muted">No submissions.</p>
                       ) : (
                         submissions.map((s) => (
-                          <div key={s.id} className={`flex items-center justify-between gap-3 text-xs font-mono py-1.5 ${s.status === 'hidden' ? 'opacity-40' : ''}`}>
-                            <span>
-                              <span className="font-bold">{s.title}</span> by {s.author_username ?? 'anonymous'} · {s.vote_count} votes
-                              {s.status === 'hidden' && ' · hidden'}
-                            </span>
-                            <button
-                              onClick={() => handleModerateStory(s.id, s.status === 'hidden' ? 'published' : 'hidden')}
-                              disabled={busy === s.id}
-                              className="flex items-center gap-1 text-text-muted hover:text-accent transition shrink-0"
-                              title={s.status === 'hidden' ? 'Publish' : 'Hide'}
-                            >
-                              {s.status === 'hidden' ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                            </button>
-                          </div>
+                          <React.Fragment key={s.id}>
+                            <div className={`flex items-center justify-between gap-3 text-xs font-mono py-1.5 ${s.status === 'hidden' ? 'opacity-60' : ''}`}>
+                              <span><span className="font-bold">{s.title}</span> by {s.author_username ?? 'anonymous'} · {s.vote_count} votes{s.status === 'hidden' && ' · hidden'}</span>
+                              <button
+                                onClick={() => { if (s.status === 'hidden') void handleModerateStory(s.id, 'published'); else { setModerationTarget(s.id); setModerationReason(''); } }}
+                                disabled={busy === s.id}
+                                className="flex items-center gap-1 text-text-muted hover:text-accent transition shrink-0"
+                                title={s.status === 'hidden' ? 'Restore article' : 'Hide with reason'}
+                              >
+                                {s.status === 'hidden' ? <><Eye className="w-3.5 h-3.5" /> Restore</> : <><EyeOff className="w-3.5 h-3.5" /> Hide</>}
+                              </button>
+                            </div>
+                            {s.status === 'hidden' && s.moderation_reason && <p className="text-[10px] font-mono text-red-300/80 pl-2 border-l border-red-500/30">Reason sent to author: {s.moderation_reason}</p>}
+                            {moderationTarget === s.id && (
+                              <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-3 space-y-2">
+                                <label className="text-[10px] font-mono uppercase text-red-300">Reason shown to the author</label>
+                                <textarea value={moderationReason} onChange={(event) => setModerationReason(event.target.value)} maxLength={500} rows={3} placeholder="Explain the specific rule or issue and what the author can do next…" className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-xs resize-none" />
+                                <div className="flex justify-end gap-2"><button onClick={() => { setModerationTarget(null); setModerationReason(''); }} className="px-3 py-1.5 text-[10px] font-mono text-text-muted">Cancel</button><button onClick={() => void handleModerateStory(s.id, 'hidden', moderationReason)} disabled={busy === s.id || moderationReason.trim().length < 5} className="px-3 py-1.5 rounded-lg bg-red-500/15 text-red-300 text-[10px] font-mono disabled:opacity-40">Hide and notify</button></div>
+                              </div>
+                            )}
+                          </React.Fragment>
                         ))
                       )}
                     </div>

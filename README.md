@@ -27,7 +27,7 @@ Built for MiniPay users across Africa and beyond.
 | **Tweet Generator** | 0.005 USDm | Turn any personal thought or entry into an engaging, voice-authentic draft tweet. |
 | **Mind Chat** | 0.005 USDm | A secure, general-purpose AI chat companion for guidance. |
 | **30-Day Staking Challenge** | 5.00 USDm Stake | Stake USDm, journal daily for 30 days, and withdraw your stake plus a reward if you complete it — principal is always returned even if you don't. |
-| **Short Article Challenge** | Free | Write a short article on the monthly community prompt, then vote for your favorite among everyone's submissions. The most-voted article wins. |
+| **Short Article Challenge** | Free | Write a short article on the monthly community prompt, then vote for the most meaningful published entry. The top article is awarded $1 in USDm/USDT on Celo and winners are selected by meaningful community vote, not vote farming. |
 | **Therapeutic Writing** | Free | Tell us what you want to explore and get 3 tailored journaling prompts — meant to help you find your own words, not replace them. |
 
 ---
@@ -66,7 +66,7 @@ A free AI tool built around a simple idea: in a world where people write less an
 Two community-driven, Web3-native incentive loops layered on top of journaling:
 
 * **30-Day Staking Challenge:** Stake USDm on-chain (`MicroMindStaking.sol`) and commit to a daily "morning pages" habit. Miss too many days and you still get your full stake back — the challenge is lossless. Hit the required check-in count and you also collect a USDm reward, guaranteed and reserved for you the moment you start, unaffected by how many other people finish before you. Fully gasless via an EIP-712-signed relayer flow.
-* **Short Article Challenge:** Each month opens a themed writing prompt. Submit one short article while the window is open, then the community votes for its favorite during the voting window — one vote per person, no self-votes, no revote spam. The most-voted story wins the challenge. Pure reputation/leaderboard feature, no token stake required.
+* **Short Article Challenge:** Each month opens a themed writing prompt. Submit one short article while the window is open, then the community votes for the most meaningful published entry during the voting window — one vote per person, no self-votes, no revote spam. The article judged most meaningful by the community wins and receives $1 in USDm/USDT on Celo. Pure reputation/leaderboard feature, no token stake required.
 
 ---
 
@@ -149,6 +149,10 @@ VAPID_SUBJECT=mailto:you@yourdomain.com
 ```
 
 ---
+
+### Article moderation migration
+
+Run `docs/article_moderation.sql` once in Supabase before deploying moderation reasons and author deletion. It lets authors delete their own submission only before submissions close, adds the persistent moderation reason/timestamp shown to authors, and prevents authenticated authors from directly changing moderation fields.
 
 ### Article challenge prize migration
 
