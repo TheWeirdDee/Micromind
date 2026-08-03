@@ -53,6 +53,9 @@ CREATE TABLE IF NOT EXISTS public.stories (
     image_url TEXT,
     vote_count INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published', 'hidden')),
+    moderation_reason TEXT,
+    moderated_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT stories_hidden_reason_required CHECK (status <> 'hidden' OR (moderation_reason IS NOT NULL AND char_length(btrim(moderation_reason)) BETWEEN 5 AND 500)),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     UNIQUE (challenge_id, user_id) -- one submission per user per challenge
@@ -116,6 +119,10 @@ USING (
       AND NOW() < c.submissions_close_at
   )
 );
+
+-- Authors can update content fields only; moderation fields remain service-role-only.
+REVOKE UPDATE ON public.stories FROM authenticated;
+GRANT UPDATE (title, content, image_url, updated_at) ON public.stories TO authenticated;
 
 -- 3. Votes ------------------------------------------------------------------
 -- Raw votes are NOT broadly readable (see SELECT policy below) so voter

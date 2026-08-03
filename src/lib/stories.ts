@@ -22,6 +22,8 @@ export interface Story {
   image_url: string | null;
   vote_count: number;
   status: 'published' | 'hidden';
+  moderation_reason?: string | null;
+  moderated_at?: string | null;
   created_at: string;
   updated_at: string;
   author_username?: string;
@@ -127,6 +129,11 @@ export async function updateStory(storyId: string, title: string, content: strin
   if (error) throw new Error(error.message);
 }
 
+/** Deletes the signed-in author's submission. Database RLS limits this to before submissions close. */
+export async function deleteStory(storyId: string): Promise<void> {
+  const { error } = await supabase.from('stories').delete().eq('id', storyId);
+  if (error) throw new Error(error.message);
+}
 /** The story (if any) the current user voted for in this challenge. */
 export async function getMyVote(challengeId: string, userId: string): Promise<string | null> {
   const { data, error } = await supabase

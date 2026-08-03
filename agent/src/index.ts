@@ -1256,14 +1256,20 @@ app.post('/api/admin/stories/:storyId/moderate', async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   if (!supabase) return res.status(500).json({ error: 'Supabase client not initialized' });
 
-  const { status } = req.body;
+  const { status, reason } = req.body;
   if (status !== 'published' && status !== 'hidden') {
     return res.status(400).json({ error: "status must be 'published' or 'hidden'" });
   }
+  if (status === 'hidden' && (typeof reason !== 'string' || reason.trim().length < 5 || reason.trim().length > 500)) {
+    return res.status(400).json({ error: 'A clear moderation reason between 5 and 500 characters is required when hiding an article.' });
+  }
   try {
+    const moderation = status === 'hidden'
+      ? { status, moderation_reason: reason.trim(), moderated_at: new Date().toISOString() }
+      : { status, moderation_reason: null, moderated_at: new Date().toISOString() };
     const { error } = await supabase
       .from('stories')
-      .update({ status })
+      .update(moderation)
       .eq('id', req.params.storyId);
     if (error) throw error;
     res.json({ success: true });

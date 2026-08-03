@@ -185,6 +185,8 @@ export interface AdminStory {
   content: string;
   vote_count: number;
   status: 'published' | 'hidden';
+  moderation_reason?: string | null;
+  moderated_at?: string | null;
   created_at: string;
   author_username?: string;
 }
@@ -195,9 +197,9 @@ export async function fetchChallengeSubmissions(token: string, challengeId: stri
   return body.stories;
 }
 
-export async function moderateStory(token: string, storyId: string, status: 'published' | 'hidden'): Promise<void> {
+export async function moderateStory(token: string, storyId: string, status: 'published' | 'hidden', reason?: string): Promise<void> {
   const res = await fetch(`${agentUrl}/api/admin/stories/${storyId}/moderate`, {
-    method: 'POST', headers: authHeaders(token), body: JSON.stringify({ status }),
+    method: 'POST', headers: authHeaders(token), body: JSON.stringify({ status, reason }),
   });
   await handle(res);
 }
